@@ -55,7 +55,7 @@ export default function Users() {
   console.log("users", users);
   const fetchUsers = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/users", {
+      const response = await fetch("https://a93e81e5545a.ngrok-free.app /api/auth/users", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -78,7 +78,7 @@ export default function Users() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      await fetch(`http://localhost:5000/api/auth/users/${userId}/role`, {
+      await fetch(`https://a93e81e5545a.ngrok-free.app /api/auth/users/${userId}/role`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +108,7 @@ export default function Users() {
   const handleDeleteUser = async (userId) => {
     if (!confirm("คุณแน่ใจหรือไม่ที่จะลบผู้ใช้งานนี้?")) return;
     try {
-      await fetch(`http://localhost:5000/api/auth/users/${userId}`, {
+      await fetch(`https://a93e81e5545a.ngrok-free.app /api/auth/users/${userId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -135,7 +135,7 @@ export default function Users() {
 
   const handleAddUser = async () => {
     try {
-      await fetch("http://localhost:5000/api/auth/register", {
+      await fetch("https://a93e81e5545a.ngrok-free.app /api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -202,7 +202,7 @@ export default function Users() {
       };
 
       // เพิ่ม password เฉพาะเมื่อมีการกรอก
-      await fetch(`http://localhost:5000/api/auth/user/${editUser._id}`, {
+      await fetch(`https://a93e81e5545a.ngrok-free.app /api/auth/user/${editUser._id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -11,9 +11,12 @@ import reportRoutes from "./routes/report.js";
 dotenv.config();
 
 const app = express();
-
 app.use(
-  cors());
+  cors({
+    origin: ["*"],
+    credentials: true, // ถ้าใช้ cookie / session
+  })
+);
 app.use(express.json());
 // MongoDB Connection
 mongoose
