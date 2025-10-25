@@ -9,8 +9,34 @@ import Debt from "./pages/Debt";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Layout from "./components/Layout";
+import axios from "axios";
+import { useEffect } from "react";
 
 function App() {
+  const refreshToken = async () => {
+    const storedRefreshToken = localStorage.getItem("refreshToken");
+    if (!storedRefreshToken) return null;
+
+    try {
+      const res = await axios.post("/api/refresh-token", {
+        refreshToken: storedRefreshToken,
+      });
+
+      const { token, expiresIn } = res.data;
+      localStorage.setItem("token", token); // เก็บ JWT ใหม่
+      return token;
+    } catch (err) {
+      console.error("Refresh token failed:", err);
+      return null;
+    }
+  };
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      await refreshToken();
+    }, 10 * 60 * 1000); // ทุก 10 นาที
+
+    return () => clearInterval(interval);
+  }, []);
   return (
     <AuthProvider>
       <Routes>

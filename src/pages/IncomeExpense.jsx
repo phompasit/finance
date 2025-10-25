@@ -87,6 +87,7 @@ export default function IncomeExpense() {
   const [showFilters, setShowFilters] = useState(false);
   const [views, setViews] = useState();
   const { user } = useAuth();
+  console.log(user);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isEdit,
@@ -609,7 +610,13 @@ export default function IncomeExpense() {
       font-size: 12px;
       color: #718096;
     }
-    
+       .summary-row td {
+      background: #e2e8f0 !important;
+      font-weight: 700 !important;
+      font-size: 10px !important;
+      padding: 8px 4px !important;
+      border: 2px solid #1a202c !important;
+    }
     /* ພິມ */
     @media print {
       body {
@@ -701,8 +708,12 @@ export default function IncomeExpense() {
   <!-- ส่วนหัวบริษัท -->
     <!-- ชื่อบริษัททางซ้าย -->
     <div class="company-info" style="text-align: left; font-size: 12px; color: #555;">
-      <div class="company-name" style="font-weight: normal;">${user.companyInfo.name}</div>
-      <div class="company-address" style="margin-top: 2px;">${user.companyInfo.address}</div>
+      <div class="company-name" style="font-weight: normal;">${
+        user?.companyInfo?.name
+      }</div>
+      <div class="company-address" style="margin-top: 2px;">${
+        user?.companyInfo?.address
+      }</div>
     </div>
 
     <!-- ส่วนราชการตรงกลาง -->
@@ -824,7 +835,7 @@ export default function IncomeExpense() {
                 .join("");
 
               const totalRow = `
-                <tr style="font-weight: bold; background: #f8fafc;">
+                <tr class="summary-row" style="font-weight: bold; background: #f8fafc;">
                   <td colspan="4" style="  font-size: 11px;text-align: right; border: 1px solid #e5e7eb; padding: 10px;">ລວມທັງໝົດ</td>
                   <td style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 10px;">₭ ${totalLAK.toLocaleString(
                     "lo-LA",
@@ -1807,6 +1818,9 @@ export default function IncomeExpense() {
                     ສະຖານະ
                   </Th>
                   <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                    ຜູ້ສ້າງ
+                  </Th>
+                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
                     ການກະທຳ
                   </Th>
                 </Tr>
@@ -1947,6 +1961,20 @@ export default function IncomeExpense() {
                             {transaction.status === "paid"
                               ? "✓ ຊຳລະແລ້ວ"
                               : "⏳ ຍັງບໍ່ຊຳລະ"}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          <Badge
+                            fontFamily={"Noto Sans Lao, sans-serif"}
+                            px={3}
+                            py={1}
+                            borderRadius="full"
+                            colorScheme={
+                              transaction.status === "paid" ? "green" : "orange"
+                            }
+                            variant="subtle"
+                          >
+                            {transaction?.createdBy?.username}
                           </Badge>
                         </Td>
                         <Td>

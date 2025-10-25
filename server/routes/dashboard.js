@@ -1,13 +1,13 @@
-import express from "express"
-import IncomeExpense from "../models/IncomeExpense.js"
-import OPO from "../models/OPO.js"
-import Debt from "../models/Debt.js"
-import { authenticate } from "../middleware/auth.js"
+import express from "express";
+import IncomeExpense from "../models/IncomeExpense.js";
+import OPO from "../models/OPO.js";
+import Debt from "../models/Debt.js";
+import { authenticate } from "../middleware/auth.js";
 
-const router = express.Router()
+const router = express.Router();
 
 // GET /api/reports
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const {
       startDate,
@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
       type,
       paymentMethod,
       currency,
-      status
+      status,
     } = req.query;
 
     // สร้าง query สำหรับ date range
@@ -28,7 +28,10 @@ router.get('/', async (req, res) => {
     }
 
     // Query DEBT Collection
-    let debtQuery = { ...dateQuery };
+    let debtQuery = {
+      ...dateQuery,
+      createdBy: mongoose.Types.ObjectId(req.user._id),
+    };
     if (debtType) debtQuery.debtType = debtType;
     if (status) debtQuery.status = status;
 
@@ -53,78 +56,87 @@ router.get('/', async (req, res) => {
     let allRecords = [];
 
     // แปลง DEBT records (แยกตาม amounts array)
-    debts.forEach(debt => {
+    debts.forEach((debt) => {
       if (debt.amounts && debt.amounts.length > 0) {
-        debt.amounts.forEach(amt => {
+        debt.amounts.forEach((amt) => {
           // ตรวจสอบ filter currency และ paymentMethod
           if (currency && amt.currency !== currency) return;
           if (paymentMethod && amt.paymentMethod !== paymentMethod) return;
 
           allRecords.push({
             date: debt.date,
-            documentNumber: debt.documentNumber || debt.debtNumber || '-',
-            description: debt.description || `ໜີ້${debt.debtType === 'payable' ? 'ຈ່າຍ' : 'ຮັບ'}`,
-            type: debt.debtType === 'payable' ? 'ໜີ້ຈ່າຍ' : 'ໜີ້ຮັບ',
+            documentNumber: debt.documentNumber || debt.debtNumber || "-",
+            description:
+              debt.description ||
+              `ໜີ້${debt.debtType === "payable" ? "ຈ່າຍ" : "ຮັບ"}`,
+            type: debt.debtType === "payable" ? "ໜີ້ຈ່າຍ" : "ໜີ້ຮັບ",
             amount: amt.amount,
             currency: amt.currency,
             paymentMethod: amt.paymentMethod,
             status: debt.status,
-            note: debt.note || '-',
-            source: 'DEBT'
+            note: debt.note || "-",
+            source: "DEBT",
           });
         });
       }
     });
 
     // แปลง Income/Expense records
-    incomeExpenses.forEach(record => {
+    incomeExpenses.forEach((record) => {
       allRecords.push({
         date: record.date,
-        documentNumber: record.documentNumber || '-',
-        description: record.description || (record.type === 'income' ? 'ລາຍຮັບ' : 'ລາຍຈ່າຍ'),
-        type: record.type === 'income' ? 'ລາຍຮັບ' : 'ລາຍຈ່າຍ',
+        documentNumber: record.documentNumber || "-",
+        description:
+          record.description ||
+          (record.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ"),
+        type: record.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ",
         amount: record.amount,
         currency: record.currency,
         paymentMethod: record.paymentMethod,
         status: record.status,
-        note: record.note || '-',
-        source: 'INCOME_EXPENSE'
+        note: record.note || "-",
+        source: "INCOME_EXPENSE",
       });
     });
 
     // แปลง OPO records (แยกตาม items array)
-    opos.forEach(opo => {
+    opos.forEach((opo) => {
       if (opo.items && opo.items.length > 0) {
         // Group items by currency
         const currencyGroups = {};
-        
-        opo.items.forEach(item => {
+
+        opo.items.forEach((item) => {
           if (!currencyGroups[item.currency]) {
             currencyGroups[item.currency] = {
               totalAmount: 0,
-              paymentMethod: item.paymentMethod || 'cash'
+              paymentMethod: item.paymentMethod || "cash",
             };
           }
-          currencyGroups[item.currency].totalAmount += item.price * item.quantity;
+          currencyGroups[item.currency].totalAmount +=
+            item.price * item.quantity;
         });
 
         // สร้าง record สำหรับแต่ละสกุลเงิน
-        Object.keys(currencyGroups).forEach(curr => {
+        Object.keys(currencyGroups).forEach((curr) => {
           // ตรวจสอบ filter
           if (currency && curr !== currency) return;
-          if (paymentMethod && currencyGroups[curr].paymentMethod !== paymentMethod) return;
+          if (
+            paymentMethod &&
+            currencyGroups[curr].paymentMethod !== paymentMethod
+          )
+            return;
 
           allRecords.push({
             date: opo.date,
-            documentNumber: opo.opoNumber || '-',
-            description: opo.description || 'ใบสั่งซื้อ OPO',
-            type: 'OPO',
+            documentNumber: opo.opoNumber || "-",
+            description: opo.description || "ใบสั่งซื้อ OPO",
+            type: "OPO",
             amount: currencyGroups[curr].totalAmount,
             currency: curr,
             paymentMethod: currencyGroups[curr].paymentMethod,
             status: opo.status,
-            note: opo.note || '-',
-            source: 'OPO'
+            note: opo.note || "-",
+            source: "OPO",
           });
         });
       }
@@ -135,7 +147,7 @@ router.get('/', async (req, res) => {
 
     // คำนวณผลรวมตามสกุลเงิน
     const totalPerCurrency = {};
-    allRecords.forEach(record => {
+    allRecords.forEach((record) => {
       if (!totalPerCurrency[record.currency]) {
         totalPerCurrency[record.currency] = {
           income: 0,
@@ -143,21 +155,21 @@ router.get('/', async (req, res) => {
           debt_receivable: 0,
           debt_payable: 0,
           opo: 0,
-          total: 0
+          total: 0,
         };
       }
 
       const amount = parseFloat(record.amount) || 0;
 
-      if (record.type === 'ລາຍຮັບ') {
+      if (record.type === "ລາຍຮັບ") {
         totalPerCurrency[record.currency].income += amount;
-      } else if (record.type === 'ລາຍຈ່າຍ') {
+      } else if (record.type === "ລາຍຈ່າຍ") {
         totalPerCurrency[record.currency].expense += amount;
-      } else if (record.type === 'ໜີ້ຮັບ') {
+      } else if (record.type === "ໜີ້ຮັບ") {
         totalPerCurrency[record.currency].debt_receivable += amount;
-      } else if (record.type === 'ໜີ້ຈ່າຍ') {
+      } else if (record.type === "ໜີ້ຈ່າຍ") {
         totalPerCurrency[record.currency].debt_payable += amount;
-      } else if (record.type === 'OPO') {
+      } else if (record.type === "OPO") {
         totalPerCurrency[record.currency].opo += amount;
       }
 
@@ -168,24 +180,23 @@ router.get('/', async (req, res) => {
       success: true,
       data: allRecords,
       totalPerCurrency,
-      count: allRecords.length
+      count: allRecords.length,
     });
-
   } catch (error) {
-    console.error('Reports Error:', error);
+    console.error("Reports Error:", error);
     res.status(500).json({
       success: false,
-      message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ',
-      error: error.message
+      message: "ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນລາຍງານ",
+      error: error.message,
     });
   }
 });
 
 // GET /api/reports/summary - สำหรับกราฟ
-router.get('/summary', async (req, res) => {
+router.get("/summary", async (req, res) => {
   try {
-    const { startDate, endDate, groupBy = 'month' } = req.query;
-
+    const { startDate, endDate, groupBy = "month" } = req.query;
+    const userQuery = { createdBy: mongoose.Types.ObjectId(req.user.userId) };
     const dateQuery = {};
     if (startDate || endDate) {
       dateQuery.date = {};
@@ -193,18 +204,27 @@ router.get('/summary', async (req, res) => {
       if (endDate) dateQuery.date.$lte = new Date(endDate);
     }
 
-    // Query ข้อมูลทั้งหมด
-    const debts = await Debt.find(dateQuery).lean();
-    const incomeExpenses = await IncomeExpense.find(dateQuery).lean();
-    const opos = await OPO.find(dateQuery).lean();
+    // รวม query ทั้งสอง
+    const finalQuery = { ...dateQuery, ...userQuery };
 
+    // Query ข้อมูลเฉพาะของผู้ใช้
+    const debts = await Debt.find(finalQuery).lean();
+    const incomeExpenses = await IncomeExpense.find(finalQuery).lean();
+    const opos = await OPO.find(finalQuery).lean();
     // จัดกลุ่มข้อมูลตามช่วงเวลา
     const summary = {};
 
     const addToSummary = (date, type, amount, currency) => {
-      const key = groupBy === 'month' 
-        ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-        : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const key =
+        groupBy === "month"
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+              2,
+              "0"
+            )}`
+          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+              2,
+              "0"
+            )}-${String(date.getDate()).padStart(2, "0")}`;
 
       if (!summary[key]) {
         summary[key] = {
@@ -213,7 +233,7 @@ router.get('/summary', async (req, res) => {
           expense: {},
           debt_receivable: {},
           debt_payable: {},
-          opo: {}
+          opo: {},
         };
       }
 
@@ -224,53 +244,53 @@ router.get('/summary', async (req, res) => {
     };
 
     // Process debts
-    debts.forEach(debt => {
+    debts.forEach((debt) => {
       const date = new Date(debt.date);
-      const type = debt.debtType === 'payable' ? 'debt_payable' : 'debt_receivable';
-      debt.amounts?.forEach(amt => {
+      const type =
+        debt.debtType === "payable" ? "debt_payable" : "debt_receivable";
+      debt.amounts?.forEach((amt) => {
         addToSummary(date, type, amt.amount, amt.currency);
       });
     });
 
     // Process income/expenses
-    incomeExpenses.forEach(record => {
+    incomeExpenses.forEach((record) => {
       const date = new Date(record.date);
-      const type = record.type === 'income' ? 'income' : 'expense';
+      const type = record.type === "income" ? "income" : "expense";
       addToSummary(date, type, record.amount, record.currency);
     });
 
     // Process OPOs
-    opos.forEach(opo => {
+    opos.forEach((opo) => {
       const date = new Date(opo.date);
       const currencyTotals = {};
-      opo.items?.forEach(item => {
+      opo.items?.forEach((item) => {
         if (!currencyTotals[item.currency]) {
           currencyTotals[item.currency] = 0;
         }
         currencyTotals[item.currency] += item.price * item.quantity;
       });
-      Object.keys(currencyTotals).forEach(currency => {
-        addToSummary(date, 'opo', currencyTotals[currency], currency);
+      Object.keys(currencyTotals).forEach((currency) => {
+        addToSummary(date, "opo", currencyTotals[currency], currency);
       });
     });
 
-    const summaryArray = Object.values(summary).sort((a, b) => 
+    const summaryArray = Object.values(summary).sort((a, b) =>
       a.date.localeCompare(b.date)
     );
 
     res.json({
       success: true,
-      data: summaryArray
+      data: summaryArray,
     });
-
   } catch (error) {
-    console.error('Summary Error:', error);
+    console.error("Summary Error:", error);
     res.status(500).json({
       success: false,
-      message: 'ເກີດຂໍ້ຜິດພາດໃນການສ້າງສະຫຼຸບ',
-      error: error.message
+      message: "ເກີດຂໍ້ຜິດພາດໃນການສ້າງສະຫຼຸບ",
+      error: error.message,
     });
   }
 });
 
-export default router
+export default router;

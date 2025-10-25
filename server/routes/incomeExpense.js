@@ -8,7 +8,14 @@ const router = express.Router();
 router.get("/", authenticate, async (req, res) => {
   try {
     const { type, category, startDate, endDate, search } = req.query;
-    const query = { userId: req.user._id };
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
 
     if (type) query.type = type;
     if (category) query.category = category;
@@ -24,7 +31,9 @@ router.get("/", authenticate, async (req, res) => {
       ];
     }
 
-    const records = await IncomeExpense.find(query).sort({ date: -1 });
+    const records = await IncomeExpense.find(query)
+      .sort({ date: -1 })
+      .populate("createdBy", "username email role");
     res.status(200).json(records);
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
@@ -35,10 +44,18 @@ router.get("/", authenticate, async (req, res) => {
 router.post("/bulk", authenticate, async (req, res) => {
   try {
     const { transactions } = req.body;
-    console.log(transactions);
     // Insert all records at once
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
+
     const savedRecords = await IncomeExpense.insertMany({
-      userId: req.user._id,
+      userId: query.userId,
       serial: transactions.serial,
       description: transactions.description,
       type: transactions.type,
@@ -46,7 +63,7 @@ router.post("/bulk", authenticate, async (req, res) => {
       date: transactions.date,
       amounts: transactions.amounts,
       note: transactions.note,
-      createdBy: req.user.userId,
+      createdBy: req.user._id,
     });
 
     res.status(201).json({
@@ -65,8 +82,16 @@ router.post("/bulk", authenticate, async (req, res) => {
 // Update income/expense record
 router.put("/:id", authenticate, async (req, res) => {
   try {
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
     const record = await IncomeExpense.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
+      { _id: req.params.id, ...query },
       req.body,
       {
         new: true,
@@ -85,9 +110,17 @@ router.put("/:id", authenticate, async (req, res) => {
 // Delete income/expense record
 router.delete("/:id", authenticate, async (req, res) => {
   try {
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
     const record = await IncomeExpense.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id,
+      ...query,
     });
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });

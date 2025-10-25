@@ -1,7 +1,7 @@
 import express from "express";
 import OPO from "../models/OPO.js";
 import { authenticate, authorize } from "../middleware/auth.js";
-
+import User from "../models/User.js";
 const router = express.Router();
 
 // Get all OPO records
@@ -9,12 +9,11 @@ router.get("/", authenticate, async (req, res) => {
   try {
     const { status, startDate, endDate } = req.query;
     const query = {};
-
-    // Regular users can only see their own OPOs
-    if (req.user.role === "user") {
-      query.userId = req.user.userId;
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    } else {
+      query.userId = req.user.companyId;
     }
-
     if (status) query.status = status;
     if (startDate || endDate) {
       query.date = {};
@@ -23,9 +22,10 @@ router.get("/", authenticate, async (req, res) => {
     }
 
     const records = await OPO.find(query)
-      .populate("userId", "username email role")
+      .populate("userId", "username email role companyInfo")
+      .populate("staff", "username email role")
       .sort({ date: -1 });
-    res.json(records);
+      res.json(records);
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
   }
@@ -34,11 +34,15 @@ router.get("/", authenticate, async (req, res) => {
 // Get single OPO record by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
-    const query = { _id: req.params.id };
+    const query = {};
 
-    // Regular users can only view their own OPOs
-    if (req.user.role === "user") {
-      query.userId = req.user.userId;
+    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
     }
 
     const record = await OPO.findOne(query).populate(
@@ -60,7 +64,7 @@ router.get("/:id", authenticate, async (req, res) => {
 router.post("/", authenticate, async (req, res) => {
   try {
     // Validate required fields manually for better error messages
-    const { serial, status, items, createdBy } = req.body;
+    const { serial, status, items } = req.body;
 
     if (!serial) {
       return res.status(400).json({ message: "ກະລຸນາປ້ອນເລກທີ OPO (serial)" });
@@ -93,14 +97,24 @@ router.post("/", authenticate, async (req, res) => {
           .json({ message: "ກະລຸນາປ້ອນສາເຫດສຳລັບທຸກລາຍການ" });
       }
     }
+    const query = {};
 
+    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
     // Create new OPO record
     const record = new OPO({
       ...req.body,
       serial, // Map 'number' from frontend to 'serial' in backend
-      userId: req.user._id,
+      userId: query.userId,
       createdBy: req.user.username, // Fallback to authenticated user's username
       createdAt: new Date(),
+      staff: req.user._id,
     });
 
     await record.save();
@@ -151,11 +165,15 @@ router.put("/:id", authenticate, async (req, res) => {
       }
     }
 
-    const query = { _id: req.params.id };
+    const query = {};
 
-    // Regular users can only edit their own OPOs
-    if (req.user.role === "user") {
-      query.userId = req.user.userId;
+    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
     }
 
     // Find the record first to check permissions
@@ -235,11 +253,15 @@ router.patch("/:id/status", authenticate, async (req, res) => {
 // Delete OPO record
 router.delete("/:id", authenticate, async (req, res) => {
   try {
-    const query = { _id: req.params.id };
+    const query = {};
 
-    // Regular users can only delete their own OPOs
-    if (req.user.role === "user") {
-      query.userId = req.user.userId;
+    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
     }
 
     // Find the record first to check status
@@ -269,29 +291,24 @@ router.delete("/:id", authenticate, async (req, res) => {
   }
 });
 
-router.delete(
-  "/opoId/:id/item/:itemId",
-  authenticate,
-  authorize("admin"),
-  async (req, res) => {
-    try {
-      const { id, itemId } = req.params;
+router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
+  try {
+    const { id, itemId } = req.params;
 
-      const opo = await OPO.findById(id);
-      if (!opo) {
-        return res.status(404).json({ message: "OPO not found" });
-      }
-
-      // Remove the item from the items array
-      opo.items = opo.items.filter((item) => item._id.toString() !== itemId);
-
-      await opo.save();
-      res.json({ message: "Item removed successfully", opo });
-    } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Error removing item", error: error.message });
+    const opo = await OPO.findById(id);
+    if (!opo) {
+      return res.status(404).json({ message: "OPO not found" });
     }
+
+    // Remove the item from the items array
+    opo.items = opo.items.filter((item) => item._id.toString() !== itemId);
+
+    await opo.save();
+    res.json({ message: "Item removed successfully", opo });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error removing item", error: error.message });
   }
-);
+});
 export default router;

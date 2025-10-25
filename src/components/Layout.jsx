@@ -248,7 +248,7 @@ export default function Layout() {
                       fontFamily={"Noto Sans Lao, sans-serif"}
                       fontWeight="medium"
                     >
-                      {user?.username}
+                      {user?.companyInfo?.name}
                     </Text>
                     <Badge
                       fontFamily={"Noto Sans Lao, sans-serif"}
@@ -323,7 +323,7 @@ export default function Layout() {
                       bg={isActive(item.path) ? activeBg : "transparent"}
                       color={isActive(item.path) ? activeColor : "gray.600"}
                     >
-                      {item.name}
+                      {user?.companyInfo?.name}
                     </Button>
                   )
               )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -142,15 +142,27 @@ export default function Users() {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(newUser),
-      });
-      fetchUsers();
-      toast({
-        title: "ເພີ່ມຜູ້ໃຊ້ງານເຮັດສຳເລັດແລ້ວ",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-      setNewUser({ username: "", email: "", password: "", role: "user" });
+      })
+        .unrwp()
+        .then((res) => {
+          toast({
+            title: "ເພີ່ມຜູ້ໃຊ້ງານເຮັດສຳເລັດແລ້ວ",
+            status: "success",
+            duration: 2000,
+            isClosable: true,
+          });
+          fetchUsers();
+          setNewUser({ username: "", email: "", password: "", role: "user" });
+        })
+        .catch((error) => {
+          toast({
+            title: "ເກີດຂໍ້ຜິດພາດ",
+            description: error.message || "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+        });
       onClose();
     } catch (error) {
       console.error("Error adding user:", error);
@@ -163,7 +175,6 @@ export default function Users() {
       });
     }
   };
-  console.log(editUser);
   const handleOpenEdit = (user) => {
     setEditUser({
       _id: user._id,
@@ -238,7 +249,20 @@ export default function Users() {
       >
         ຈັດການຜູ້ໃຊ້ງານ
       </Heading>
-
+      <p
+        style={{
+          color: "#b71c1c", // สีแดงเข้ม
+          backgroundColor: "#ffebee", // สีพื้นอ่อน
+          padding: "12px 16px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          border: "1px solid #f44336",
+          fontFamily:"Noto Sans Lao, sans-serif"
+        }}
+      >
+        ⚠️  ຫ້າມລົບບັນຊີຜູ້ໃຊ້ເດັດຂາດ! 
+        ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້ ແລະ ບໍ່ສາມາດກູ້ຄືນໄດ້
+      </p>
       <Button colorScheme="green" mb={4} onClick={onOpen}>
         ເພີ່ມສະມາຊິກໃໝ່
       </Button>
@@ -249,6 +273,7 @@ export default function Users() {
             <Tr>
               <Th fontFamily="Noto Sans Lao, sans-serif">ຊື່ຜູ້ໃຊ້ງານ</Th>
               <Th fontFamily="Noto Sans Lao, sans-serif">ອິເມວ</Th>
+              <Th fontFamily="Noto Sans Lao, sans-serif">ຊື່ບໍລິສັດ</Th>
               <Th fontFamily="Noto Sans Lao, sans-serif">ບົດບາດ</Th>
               <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center">
                 ການດຳເນີນການ
@@ -256,41 +281,74 @@ export default function Users() {
             </Tr>
           </Thead>
           <Tbody>
-            {users.map((user) => (
-              <Tr key={user._id}>
-                <Td fontFamily="Noto Sans Lao, sans-serif">{user.username}</Td>
-                <Td fontFamily="Noto Sans Lao, sans-serif">{user.email}</Td>
-                <Td fontFamily="Noto Sans Lao, sans-serif">
-                  <Select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                    size="sm"
-                    bg="gray.50"
-                  >
-                    <option value="user">User</option>
-                    <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
-                  </Select>
-                </Td>
-                <Td fontFamily="Noto Sans Lao, sans-serif" textAlign="center">
-                  <IconButton
-                    icon={<EditIcon />}
-                    colorScheme="blue"
-                    size="sm"
-                    mr={2}
-                    onClick={() => handleOpenEdit(user)}
-                    aria-label="ແກ້ໄຂ"
-                  />
-                  <Button
+            {Object.entries(
+              users.reduce((groups, user) => {
+                const companyName = user.companyInfo?.name || "ບໍ່ມີຊື່ບໍລິສັດ";
+                if (!groups[companyName]) groups[companyName] = [];
+                groups[companyName].push(user);
+                return groups;
+              }, {})
+            ).map(([companyName, companyUsers]) => (
+              <React.Fragment key={companyName}>
+                {/* หัวบริษัท */}
+                <Tr bg="gray.100">
+                  <Td
+                    colSpan={5}
+                    fontWeight="bold"
                     fontFamily="Noto Sans Lao, sans-serif"
-                    colorScheme="red"
-                    size="sm"
-                    onClick={() => handleDeleteUser(user._id)}
                   >
-                    ລົບ
-                  </Button>
-                </Td>
-              </Tr>
+                    {companyName}
+                  </Td>
+                </Tr>
+
+                {/* รายชื่อผู้ใช้ในบริษัท */}
+                {companyUsers.map((user) => (
+                  <Tr key={user._id}>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      {user.username}
+                    </Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">{user.email}</Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      {user.companyInfo?.name}
+                    </Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      <Select
+                        value={user.role}
+                        onChange={(e) =>
+                          handleRoleChange(user._id, e.target.value)
+                        }
+                        size="sm"
+                        bg="gray.50"
+                      >
+                        <option value="user">User</option>
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                      </Select>
+                    </Td>
+                    <Td
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      textAlign="center"
+                    >
+                      <IconButton
+                        icon={<EditIcon />}
+                        colorScheme="blue"
+                        size="sm"
+                        mr={2}
+                        onClick={() => handleOpenEdit(user)}
+                        aria-label="ແກ້ໄຂ"
+                      />
+                      <Button
+                        fontFamily="Noto Sans Lao, sans-serif"
+                        colorScheme="red"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user._id)}
+                      >
+                        ລົບ
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </React.Fragment>
             ))}
           </Tbody>
         </Table>

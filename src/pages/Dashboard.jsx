@@ -204,23 +204,41 @@ const ReportsPage = () => {
   };
   console.log("summary", summary);
   // Prepare chart data
-  console.log(summaryReport);
-  const prepareChartDataFromSummary = () => {
-    if (!summaryReport?.summary?.trendByDate) return [];
-    const chartData = Object.entries(summaryReport?.summary?.trendByDate).map(
-      ([date, value]) => {
-        return {
-          date,
-          ລາຍຮັບ: value.income || 0,
-          ລາຍຈ່າຍ: value.expense || 0,
-        };
-      }
-    );
-
-    // ✅ เรียงวันที่จากปัจจุบัน -> เก่า
-    return chartData.sort((a, b) => new Date(b.date) - new Date(a.date));
-  };
-
+const prepareChartDataFromSummary = () => {
+  const trendByDate = summaryReport?.summary?.trendByDate;
+  
+  if (!trendByDate) return [];
+  
+  return Object.entries(trendByDate).map(([date, data]) => {
+    return {
+      date,
+      // รายรับ แยกตามสกุลเงิน
+      ລາຍຮັບ_LAK: data.ລາຍຮັບ?.LAK || 0,
+      ລາຍຮັບ_USD: data.ລາຍຮັບ?.USD || 0,
+      ລາຍຮັບ_THB: data.ລາຍຮັບ?.THB || 0,
+      
+      // รายจ่าย แยกตามสกุลเงิน
+      ລາຍຈ່າຍ_LAK: data.ລາຍຈ່າຍ?.LAK || 0,
+      ລາຍຈ່າຍ_USD: data.ລາຍຈ່າຍ?.USD || 0,
+      ລາຍຈ່າຍ_THB: data.ລາຍຈ່າຍ?.THB || 0,
+      
+      // OPO แยกตามสกุลเงิน
+      OPO_LAK: data.OPO?.LAK || 0,
+      OPO_USD: data.OPO?.USD || 0,
+      OPO_THB: data.OPO?.THB || 0,
+      
+      // ลูกหนี้ แยกตามสกุลเงิน
+      ໜີ້ຕ້ອງຮັບ_LAK: data.ໜີ້ຕ້ອງຮັບ?.LAK || 0,
+      ໜີ້ຕ້ອງຮັບ_USD: data.ໜີ້ຕ້ອງຮັບ?.USD || 0,
+      ໜີ້ຕ້ອງຮັບ_THB: data.ໜີ້ຕ້ອງຮັບ?.THB || 0,
+      
+      // เจ้าหนี้ แยกตามสกุลเงิน
+      ໜີ້ຕ້ອງສົ່ງ_LAK: data.ໜີ້ຕ້ອງສົ່ງ?.LAK || 0,
+      ໜີ້ຕ້ອງສົ່ງ_USD: data.ໜີ້ຕ້ອງສົ່ງ?.USD || 0,
+      ໜີ້ຕ້ອງສົ່ງ_THB: data.ໜີ້ຕ້ອງສົ່ງ?.THB || 0,
+    };
+  });
+};
   const getTypeBadgePrint = (sourceType) => {
     const labels = {
       income: "ລາຍຮັບ",
@@ -502,9 +520,9 @@ const ReportsPage = () => {
                   >
                     ຍອດລວມ ({currency})
                   </StatLabel>
-                  <StatNumber fontSize="2xl" color="blue.600">
+                  {/* <StatNumber fontSize="2xl" color="blue.600">
                     {formatAmount(totalPerCurrency[currency].totalAmount, "")}
-                  </StatNumber>
+                  </StatNumber> */}
 
                   <VStack align="start" mt={2} spacing={1} fontSize="xs">
                     <Text fontFamily="Noto Sans Lao, sans-serif">
@@ -555,32 +573,42 @@ const ReportsPage = () => {
                     >
                       📈 ແນວໂນ້ມລາຍຮັບ-ລາຍຈ່າຍຕາມເວລາ
                     </Heading>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={prepareChartDataFromSummary()}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="ລາຍຮັບ"
-                          stroke="#38A169"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="ລາຍຈ່າຍ"
-                          stroke="#E53E3E"
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <ResponsiveContainer width="100%" height={300}>
+  <LineChart data={prepareChartDataFromSummary()}>
+    <CartesianGrid strokeDasharray="3 3" />
+    <XAxis dataKey="date" />
+    <YAxis />
+    <Tooltip />
+
+    
+    {/* รายรับ */}
+    <Line dataKey="ລາຍຮັບ_LAK" stroke="#38A169" strokeWidth={2} name="ລາຍຮັບ (LAK)" />
+    <Line dataKey="ລາຍຮັບ_USD" stroke="#48BB78" strokeWidth={2} name="ລາຍຮັບ (USD)" />
+    <Line dataKey="ລາຍຮັບ_THB" stroke="#68D391" strokeWidth={2} name="ລາຍຮັບ (THB)" />
+    
+    {/* รายจ่าย */}
+    <Line dataKey="ລາຍຈ່າຍ_LAK" stroke="#E53E3E" strokeWidth={2} name="ລາຍຈ່າຍ (LAK)" />
+    <Line dataKey="ລາຍຈ່າຍ_USD" stroke="#FC8181" strokeWidth={2} name="ລາຍຈ່າຍ (USD)" />
+    <Line dataKey="ລາຍຈ່າຍ_THB" stroke="#F56565" strokeWidth={2} name="ລາຍຈ່າຍ (THB)" />
+    
+    {/* OPO */}
+    <Line dataKey="OPO_LAK" stroke="#3182CE" strokeWidth={2} name="OPO (LAK)" />
+    <Line dataKey="OPO_USD" stroke="#4299E1" strokeWidth={2} name="OPO (USD)" />
+    <Line dataKey="OPO_THB" stroke="#63B3ED" strokeWidth={2} name="OPO (THB)" />
+    
+    {/* ลูกหนี้ */}
+    <Line dataKey="ໜີ້ຕ້ອງຮັບ_LAK" stroke="#805AD5" strokeWidth={2} name="ໜີ້ຕ້ອງຮັບ (LAK)" />
+    <Line dataKey="ໜີ້ຕ້ອງຮັບ_USD" stroke="#9F7AEA" strokeWidth={2} name="ໜີ້ຕ້ອງຮັບ (USD)" />
+    
+    {/* เจ้าหนี้ */}
+    <Line dataKey="ໜີ້ຕ້ອງສົ່ງ_LAK" stroke="#D69E2E" strokeWidth={2} name="ໜີ້ຕ້ອງສົ່ງ (LAK)" />
+    <Line dataKey="ໜີ້ຕ້ອງສົ່ງ_USD" stroke="#F6AD55" strokeWidth={2} name="ໜີ້ຕ້ອງສົ່ງ (USD)" />
+  </LineChart>
+</ResponsiveContainer>
                   </CardBody>
                 </Card>
-
+{/* 
                 <Grid templateColumns="repeat(2, 1fr)" gap={6} w="full">
-                  {/* Bar Chart */}
                   <Card>
                     <CardBody>
                       <Heading
@@ -603,9 +631,7 @@ const ReportsPage = () => {
                       </ResponsiveContainer>
                     </CardBody>
                   </Card>
-
-                  {/* Pie Chart */}
-                </Grid>
+                </Grid> */}
               </VStack>
             </TabPanel>
           </TabPanels>

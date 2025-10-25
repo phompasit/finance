@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-
+import rateLimit from "express-rate-limit"
 export const authenticate = async (req, res, next) => {
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
@@ -36,3 +36,17 @@ export const authorize = (...roles) => {
     next();
   };
 };
+// Rate limiting สำหรับการสมัครสมาชิก
+
+export const registerLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 นาที
+  max: 5, // จำกัด 5 ครั้งต่อ IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      status: "error",
+      message: "ພະຍາຍາມຫຼາຍເກີນໄປ ກະລຸນາລອງໃໝ່ພາຍຫຼັງ",
+    });
+  },
+});

@@ -34,8 +34,7 @@ router.get("/", authenticate, async (req, res) => {
       dateFrom,
       dateTo,
     } = req.query;
-    const query = { createdBy: req.user.userId };
-
+    const query = { userId: req.user._id };
     if (status) query.status = status;
     if (debtType) query.debtType = debtType;
     if (paymentMethod) query.paymentMethod = paymentMethod;
@@ -47,7 +46,6 @@ router.get("/", authenticate, async (req, res) => {
       if (dateFrom) query.date.$gte = new Date(dateFrom);
       if (dateTo) query.date.$lte = new Date(dateTo);
     }
-
     const debts = await Debt.find(query)
       .sort({ date: -1, createdAt: -1 })
       .populate("createdBy", "name email");
@@ -91,7 +89,6 @@ router.get("/", authenticate, async (req, res) => {
       };
     });
 
-    console.log("Fetched debts with details:", records);
     res.json(records);
   } catch (error) {
     console.error("Error fetching debts:", error);
@@ -104,7 +101,7 @@ router.get("/:id", authenticate, async (req, res) => {
   try {
     const debt = await Debt.findOne({
       _id: req.params.id,
-      createdBy: req.user.userId,
+      userId: req.user._id,
     }).populate("createdBy", "name email");
 
     if (!debt) {
@@ -132,7 +129,6 @@ router.post("/", authenticate, async (req, res) => {
       reason,
       installments,
     } = req.body;
-    console.log("Create Debt - req.body:", req.body);
     // Validate required fields
     if (
       !serial ||
@@ -223,7 +219,7 @@ router.patch(
 
       const debt = await Debt.findOne({
         _id: req.params.id,
-        createdBy: req.user.userId,
+        userId: req.user._id,
       });
 
       if (!debt) {
@@ -272,7 +268,7 @@ router.put("/:id", authenticate, async (req, res) => {
     // Find existing debt
     const existingDebt = await Debt.findOne({
       _id: req.params.id,
-      createdBy: req.user.userId,
+      userId: req.user._id,
     });
 
     if (!existingDebt) {
@@ -343,7 +339,7 @@ router.delete("/:id", authenticate, async (req, res) => {
   try {
     const record = await Debt.findOneAndDelete({
       _id: req.params.id,
-      createdBy: req.user.userId,
+      userId: req.user._id,
     });
 
     if (!record) {
@@ -360,7 +356,7 @@ router.delete("/:id", authenticate, async (req, res) => {
 // Get debt statistics
 router.get("/stats/summary", authenticate, async (req, res) => {
   try {
-    const debts = await Debt.find({ createdBy: req.user.userId });
+    const debts = await Debt.find({ userId: req.user._id });
 
     const stats = {
       total: debts.length,

@@ -28,9 +28,11 @@ import {
 import { Search } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { useAuth } from "../context/AuthContext";
 
 const Report = () => {
   const [data, setData] = useState([]);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [filters, setFilters] = useState({
@@ -333,7 +335,13 @@ const Report = () => {
       color: #2d3748;
       font-weight: 500;
     }
-    
+     .document-title {
+      text-align: left;
+      margin-bottom: 15px;
+      font-size: 14px;
+      color: #2d3748;
+      font-weight: 500;
+    }
     /* ຫົວຂໍ້ລາຍງານ */
     .report-title {
       text-align: center;
@@ -459,8 +467,19 @@ const Report = () => {
       .date-section {
         page-break-after: avoid;
         break-after: avoid;
+
       }
-      
+      .document-title {
+        page-break-after: avoid;
+        break-after: avoid;
+          font-size: 14pt;
+            font-weight: bold;
+            margin: 5px 0 2px 0;
+            text-transform: uppercase;
+            color: #1a202c;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+      }
       .report-title {
         page-break-after: avoid;
         break-after: avoid;
@@ -526,7 +545,9 @@ const Report = () => {
         <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
         <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດຖານາທາວ</div>
       </div>
-      
+            <div class="document-title">
+     ${user?.companyInfo?.name}
+    </div>
       <!-- ວັນທີ -->
       <div class="date-section">
         ວັນທີ: ${formatDate(new Date()) || "N/A"}
@@ -674,30 +695,30 @@ const Report = () => {
         </table>
       </div>
       
-      <!-- ສ່ວນລາຍເຊັນ -->
-      <div class="signature-section">
-        <div class="signature-box">
-          <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
-          <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
-        </div>
-        
-        <div class="signature-box">
-          <div class="signature-label">ຜູ້ກວດສອບ</div>
-          <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
-        </div>
-        
-        <div class="signature-box">
-          <div class="signature-label">ຜູ້ອະນຸມັດ</div>
-          <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
-        </div>
-      </div>
+    
     </div>
   </div>
 </body>
 </html>
 `);
   };
+  // <!-- ສ່ວນລາຍເຊັນ -->
+  // <div class="signature-section">
+  //   <div class="signature-box">
+  //     <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
+  //     <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
+  //   </div>
 
+  //   <div class="signature-box">
+  //     <div class="signature-label">ຜູ້ກວດສອບ</div>
+  //     <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
+  //   </div>
+
+  //   <div class="signature-box">
+  //     <div class="signature-label">ຜູ້ອະນຸມັດ</div>
+  //     <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
+  //   </div>
+  // </div>
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={6} align="stretch">

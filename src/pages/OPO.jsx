@@ -191,7 +191,7 @@ OPOItem.propTypes = {
   onRemove: PropTypes.func.isRequired,
 };
 
-const OPOTable = ({ opos, onEdit, onDelete, onExportPDF }) => {
+const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
   if (opos.length === 0) {
     return (
       <Box bg="white" borderRadius="lg" shadow="sm" p={8} textAlign="center">
@@ -212,6 +212,7 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF }) => {
             <Th>ຈຳນວນລາຍການ</Th>
             <Th>ຍອດລວມ</Th>
             <Th>ສະຖານະ</Th>
+            <Th>ຜູ້ສ້າງ</Th>
             <Th>ຈັດການ</Th>
           </Tr>
         </Thead>
@@ -250,6 +251,11 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF }) => {
                   </Badge>
                 </Td>
                 <Td>
+                  <Badge fontFamily="Noto Sans Lao, sans-serif">
+                    {opo?.staff?.username}
+                  </Badge>
+                </Td>
+                <Td>
                   <HStack spacing={2}>
                     <IconButton
                       icon={<FileText size={18} />}
@@ -258,20 +264,28 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF }) => {
                       onClick={() => onExportPDF(opo)}
                       aria-label="Export PDF"
                     />
-                    <IconButton
-                      icon={<Edit size={18} />}
-                      size="sm"
-                      colorScheme="blue"
-                      onClick={() => onEdit(opo)}
-                      aria-label="Edit OPO"
-                    />
-                    <IconButton
-                      icon={<Trash2 size={18} />}
-                      size="sm"
-                      colorScheme="red"
-                      onClick={() => onDelete(opo._id)}
-                      aria-label="Delete OPO"
-                    />
+                    {(user?.role === "admin" ||
+                      (user?.role === "staff" &&
+                        opo?.status !== "APPROVED")) && (
+                      <IconButton
+                        icon={<Edit size={18} />}
+                        size="sm"
+                        colorScheme="blue"
+                        onClick={() => onEdit(opo)}
+                        aria-label="Edit OPO"
+                      />
+                    )}
+                    {(user?.role === "admin" ||
+                      (user?.role === "staff" &&
+                        opo?.status !== "APPROVED")) && (
+                      <IconButton
+                        icon={<Trash2 size={18} />}
+                        size="sm"
+                        colorScheme="red"
+                        onClick={() => onDelete(opo._id)}
+                        aria-label="Delete OPO"
+                      />
+                    )}
                   </HStack>
                 </Td>
               </Tr>
@@ -311,6 +325,7 @@ const OPOSystem = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+  console.log(user);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isPdfOpen,
@@ -1138,7 +1153,9 @@ const OPOSystem = () => {
         <div class="document">
           <!-- Header -->
           <div class="header">
-            <div class="company-name">ບໍລິສັດຂອງທ່ານ</div>
+               <div class="document-title">
+     ${user?.companyInfo?.name}
+    </div>
             <div class="document-title">ໃບສັ່ງຈ່າຍເງິນ</div>
             <div class="document-subtitle">OUTGOING PAYMENT ORDER (OPO)</div>
           </div>
@@ -1245,40 +1262,41 @@ const OPOSystem = () => {
             <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Signatures</div>
             <div class="signature-grid">
               <div class="signature-cell">
-                <span class="signature-label">ຼູ້ຮ້ອງຂໍ<br>Requester</span>
+                <span class="signature-label">ຜູ້ຮ້ອງຂໍ<br>Requester</span>
                 <div class="signature-area">
                   <div class="signature-line">
                     <div class="signature-name">${
                       selectedOpo.requester || ""
                     }</div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${new Date().toLocaleDateString(
-                      "lo-LA"
+                    <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
+                      new Date()
                     )}</div>
                   </div>
                 </div>
               </div>
               <div class="signature-cell">
-                <span class="signature-label">ຼູ້ຈັດການພະແນກ<br>Dept. Manager</span>
+                <span class="signature-label">ຜູ້ຈັດການພະແນກ<br>Dept. Manager</span>
                 <div class="signature-area">
                   <div class="signature-line">
                     <div class="signature-name">${
                       selectedOpo.manager || ""
                     }</div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${new Date().toLocaleDateString(
-                      "lo-LA"
+                    <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
+                      new Date()
                     )}</div>
                   </div>
                 </div>
               </div>
               <div class="signature-cell">
-                <span class="signature-label">ຼູ້ສ້າງ OPO<br>OPO Creator</span>
+                <span class="signature-label">ຜູ້ສ້າງ OPO<br>OPO Creator</span>
                 <div class="signature-area">
                   <div class="signature-line">
                     <div class="signature-name">${
                       selectedOpo.createdBy || ""
                     }</div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${new Date().toLocaleDateString(
-                      "lo-LA"
+                    <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
+                      new Date()
+                    )}
                     )}</div>
                   </div>
                 </div>
@@ -1288,8 +1306,9 @@ const OPOSystem = () => {
                 <div class="signature-area">
                   <div class="signature-line">
                     <div class="signature-name"></div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${new Date().toLocaleDateString(
-                      "lo-LA"
+                     <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
+                       new Date()
+                     )}
                     )}</div>
                   </div>
                 </div>
@@ -1299,9 +1318,9 @@ const OPOSystem = () => {
 
           <!-- Footer -->
           <div class="footer">
-            ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ OPO | Generated by OPO System - ${new Date().toLocaleDateString(
-              "lo-LA"
-            )} ${new Date().toLocaleTimeString("lo-LA")}
+            ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ OPO | Generated by OPO System - ${formatDate(
+              new Date()
+            )} ${formatDate(new Date())}
           </div>
         </div>
       </body>
@@ -1362,26 +1381,28 @@ const OPOSystem = () => {
             />
 
             {user?.role === "admin" ? (
-                <FormControl>
-
-              <Select
-                value={user.status} // สมมติ user มี field status
-                onChange={(e) => handleStatusChange(user._id, e.target.value)}
-                size="sm"
-                bg="gray.50"
-              >
-                {Object.entries(STATUS_TEXTS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-                </FormControl>
+              <FormControl>
+                <Select
+                  value={formData.status} // สมมติ user มี field status
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
+                  size="sm"
+                  bg="gray.50"
+                >
+                  {Object.entries(STATUS_TEXTS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
             ) : (
-              
               <Select
-                value={user.status} // สมมติ user มี field status
-                onChange={(e) => handleStatusChange(user._id, e.target.value)}
+                value={formData.status} // สมมติ user มี field status
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
                 size="sm"
                 bg="gray.50"
               >
@@ -1467,6 +1488,7 @@ const OPOSystem = () => {
         {/* OPO List */}
         {!loading && (
           <OPOTable
+            user={user}
             opos={filteredOpos}
             onEdit={editOpo}
             onDelete={deleteOpo}
@@ -1517,33 +1539,39 @@ const OPOSystem = () => {
                     <FormLabel fontFamily="Noto Sans Lao, sans-serif">
                       ສະຖານະ
                     </FormLabel>
-                   {user?.role === "admin" ? (
-              <Select
-                value={user.status} // สมมติ user มี field status
-                onChange={(e) => handleStatusChange(user._id, e.target.value)}
-                size="sm"
-                bg="gray.50"
-              >
-                {Object.entries(STATUS_TEXTS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <Select
-                value={user.status} // สมมติ user มี field status
-                onChange={(e) => handleStatusChange(user._id, e.target.value)}
-                size="sm"
-                bg="gray.50"
-              >
-                {Object.entries(STATUS_TEXTS_staff).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            )}
+                    {user?.role === "admin" ? (
+                      <Select
+                        value={formData.status} // สมมติ user มี field status
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value })
+                        }
+                        size="sm"
+                        bg="gray.50"
+                      >
+                        {Object.entries(STATUS_TEXTS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Select
+                        value={formData.status} // สมมติ user มี field status
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value })
+                        }
+                        size="sm"
+                        bg="gray.50"
+                      >
+                        {Object.entries(STATUS_TEXTS_staff).map(
+                          ([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          )
+                        )}
+                      </Select>
+                    )}
                   </FormControl>
                 </HStack>
 
@@ -1852,7 +1880,7 @@ const OPOSystem = () => {
                         fontSize="2xl"
                         fontWeight="bold"
                       >
-                        ມະນິຍົມໂອໂຕ ກຣຸບ
+                        {user?.companyInfo?.name}
                       </Text>
                     </Box>
                     <Heading

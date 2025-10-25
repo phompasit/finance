@@ -40,7 +40,7 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "OPO") {
       try {
-        let opoQuery = { ...dateFilter };
+        let opoQuery = { ...dateFilter, userId: req.user._id };
 
         // Filter by status
         if (status) {
@@ -95,7 +95,7 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "income" || type === "expense") {
       try {
-        let transQuery = { ...dateFilter };
+        let transQuery = { ...dateFilter, userId: req.user._id };
 
         // Filter by type
         if (type === "income" || type === "expense") {
@@ -151,7 +151,7 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "receivable" || type === "payable") {
       try {
-        let debtQuery = { ...dateFilter };
+        let debtQuery = { ...dateFilter, userId: req.user._id };
 
         // Filter by debtType
         if (type === "receivable") {
@@ -183,7 +183,6 @@ router.get("/", authenticate, async (req, res) => {
         const debts = await Debt.find(debtQuery)
           .sort({ date: -1, createdAt: -1 })
           .lean();
-        console.log("debts", debts);
         // แยก amounts ออกมาเป็นแถวแยก
         debts.forEach((debt) => {
           allReportData.push({
@@ -235,34 +234,38 @@ router.get("/", authenticate, async (req, res) => {
       item.listAmount?.forEach((sub) => {
         const { currency, amount } = sub;
         const dateKey = new Date(item.date).toISOString().split("T")[0];
+
         if (!summary.trendByDate[dateKey]) {
           summary.trendByDate[dateKey] = {
             total: {},
-            income: 0,
-            expense: 0,
-            receivable: 0,
-            payable: 0,
+            ລາຍຮັບ: {}, // รายรับ แยกตามสกุลเงิน
+            ລາຍຈ່າຍ: {}, // รายจ่าย แยกตามสกุลเงิน
+            OPO: {}, // OPO แยกตามสกุลเงิน
+            ໜີ້ຕ້ອງຮັບ: {}, // ลูกหนี้ แยกตามสกุลเงิน
+            ໜີ້ຕ້ອງສົ່ງ: {}, // เจ้าหนี้ แยกตามสกุลเงิน
           };
         }
+
+        // เพิ่มยอดรวมทั้งหมด
         summary.trendByDate[dateKey].total[currency] =
           (summary.trendByDate[dateKey].total[currency] || 0) + amount;
 
-        if (item.type === "income")
-          summary.trendByDate[dateKey].income += amount;
-        if (item.type === "expense")
-          summary.trendByDate[dateKey].expense += amount;
-        if (item.type === "receivable")
-          summary.trendByDate[dateKey].receivable += amount;
-        if (item.type === "payable")
-          summary.trendByDate[dateKey].payable += amount;
-
-        // ✅ เรียงแนวโน้มตามวันที่ (ใหม่ -> เก่า)
-        summary.trendByDate = Object.fromEntries(
-          Object.entries(summary.trendByDate).sort(
-            (a, b) => new Date(b[0]) - new Date(a[0])
-          )
-        );
+        // แยกตาม sourceType และสกุลเงิน
+        const sourceType = item.sourceType;
+        if (sourceType) {
+          if (!summary.trendByDate[dateKey][sourceType]) {
+            summary.trendByDate[dateKey][sourceType] = {};
+          }
+          summary.trendByDate[dateKey][sourceType][currency] =
+            (summary.trendByDate[dateKey][sourceType][currency] || 0) + amount;
+        }
       });
+      // ✅ เรียงแนวโน้มตามวันที่ (ใหม่ -> เก่า)
+      summary.trendByDate = Object.fromEntries(
+        Object.entries(summary.trendByDate).sort(
+          (a, b) => new Date(b[0]) - new Date(a[0])
+        )
+      );
       // --- 1. สรุปตามประเภท ---
       // --- 1. สรุปตามประเภท ---
       const typeKey = item.type || item.category || "N/A";
@@ -396,11 +399,13 @@ router.get("/summary", async (req, res) => {
     const incomeData = await Transaction.find({
       ...dateFilter,
       type: "income",
+      userId: req.user._id,
     }).lean();
 
     const expenseData = await Transaction.find({
       ...dateFilter,
       type: "expense",
+      userId: req.user._id,
     }).lean();
 
     // คำนวณยอดรวม
