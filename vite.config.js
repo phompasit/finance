@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "https://a93e81e5545a.ngrok-free.app",
+        target: import.meta.env.VITE_API_URL,
         changeOrigin: true,
       },
     },

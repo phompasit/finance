@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 app.use(
   cors({
-    origin: "https://finance-1oi.pages.dev", // ต้องใส่ frontend URL จริง
+    origin: ["https://finance-1oi.pages.dev","http://localhost:5173"], // ต้องใส่ frontend URL จริง
     credentials: true,
   })
 );
