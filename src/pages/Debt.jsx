@@ -628,7 +628,7 @@ const DebtManagementSystem = () => {
 
   const fetchDebts = async () => {
     try {
-      const response = await fetch("https://a93e81e5545a.ngrok-free.app/api/debt", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/debt`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -731,8 +731,8 @@ const DebtManagementSystem = () => {
       };
 
       const url = editingDebt
-        ? `https://a93e81e5545a.ngrok-free.app/api/debt/${editingDebt._id}`
-        : "https://a93e81e5545a.ngrok-free.app/api/debt";
+        ? `${import.meta.env.VITE_API_URL}/api/debt/${editingDebt._id}`
+        : `${import.meta.env.VITE_API_URL}/api/debt`;
       const method = editingDebt ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -773,7 +773,7 @@ const DebtManagementSystem = () => {
     if (!window.confirm("ທ່ານແນ່ໃຈບໍ່ວ່າຈະລົບລາຍການນີ້?")) return;
 
     try {
-      const response = await fetch(`https://a93e81e5545a.ngrok-free.app/api/debt/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/debt/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,

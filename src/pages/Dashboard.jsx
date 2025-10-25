@@ -77,7 +77,7 @@ const ReportsPage = () => {
         if (filters[key]) queryParams.append(key, filters[key]);
       });
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/report?${queryParams}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/report?${queryParams}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -112,7 +112,7 @@ const ReportsPage = () => {
       if (filters.endDate) queryParams.append("endDate", filters.endDate);
       queryParams.append("groupBy", "month");
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/report/summary?${queryParams}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/report/summary?${queryParams}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,

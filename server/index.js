@@ -13,8 +13,8 @@ dotenv.config();
 const app = express();
 app.use(
   cors({
-    origin: ["*"],
-    credentials: true, // ถ้าใช้ cookie / session
+    origin: "https://finance-1oi.pages.dev", // ต้องใส่ frontend URL จริง
+    credentials: true,
   })
 );
 app.use(express.json());

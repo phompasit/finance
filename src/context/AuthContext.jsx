@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get("https://a93e81e5545a.ngrok-free.app/api/auth/me")
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/me`)
       setUser(response.data)
     } catch (error) {
       localStorage.removeItem("token")
@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const login = async (email, password) => {
-    const response = await axios.post("https://a93e81e5545a.ngrok-free.app/api/auth/login", { email, password })
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { email, password })
     const { token, user } = response.data
     localStorage.setItem("token", token)
     axios.defaults.headers.common["Authorization"] = `Bearer ${token}`

@@ -66,7 +66,7 @@ const Report = () => {
         if (value) queryParams.append(key, value);
       });
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/report?${queryParams.toString()}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/report?${queryParams.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -163,7 +163,7 @@ export default function IncomeExpense() {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch("https://a93e81e5545a.ngrok-free.app/api/income-expense", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/income-expense`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -303,7 +303,7 @@ export default function IncomeExpense() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const endpoint = "https://a93e81e5545a.ngrok-free.app/api/income-expense/bulk";
+      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/bulk`;
 
       // เตรียม body ให้เป็น JSON string
       const body = JSON.stringify({ transactions: formData });
@@ -356,7 +356,7 @@ export default function IncomeExpense() {
   };
   const handleEdit = async (id) => {
     try {
-      const endpoint = `https://a93e81e5545a.ngrok-free.app/api/income-expense/${formEditData.id}`;
+      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/${formEditData.id}`;
       const body = JSON.stringify(formEditData);
       const response = await fetch(endpoint, {
         method: "PUT",
@@ -387,7 +387,7 @@ export default function IncomeExpense() {
   };
   const handleDelete = async (id) => {
     try {
-      const endpoint = `https://a93e81e5545a.ngrok-free.app/api/income-expense/${id}`;
+      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/${id}`;
       const response = await fetch(endpoint, {
         method: "DELETE",
         headers: {
