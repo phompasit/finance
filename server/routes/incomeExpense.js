@@ -53,7 +53,14 @@ router.post("/bulk", authenticate, async (req, res) => {
     else {
       query.userId = req.user.companyId;
     }
-
+    const exists = await IncomeExpense
+      .findOne({ serial: transactions.serial })
+      .lean();
+    if (exists) {
+      return res.status(400).json({
+        message: "ເລກທີມີແລ້ວກະລຸນາເລືອກໃໝ່",
+      });
+    }
     const savedRecords = await IncomeExpense.insertMany({
       userId: query.userId,
       serial: transactions.serial,
@@ -72,6 +79,7 @@ router.post("/bulk", authenticate, async (req, res) => {
       records: savedRecords,
     });
   } catch (error) {
+    console.log(error)
     res.status(500).json({
       message: "เกิดข้อผิดพลาดในการบันทึกหลายรายการ",
       error: error.message,
@@ -126,6 +134,34 @@ router.delete("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
     res.json({ message: "ลบข้อมูลสำเร็จ" });
+  } catch (error) {
+    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+  }
+});
+
+// deleteAmount
+router.delete("/item/:id/:index", authenticate, async (req, res) => {
+  try {
+    const { id, index } = req.params;
+
+    // หา document ก่อน
+    const doc = await IncomeExpense.findById(id);
+    if (!doc) {
+      return res.status(404).json({ message: "ไม่พบข้อมูล" });
+    }
+
+    // ตรวจสอบ index ว่ามีอยู่จริง
+    if (!doc.amounts || !doc.amounts[index]) {
+      return res
+        .status(400)
+        .json({ message: "ไม่พบรายการ amounts ตาม index ที่ระบุ" });
+    }
+
+    // ลบ item ตาม index
+    doc.amounts.splice(index, 1);
+    await doc.save();
+
+    res.json({ message: "ລົບສຳເລັດ", data: doc });
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
   }

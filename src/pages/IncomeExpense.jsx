@@ -134,16 +134,6 @@ export default function IncomeExpense() {
     note: "",
     status: "paid",
   });
-  const [bulkItems, setBulkItems] = useState({
-    serial: "",
-    description: "",
-    type: "income",
-    paymentMethod: "cash",
-    date: new Date().toISOString().split("T")[0],
-    amounts: [{ currency: "LAK", amount: "" }],
-    note: "",
-    status: "paid",
-  });
 
   const [filters, setFilters] = useState({
     search: "",
@@ -163,14 +153,17 @@ export default function IncomeExpense() {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/income-expense`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/income-expense`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
 
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
       const data = await response.json();
       setTransactions(data);
     } catch (error) {
@@ -255,44 +248,74 @@ export default function IncomeExpense() {
   };
 
   const stats = calculateStats();
-  console.log(stats);
+  console.log("FormEditData", formEditData);
   const addCurrency = (index = null) => {
-    if (bulkMode && index !== null) {
-      const updated = [...bulkItems];
-      updated[index].amounts.push({ currency: "LAK", amount: "" });
-      setBulkItems(updated);
+    console.log(index);
+    if (index !== null) {
+      // ใช้ formEditData
+      const updated = { ...formEditData };
+      updated.amounts = [
+        ...(updated.amounts || []),
+        { currency: "LAK", amount: "" },
+      ];
+      setFormEditData(updated);
     } else {
-      setFormData({
-        ...formData,
-        amounts: [...formData.amounts, { currency: "LAK", amount: "" }],
-      });
+      // ใช้ formData
+      const updated = { ...formData };
+      updated.amounts = [
+        ...(updated.amounts || []),
+        { currency: "LAK", amount: "" },
+      ];
+      setFormData(updated);
     }
   };
+  const removeCurrency = async (currencyIndex, index = null) => {
+    console.log(currencyIndex, index);
+    if (index !== null) {
+      // formEditData
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL
+        }/api/income-expense/item/${currencyIndex}/${index}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
 
-  const removeCurrency = (currencyIndex, itemIndex = null) => {
-    if (bulkMode && itemIndex !== null) {
-      const updated = [...bulkItems];
-      updated[itemIndex].amounts = updated[itemIndex].amounts.filter(
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const updated = { ...formEditData };
+      updated.amounts = (updated.amounts || []).filter(
         (_, i) => i !== currencyIndex
       );
-      setBulkItems(updated);
+      setFormEditData(updated);
     } else {
-      setFormData({
-        ...formData,
-        amounts: formData.amounts.filter((_, i) => i !== currencyIndex),
-      });
+      // formData
+      const updated = { ...formData };
+      updated.amounts = (updated.amounts || []).filter(
+        (_, i) => i !== currencyIndex
+      );
+      setFormData(updated);
     }
   };
 
-  const updateCurrency = (currencyIndex, field, value, itemIndex = null) => {
-    if (bulkMode && itemIndex !== null) {
-      const updated = [...bulkItems];
-      updated[itemIndex].amounts[currencyIndex][field] = value;
-      setBulkItems(updated);
+  const updateCurrency = (currencyIndex, field, value, index = null) => {
+    if (index !== null) {
+      // formEditData
+      const updated = { ...formEditData };
+      const amounts = [...(updated.amounts || [])];
+      if (amounts[currencyIndex]) amounts[currencyIndex][field] = value;
+      updated.amounts = amounts;
+      setFormEditData(updated);
     } else {
-      const updated = [...formData.amounts];
-      updated[currencyIndex][field] = value;
-      setFormData({ ...formData, amounts: updated });
+      // formData
+      const updated = { ...formData };
+      const amounts = [...(updated.amounts || [])];
+      if (amounts[currencyIndex]) amounts[currencyIndex][field] = value;
+      updated.amounts = amounts;
+      setFormData(updated);
     }
   };
 
@@ -303,11 +326,37 @@ export default function IncomeExpense() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/bulk`;
+      // กรอง amounts ที่มี amount มากกว่า 0
+
+      const hasValidAmount = (formData.amounts || []).some(
+        (item) => parseFloat(item.amount) > 0
+      );
+
+      // ตรวจว่าข้อมูลจำเป็นครบไหม
+      if (
+        !hasValidAmount ||
+        !formData.serial ||
+        !formData.description ||
+        !formData.type ||
+        !formData.paymentMethod ||
+        !formData.date ||
+        !formData.note
+      ) {
+        toast({
+          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+          description: "ກະລຸນາປ້ອນຂໍ້ມູນທຸກຊ່ອງໃຫ້ຄົບຖ້ວນ",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+      const endpoint = `${
+        import.meta.env.VITE_API_URL
+      }/api/income-expense/bulk`;
 
       // เตรียม body ให้เป็น JSON string
       const body = JSON.stringify({ transactions: formData });
-      console.log(formData);
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -327,7 +376,7 @@ export default function IncomeExpense() {
           type: "income",
           paymentMethod: "cash",
           date: "",
-          amounts: [{ currency: "LAK", amount: "" }],
+          amounts: [{ currency: "LAK", amount: 0 }],
           note: "",
           status: "paid",
         });
@@ -341,7 +390,13 @@ export default function IncomeExpense() {
         onClose();
       } else {
         const data = await response.json();
-        throw new Error(data.message || "Failed to create transactions");
+        toast({
+          title: "ກະລຸນາກວດສອບຄືນ",
+          description: data.message,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       console.error("Error creating transaction:", error);
@@ -356,7 +411,33 @@ export default function IncomeExpense() {
   };
   const handleEdit = async (id) => {
     try {
-      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/${formEditData.id}`;
+      const amounts = formData.amounts || [];
+
+      const hasValidAmount = (formEditData.amounts || []).some(
+        (item) => parseFloat(item.amount) > 0
+      );
+      // ตรวจว่าข้อมูลจำเป็นครบไหม
+      if (
+        !hasValidAmount ||
+        !formEditData?.serial ||
+        !formEditData?.description ||
+        !formEditData?.type ||
+        !formEditData?.paymentMethod ||
+        !formEditData?.date ||
+        !formEditData?.note
+      ) {
+        toast({
+          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+          description: "ກະລຸນາປ້ອນຂໍ້ມູນທຸກຊ່ອງໃຫ້ຄົບຖ້ວນ",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/${
+        formEditData.id
+      }`;
       const body = JSON.stringify(formEditData);
       const response = await fetch(endpoint, {
         method: "PUT",
@@ -387,7 +468,9 @@ export default function IncomeExpense() {
   };
   const handleDelete = async (id) => {
     try {
-      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/${id}`;
+      const endpoint = `${
+        import.meta.env.VITE_API_URL
+      }/api/income-expense/${id}`;
       const response = await fetch(endpoint, {
         method: "DELETE",
         headers: {
@@ -1940,9 +2023,6 @@ export default function IncomeExpense() {
                                   {amt.currency === "CNY" && "¥"}
                                   {parseFloat(amt.amount).toLocaleString()}
                                 </Text>
-                                <Text fontSize="xs" color="gray.500">
-                                  {amt.currency}
-                                </Text>
                               </HStack>
                             ))}
                           </VStack>
@@ -2126,7 +2206,7 @@ export default function IncomeExpense() {
             <ModalCloseButton rounded="full" top={4} right={4} />
 
             <ModalBody fontFamily={"Noto Sans Lao, sans-serif"} py={6}>
-              {renderFormFieldsEdit(formEditData)}
+              {renderFormFieldsEdit(formEditData, formEditData.id)}
             </ModalBody>
 
             <ModalFooter borderTop="1px" borderColor={borderClr}>

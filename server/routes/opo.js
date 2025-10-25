@@ -25,7 +25,7 @@ router.get("/", authenticate, async (req, res) => {
       .populate("userId", "username email role companyInfo")
       .populate("staff", "username email role")
       .sort({ date: -1 });
-      res.json(records);
+    res.json(records);
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
   }
@@ -65,6 +65,12 @@ router.post("/", authenticate, async (req, res) => {
   try {
     // Validate required fields manually for better error messages
     const { serial, status, items } = req.body;
+    const exists = await OPO.findOne({ serial }).lean();
+    if (exists) {
+      return res.status(400).json({
+        message: "ເລກທີ OPO (serial) ມີແລ້ວກະລຸນາເລືອກໃໝ່",
+      });
+    }
 
     if (!serial) {
       return res.status(400).json({ message: "ກະລຸນາປ້ອນເລກທີ OPO (serial)" });

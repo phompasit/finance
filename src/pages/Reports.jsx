@@ -13,6 +13,7 @@ import {
   Select,
   HStack,
   VStack,
+  Icon,
   Text,
   Badge,
   useToast,
@@ -24,8 +25,28 @@ import {
   Spinner,
   Card,
   CardBody,
+  IconButton,
+  ChakraProvider,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+  Stack,
+  Divider,
+  useColorModeValue,
 } from "@chakra-ui/react";
-import { Search } from "lucide-react";
+import {
+  Eye,
+  Search,
+  TrendingUp,
+  CreditCard,
+  Calendar,
+  DollarSign,
+} from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useAuth } from "../context/AuthContext";
@@ -33,8 +54,10 @@ import { useAuth } from "../context/AuthContext";
 const Report = () => {
   const [data, setData] = useState([]);
   const { user } = useAuth();
+  const bg = useColorModeValue("gray.50", "gray.700");
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [selectData, setSelectData] = useState();
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -45,6 +68,7 @@ const Report = () => {
     status: "",
   });
   const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const shortDesc = (desc) => {
     if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
@@ -66,11 +90,14 @@ const Report = () => {
         if (value) queryParams.append(key, value);
       });
       const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/report?${queryParams.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/report?${queryParams.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -217,6 +244,10 @@ const Report = () => {
       default:
         return method || "-";
     }
+  };
+  const handleDetail = (item) => {
+    onOpen();
+    setSelectData(item);
   };
   // Export to PDF
   const exportToPDF = () => {
@@ -406,15 +437,15 @@ const Report = () => {
     /* ສ່ວນລາຍເຊັນ - ແບບທາງການ */
     .signature-section {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 30px;
       margin-top: 35px;
       padding-top: 20px;
       page-break-inside: avoid;
     }
     
     .signature-box {
-      text-align: center;
+      text-align: right;
     }
     
     .signature-label {
@@ -543,7 +574,7 @@ const Report = () => {
       <!-- ສ່ວນຫົວ -->
       <div class="header">
         <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
-        <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດຖານາທາວ</div>
+        <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</div>
       </div>
             <div class="document-title">
      ${user?.companyInfo?.name}
@@ -593,7 +624,7 @@ const Report = () => {
                           item.date
                         )}</td>
                         <td style="text-align: center;">${
-                          item.invoiceNumber || "-"
+                          item.serial || "-"
                         }</td>
                         <td style="text-align: left; padding-left: 6px;">${
                           amt.description || item.description || "-"
@@ -691,34 +722,957 @@ const Report = () => {
                 </tr>
               `;
             })()}
-          </tbody>
-        </table>
-      </div>
-      
-    
+            </tbody>
+            </table>
+            </div>
+
+            <div class="signature-section">
+              <div class="signature-box">
+                <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
+              </div>
+            </div>
     </div>
   </div>
 </body>
 </html>
 `);
   };
-  // <!-- ສ່ວນລາຍເຊັນ -->
-  // <div class="signature-section">
-  //   <div class="signature-box">
-  //     <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
-  //     <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
-  //   </div>
+  const renderOPO = (selectedOpo) => {
+    const STATUS_COLORS = {
+      PENDING: "yellow",
+      APPROVED: "green",
+      CANCELLED: "red",
+    };
+    const STATUS_TEXTS = {
+      PENDING: "ລໍຖ້າອະນຸມັດ",
+      APPROVED: "ອະນຸມັດແລ້ວ",
+      CANCELLED: "ຍົກເລີກ",
+    };
+    const groupByCurrency = (items) =>
+      items.reduce((acc, item) => {
+        acc[item.currency] =
+          (acc[item.currency] || 0) + parseFloat(item.amount || 0);
+        return acc;
+      }, {});
+    console.log("selectedOpo", selectedOpo);
+    return (
+      <Box id="pdf-preview" bg="white" p={8} border="1px solid #e2e8f0">
+        {/* Header */}
+        <Box textAlign="center" mb={6}>
+          <Box
+            h="80px"
+            bg="blue.600"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            mb={4}
+            borderRadius="md"
+          >
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              color="white"
+              fontSize="2xl"
+              fontWeight="bold"
+            >
+              {user?.companyInfo?.name}
+            </Text>
+          </Box>
+          <Heading
+            fontFamily="Noto Sans Lao, sans-serif"
+            size="lg"
+            color="blue.700"
+          >
+            ໃບສັ່ງຈ່າຍເງິນ (OPO)
+          </Heading>
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="lg"
+            fontWeight="bold"
+            mt={2}
+            color="gray.600"
+          >
+            Outgoing Payment Order
+          </Text>
+        </Box>
 
-  //   <div class="signature-box">
-  //     <div class="signature-label">ຜູ້ກວດສອບ</div>
-  //     <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
-  //   </div>
+        {/* Info */}
+        <Flex
+          justify="space-between"
+          mb={6}
+          pb={4}
+          borderBottom="2px solid #e2e8f0"
+        >
+          <Box>
+            <HStack fontFamily="Noto Sans Lao, sans-serif" mb={1}>
+              <Text fontFamily="Noto Sans Lao, sans-serif">ເລກທີ:</Text>{" "}
+              <Text fontFamily="Noto Sans Lao, sans-serif">
+                {selectedOpo.serial || selectedOpo.number}
+              </Text>
+            </HStack>
+            <HStack fontFamily="Noto Sans Lao, sans-serif">
+              <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
+                ວັນທີ:
+              </Text>{" "}
+              <Text fontFamily="Noto Sans Lao, sans-serif">
+                {formatDate(selectedOpo.date)}
+              </Text>
+            </HStack>
+          </Box>
+          <Box textAlign="right">
+            <Badge
+              fontFamily="Noto Sans Lao, sans-serif"
+              colorScheme={STATUS_COLORS[selectedOpo.status]}
+              fontSize="md"
+              p={2}
+              borderRadius="md"
+            >
+              {STATUS_TEXTS[selectedOpo.status]}
+            </Badge>
+          </Box>
+        </Flex>
 
-  //   <div class="signature-box">
-  //     <div class="signature-label">ຜູ້ອະນຸມັດ</div>
-  //     <div class="signature-line">(ເຊັນ ແລະ ຈົ່ງຊື່ຈະແຈ້ງ)</div>
-  //   </div>
-  // </div>
+        {/* Items */}
+        <Box mb={6}>
+          <Heading
+            fontFamily="Noto Sans Lao, sans-serif"
+            size="md"
+            mb={3}
+            color="blue.700"
+          >
+            ລາຍການຈ່າຍເງິນ
+          </Heading>
+          <Table variant="simple" size="sm">
+            <Thead bg="gray.100">
+              <Tr>
+                <Th fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif">ລາຍລະອຽດ</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif">ວິທີຊຳລະ</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif">ສະກຸນເງິນ</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                  ຈຳນວນເງິນ
+                </Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif">ສາເຫດ</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif">ໝາຍເຫດ</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {(selectedItems.length > 0
+                ? (selectedOpo?.listAmount || []).filter((item) =>
+                    selectedItems.includes(item._id)
+                  )
+                : selectedOpo?.listAmount || []
+              )
+                .slice() // สร้างสำเนา array เพื่อไม่แก้ตัวต้นฉบับ
+                .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
+                .map((item, index) => (
+                  <Tr key={item._id}>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">{index + 1}</Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      <Text>{item.description}</Text>
+                    </Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      {PAYMENT_METHODS[item.paymentMethod]}
+                    </Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      {item.currency}
+                    </Td>
+                    <Td
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      isNumeric
+                      fontWeight="bold"
+                    >
+                      {parseFloat(item.amount || 0).toLocaleString()}
+                    </Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      {item.reason}
+                    </Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">{item.notes}</Td>
+                  </Tr>
+                ))}
+            </Tbody>
+          </Table>
+        </Box>
+
+        {/* Total */}
+        <Box mb={6} bg="blue.50" p={4} borderRadius="md">
+          <Heading
+            fontFamily="Noto Sans Lao, sans-serif"
+            size="sm"
+            mb={2}
+            color="blue.700"
+          >
+            ຍອດລວມທັງໝົດ
+          </Heading>
+          {Object.entries(
+            groupByCurrency(
+              selectedItems.length > 0
+                ? (selectedOpo.items || []).filter((item) =>
+                    selectedItems.includes(item.id)
+                  )
+                : selectedOpo.items || []
+            )
+          ).map(([currency, amount]) => (
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              key={currency}
+              fontSize="xl"
+              fontWeight="bold"
+              color="blue.600"
+            >
+              {amount.toLocaleString()} {currency}
+            </Text>
+          ))}
+        </Box>
+
+        {/* Signatures */}
+        <Box mt={8}>
+          <Heading
+            fontFamily="Noto Sans Lao, sans-serif"
+            size="sm"
+            mb={4}
+            color="blue.700"
+          >
+            ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ
+          </Heading>
+          <Flex justify="space-between" gap={4}>
+            {[
+              { label: "ຜູ້ຮ້ອງຂໍ", value: selectedOpo.requester },
+              { label: "ຜູ້ຈັດການພະແນກ", value: selectedOpo.manager },
+              { label: "ຜູ້ສ້າງ OPO", value: selectedOpo.createdBy },
+              { label: "CEO & CFO", value: "" },
+            ].map((sign, index) => (
+              <Box key={index} flex="1" textAlign="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="bold"
+                  mb={16}
+                >
+                  {sign.label}
+                </Text>
+                <Box borderTop="2px solid" borderColor="gray.400" pt={2}>
+                  <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                    {sign.value || "___________________"}
+                  </Text>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="xs"
+                    color="gray.500"
+                    mt={1}
+                  >
+                    ວັນທີ: ___/___/______
+                  </Text>
+                </Box>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+
+        {/* Footer */}
+        <Box mt={8} pt={4} borderTop="1px solid #e2e8f0" textAlign="center">
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="xs"
+            color="gray.500"
+          >
+            ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ OPO - {formatDate(new Date())}
+          </Text>
+        </Box>
+      </Box>
+    );
+  };
+  const renderIncomeAndExpese = (views) => {
+    console.log("views", views);
+    return (
+      <VStack py={6} spacing={6} align="stretch">
+        {/* Transaction Type Badge */}
+        <HStack
+          w="100%"
+          p={4}
+          bg="white"
+          shadow="md"
+          rounded="lg"
+          spacing={6}
+          align="center"
+          fontFamily="Noto Sans Lao, sans-serif"
+        >
+          {/* Type */}
+          <HStack spacing={2}>
+            <Icon
+              as={views?.type === "income" ? TrendingUp : TrendingDown}
+              color={views?.type === "income" ? "green.500" : "red.500"}
+            />
+            <Badge
+              px={3}
+              fontFamily="Noto Sans Lao, sans-serif"
+              py={1}
+              rounded="full"
+              colorScheme={views?.type === "income" ? "green" : "red"}
+              fontSize="sm"
+            >
+              {views?.type === "income" ? "📈 ລາຍຮັບ" : "📉 ລາຍຈ່າຍ"}
+            </Badge>
+          </HStack>
+
+          <Divider orientation="vertical" />
+
+          {/* Serial */}
+          <VStack spacing={1} align="start">
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              color="gray.500"
+            >
+              ເລກທີ່
+            </Text>
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="semibold">
+              {views?.serial || "-"}
+            </Text>
+          </VStack>
+
+          <Divider orientation="vertical" />
+
+          <Divider orientation="vertical" />
+
+          {/* Payment Method */}
+          <VStack spacing={1} align="start">
+            <HStack spacing={1}>
+              <Icon as={CreditCard} boxSize={4} color="blue.500" />
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontSize="sm"
+                color="gray.500"
+              >
+                ວິທີການຊຳລະ
+              </Text>
+            </HStack>
+            <Badge
+              px={3}
+              fontFamily="Noto Sans Lao, sans-serif"
+              py={1}
+              rounded="md"
+              colorScheme="blue"
+              fontSize="sm"
+            >
+              {views?.paymentMethod === "cash"
+                ? "💵 ເງິນສົດ"
+                : views?.paymentMethod === "transfer"
+                ? "🏦 ໂອນເງິນ"
+                : views?.paymentMethod}
+            </Badge>
+          </VStack>
+
+          <Divider orientation="vertical" />
+
+          {/* Date */}
+          <VStack spacing={1} align="start">
+            <HStack spacing={1}>
+              <Icon as={Calendar} boxSize={4} color="purple.500" />
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontSize="sm"
+                color="gray.500"
+              >
+                ວັນທີ່
+              </Text>
+            </HStack>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              fontWeight="medium"
+            >
+              {formatDate(new Date(views?.date))}
+            </Text>
+          </VStack>
+          <VStack>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              color="gray.500"
+            >
+              ໝາຍເຫດ
+            </Text>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              color="gray.500"
+            >
+              {views?.notes}
+            </Text>
+          </VStack>
+        </HStack>
+
+        {/* Description */}
+        <VStack spacing={1} align="start" flex={1}>
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.500"
+          >
+            ລາຍລະອຽດ
+          </Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="medium">
+            {views?.description || "-"}
+          </Text>
+        </VStack>
+
+        <Divider />
+
+        {/* Amounts */}
+        <Box>
+          <HStack spacing={2} mb={3}>
+            <Icon as={DollarSign} boxSize={4} color="teal.500" />
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              color="gray.500"
+              fontWeight="medium"
+            >
+              ຈຳນວນເງິນ
+            </Text>
+          </HStack>
+          <VStack spacing={3} align="stretch">
+            {views?.listAmount?.map((amount, index) => (
+              <Box key={index} p={4} bg={bg} rounded="lg" border="1px solid">
+                <HStack justify="space-between">
+                  <HStack spacing={2}>
+                    <Text
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      fontSize="lg"
+                      fontWeight="bold"
+                      color="gray.600"
+                    >
+                      {amount?.currency}
+                    </Text>
+                  </HStack>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="2xl"
+                    fontWeight="bold"
+                    color={views?.type === "income" ? "green.500" : "red.500"}
+                  >
+                    {amount.amount.toLocaleString("lo-LA")}
+                  </Text>
+                </HStack>
+              </Box>
+            ))}
+          </VStack>
+        </Box>
+
+        {/* Note */}
+        {views?.note && (
+          <>
+            <Divider />
+            <Box>
+              <HStack spacing={2} mb={2}>
+                <Icon as={FileText} boxSize={4} color="orange.500" />
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontSize="sm"
+                  color="gray.500"
+                  fontWeight="medium"
+                >
+                  ໝາຍເຫດ
+                </Text>
+              </HStack>
+              <Box
+                p={4}
+                bg={useColorModeValue("orange.50", "orange.900")}
+                rounded="lg"
+                border="1px solid"
+                borderColor="orange.200"
+              >
+                <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="md">
+                  {views?.note}
+                </Text>
+              </Box>
+            </Box>
+          </>
+        )}
+
+        {/* Created Date */}
+        <Box pt={2}>
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="xs"
+            color="gray.400"
+            textAlign="center"
+          >
+            ສ້າງເມື່ອ: {new Date(views?.createdAt).toLocaleString("lo-LA")}
+          </Text>
+        </Box>
+      </VStack>
+    );
+  };
+  const renderDebt = (documentData) => {
+    console.log("documentData", documentData);
+    return (
+      <Stack spacing={6}>
+        {/* General Information */}
+        <Card
+          bg="white"
+          border="1px solid"
+          borderColor="gray.200"
+          borderRadius="md"
+          boxShadow="sm"
+          _hover={{ boxShadow: "md" }}
+          transition="all 0.2s"
+        >
+          <CardBody>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="lg"
+              fontWeight="semibold"
+              color="gray.700"
+              mb={3}
+            >
+              ຂໍ້ມູນທົ່ວໄປ
+            </Text>
+            <Stack spacing={3}>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ເລກທີ່:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {documentData?.serial}
+                </Text>
+              </Flex>
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                color="gray.600"
+                fontSize="sm"
+              >
+                ລາຍລະອຽດ:
+              </Text>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {documentData?.description}
+                </Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ປະເພດໜີ້:
+                </Text>
+                <Badge
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  colorScheme={
+                    documentData?.debtType === "payable" ? "red" : "green"
+                  }
+                  px={2}
+                  py={1}
+                  borderRadius="full"
+                >
+                  {documentData?.debtType === "payable"
+                    ? "ໜີ້ຕ້ອງສົ່ງ"
+                    : "ໜີ້ຕ້ອງຮັບ"}
+                </Badge>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ວິທີການຊຳລະ:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {documentData?.paymentMethod}
+                </Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ວັນທີ່:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {formatDate(documentData?.date)}
+                </Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ສະຖານະ:
+                </Text>
+                <Badge
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  colorScheme={
+                    documentData?.status === "ຊຳລະບາງສ່ວນ" ? "yellow" : "green"
+                  }
+                  px={2}
+                  py={1}
+                  borderRadius="full"
+                >
+                  {documentData?.status}
+                </Badge>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ສ້າງເມື່ອ:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {formatDate(documentData?.createdAt)}
+                </Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ອັບເດດເມື່ອ:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {formatDate(documentData?.updatedAt)}
+                </Text>
+              </Flex>
+            </Stack>
+          </CardBody>
+        </Card>
+
+        {/* Amounts Section */}
+        <Card
+          bg="white"
+          border="1px solid"
+          borderColor="gray.200"
+          borderRadius="md"
+          boxShadow="sm"
+          _hover={{ boxShadow: "md" }}
+          transition="all 0.2s"
+        >
+          <CardBody>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="lg"
+              fontWeight="semibold"
+              color="gray.700"
+              mb={3}
+            >
+              ຈຳນວນເງິນ
+            </Text>
+            <Table variant="simple" size="sm">
+              <Thead bg="gray.50">
+                <Tr>
+                  <Th
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    color="gray.600"
+                    fontSize="xs"
+                    textTransform="none"
+                  >
+                    ສະກຸນເງິນ
+                  </Th>
+                  <Th
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    color="gray.600"
+                    fontSize="xs"
+                    textTransform="none"
+                    isNumeric
+                  >
+                    ຈຳນວນ
+                  </Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {documentData?.listAmount?.map((amt) => (
+                  <Tr
+                    key={amt._id?.$oid}
+                    _hover={{ bg: "gray.50" }}
+                    transition="background 0.2s"
+                  >
+                    <Td fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                      {amt.currency}
+                    </Td>
+                    <Td
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      fontSize="sm"
+                      isNumeric
+                      fontWeight="medium"
+                    >
+                      {formatAmount(amt.amount, amt.currency)}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
+
+        {/* Installments Section */}
+        <Card
+          bg="white"
+          border="1px solid"
+          borderColor="gray.200"
+          borderRadius="md"
+          boxShadow="sm"
+          _hover={{ boxShadow: "md" }}
+          transition="all 0.2s"
+        >
+          <CardBody>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="lg"
+              fontWeight="semibold"
+              color="gray.700"
+              mb={3}
+            >
+              ງວດການຊຳລະ (ແຍກຕາມສະກຸນເງິນ)
+            </Text>
+
+            {(() => {
+              // 🧮 จัดกลุ่ม installments ตามสกุลเงิน
+              const groupedByCurrency = documentData?.installments?.reduce(
+                (acc, inst) => {
+                  if (!acc[inst.currency]) acc[inst.currency] = [];
+                  acc[inst.currency].push(inst);
+                  return acc;
+                },
+                {}
+              );
+
+              return Object.entries(groupedByCurrency || {}).map(
+                ([currency, installments]) => (
+                  <Box key={currency} mb={6}>
+                    {/* 🔹 หัวข้อของแต่ละสกุลเงิน */}
+                    <Text
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      fontWeight="bold"
+                      fontSize="md"
+                      color="blue.600"
+                      mb={2}
+                    >
+                      💱 ສະກຸນເງິນ: {currency}
+                    </Text>
+
+                    {/* 🔹 ตารางของแต่ละสกุลเงิน */}
+                    <Table variant="simple" size="xl">
+                      <Thead bg="gray.50">
+                        <Tr>
+                          <Th
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            color="gray.600"
+                            fontSize="xs"
+                            textTransform="none"
+                          >
+                            ວັນຄົບກຳນົດ
+                          </Th>
+                          <Th
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            color="gray.600"
+                            fontSize="xs"
+                            textTransform="none"
+                          >
+                            ວັນທີ່ຊຳລະ
+                          </Th>
+                          <Th
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            color="gray.600"
+                            fontSize="xs"
+                            textTransform="none"
+                            isNumeric
+                          >
+                            ຈຳນວນ
+                          </Th>
+                          <Th
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            color="gray.600"
+                            fontSize="xs"
+                            textTransform="none"
+                          >
+                            ສະຖານະ
+                          </Th>
+                        </Tr>
+                      </Thead>
+                      <Tbody>
+                        {installments.map((inst) => (
+                          <Tr
+                            key={inst._id?.$oid || inst._id}
+                            _hover={{ bg: "gray.50" }}
+                            transition="background 0.2s"
+                          >
+                            <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              fontSize="sm"
+                            >
+                              {formatDate(inst.dueDate)}
+                            </Td>
+                            <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              fontSize="sm"
+                            >
+                              {inst.paidDate
+                                ? formatDate(inst.paidDate)
+                                : "ຍັງບໍ່ຊຳລະ"}
+                            </Td>
+                            <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              fontSize="sm"
+                              isNumeric
+                              fontWeight="medium"
+                            >
+                              {formatAmount(inst.amount, inst.currency)}
+                            </Td>
+                            <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              fontSize="sm"
+                            >
+                              <Badge
+                                fontFamily="Noto Sans Lao, sans-serif"
+                                colorScheme={inst.isPaid ? "green" : "red"}
+                                px={2}
+                                py={1}
+                                borderRadius="full"
+                              >
+                                {inst.isPaid ? "ຊຳລະແລ້ວ" : "ຍັງບໍ່ຊຳລະ"}
+                              </Badge>
+                            </Td>
+                          </Tr>
+                        ))}
+
+                        {/* 🔹 แสดงยอดรวมของแต่ละสกุล */}
+                        <Tr bg="gray.50">
+                          <Td
+                            colSpan={2}
+                            textAlign="right"
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            fontWeight="bold"
+                            color="gray.700"
+                          >
+                            ລວມທັງໝົດ:
+                          </Td>
+                          <Td
+                            isNumeric
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            fontWeight="bold"
+                            color="blue.700"
+                          >
+                            {formatAmount(
+                              installments.reduce(
+                                (sum, i) => sum + i.amount,
+                                0
+                              ),
+                              currency
+                            )}
+                          </Td>
+                          <Td></Td>
+                        </Tr>
+                      </Tbody>
+                    </Table>
+                  </Box>
+                )
+              );
+            })()}
+          </CardBody>
+        </Card>
+
+        {/* Notes and Reason */}
+        <Card
+          bg="white"
+          border="1px solid"
+          borderColor="gray.200"
+          borderRadius="md"
+          boxShadow="sm"
+          _hover={{ boxShadow: "md" }}
+          transition="all 0.2s"
+        >
+          <CardBody>
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="lg"
+              fontWeight="semibold"
+              color="gray.700"
+              mb={3}
+            >
+              ຂໍ້ມູນເພີ່ມເຕີມ
+            </Text>
+            <Stack spacing={3}>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ໝາຍເຫດ:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {documentData?.notes || "ບໍ່ມີ"}
+                </Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  color="gray.600"
+                  fontSize="sm"
+                >
+                  ເຫດຜົນ:
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {documentData?.reason || "ບໍ່ມີ"}
+                </Text>
+              </Flex>
+            </Stack>
+          </CardBody>
+        </Card>
+      </Stack>
+    );
+  };
+  const renderContent = (selectData) => {
+    switch (selectData?.type) {
+      case "OPO":
+        return renderOPO(selectData);
+      case "receivable":
+      case "payable":
+        return renderDebt(selectData);
+      case "income":
+      case "expense":
+        return renderIncomeAndExpese(selectData);
+      default:
+        return <p>ไม่พบข้อมูลที่ต้องการแสดง</p>;
+    }
+  };
+  const PAYMENT_METHODS = {
+    cash: "ເງິນສົດ",
+    transfer: "ໂອນເງິນ",
+  };
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={6} align="stretch">
@@ -919,6 +1873,7 @@ const Report = () => {
                       <Th fontFamily="Noto Sans Lao, sans-serif">ວິທີຊຳລະ</Th>
                       <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
                       <Th fontFamily="Noto Sans Lao, sans-serif">ໝາຍເຫດ</Th>
+                      <Th fontFamily="Noto Sans Lao, sans-serif">ການກະທຳ</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -1049,6 +2004,22 @@ const Report = () => {
                               shortDesc(item.notes || "-")
                             )}
                           </Td>
+                          <Td>
+                            <IconButton
+                              icon={<Eye size={18} />}
+                              colorScheme="blue"
+                              variant="solid"
+                              size="sm"
+                              borderRadius="md"
+                              onClick={() => handleDetail(item)}
+                              _hover={{
+                                transform: "scale(1.05)",
+                                boxShadow: "md",
+                              }}
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              transition="all 0.2s"
+                            />
+                          </Td>
                         </Tr>
                       ))}
                   </Tbody>
@@ -1068,6 +2039,29 @@ const Report = () => {
           </CardBody>
         </Card>
       </VStack>
+      {/* /////details */}
+
+      <ChakraProvider>
+        <Modal
+          size="4xl"
+          isCentered
+          motionPreset="slideInBottom"
+          isOpen={isOpen}
+          onClose={onClose}
+        >
+          <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
+          <ModalContent rounded="2xl" shadow="2xl" border="1px solid">
+            <ModalHeader borderBottom="1px">{selectData?.type}</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody py={6}>{renderContent(selectData)}</ModalBody>
+            <ModalFooter>
+              <Button colorScheme="blue" onClick={onClose}>
+                Close
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </ChakraProvider>
     </Container>
   );
 };

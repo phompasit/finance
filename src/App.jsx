@@ -11,6 +11,7 @@ import Users from "./pages/Users";
 import Layout from "./components/Layout";
 import axios from "axios";
 import { useEffect } from "react";
+import Detail from "./pages/Detail";
 
 function App() {
   const refreshToken = async () => {
@@ -56,6 +57,7 @@ function App() {
           <Route path="debt" element={<Debt />} />
           <Route path="reports" element={<Reports />} />
           <Route path="users" element={<Users />} />
+          <Route path="details" element={<Detail />} />
         </Route>
       </Routes>
     </AuthProvider>
