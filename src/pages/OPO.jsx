@@ -79,7 +79,7 @@ const PAYMENT_METHODS = {
 
 const CURRENCIES = ["LAK", "THB", "USD"];
 
-const API_BASE_URL = "https://a93e81e5545a.ngrok-free.app /api";
+const API_BASE_URL = "https://a93e81e5545a.ngrok-free.app/api";
 function formatDate(dateString) {
   const d = new Date(dateString);
   const day = String(d.getDate()).padStart(2, "0");
@@ -595,7 +595,7 @@ const OPOSystem = () => {
       //   });
       //   return;
       // }
-      const endpoint = `https://a93e81e5545a.ngrok-free.app /api/opo/opoId/${formData.id}/item/${id}`;
+      const endpoint = `https://a93e81e5545a.ngrok-free.app/api/opo/opoId/${formData.id}/item/${id}`;
       const token = localStorage.getItem("token");
       fetch(endpoint, {
         method: "DELETE",
