@@ -44,7 +44,15 @@ import {
   StatLabel,
   Grid,
 } from "@chakra-ui/react";
-import { Plus, FileText, Trash2, Edit, Download } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Trash2,
+  Edit,
+  Download,
+  ChevronRightIcon,
+  ChevronLeftIcon,
+} from "lucide-react";
 import PropTypes from "prop-types";
 import { useAuth } from "../context/AuthContext";
 
@@ -67,11 +75,9 @@ const STATUS_TEXTS = {
   PENDING: "ລໍຖ້າອະນຸມັດ",
   APPROVED: "ອະນຸມັດແລ້ວ",
   CANCELLED: "ຍົກເລີກ",
-  ALL: "ALL",
 };
 const STATUS_TEXTS_staff = {
   PENDING: "ລໍຖ້າອະນຸມັດ",
-  ALL: "ALL",
 };
 
 const PAYMENT_METHODS = {
@@ -150,7 +156,18 @@ OPOItem.propTypes = {
   onRemove: PropTypes.func.isRequired,
 };
 
-const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
+const OPOTable = ({
+  toast,
+  opos,
+  onEdit,
+  onDelete,
+  onExportPDF,
+  user,
+  fetchOPOs,
+  setPage,
+  totalPages,
+  page,
+}) => {
   if (opos.length === 0) {
     return (
       <Box bg="white" borderRadius="lg" shadow="sm" p={8} textAlign="center">
@@ -160,6 +177,46 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
       </Box>
     );
   }
+  const handleStatus = async (data, status) => {
+    const endpoint = `${import.meta.env.VITE_API_URL}/api/opo/status/${
+      data._id
+    }`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ status_Ap: status }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return toast({
+          title: "ກະລຸນາກວດສອບອີກຄັ້ງ",
+          description: result.message || "Error occurred",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+
+      fetchOPOs();
+      toast({
+        title: "ສຳເລັດ",
+        description: `${status} ສຳເລັດແລ້ວ`,
+        status: "success",
+        duration: 2500,
+        isClosable: true,
+      });
+      onClose();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <Box bg="white" borderRadius="lg" shadow="sm" overflow="hidden">
@@ -170,6 +227,7 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
             <Th>ວັນທີ</Th>
             <Th>ຈຳນວນລາຍການ</Th>
             <Th>ຍອດລວມ</Th>
+            <Th>ສະຖານະການຊຳລະເງິນ</Th>
             <Th>ສະຖານະ</Th>
             <Th>ຜູ້ສ້າງ</Th>
             <Th>ຈັດການ</Th>
@@ -202,10 +260,31 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
                 </Td>
                 <Td>
                   <Badge
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    colorScheme={STATUS_COLORS[opo.status] || "gray"}
+                    fontFamily={"Noto Sans Lao, sans-serif"}
+                    colorScheme={opo.status === "paid" ? "green" : "red"}
+                    rounded="md"
+                    fontSize="14px"
+                    fontWeight="bold"
                   >
-                    {STATUS_TEXTS[opo.status] || opo.status}
+                    {opo.status === "paid" ? "ຊຳລະແລ້ວ" : "ຍັງບໍ່ຊຳລະ"}
+                  </Badge>
+                </Td>
+                <Td>
+                  <Badge
+                    rounded="lg"
+                    colorScheme={STATUS_COLORS[opo.status_Ap] || opo.status_Ap}
+                    fontFamily={"Noto Sans Lao, sans-serif"}
+                    px={4}
+                    py={2}
+                    fontWeight="bold"
+                    fontSize={"22px"}
+                    textTransform="capitalize"
+                    variant="solid" // ใช้แบบทึบจะเด่นกว่า outline
+                    boxShadow="0px 2px 10px rgba(0,0,0,0.25)" // เพิ่มเงาให้ลอยขึ้น
+                    border="1px solid rgba(255,255,255,0.6)" // ขอบจาง ๆ ให้ดูมีชั้น
+                    letterSpacing="0.5px"
+                  >
+                    {STATUS_TEXTS[opo.status_Ap] || opo.status_Ap}
                   </Badge>
                 </Td>
                 <Td>
@@ -215,6 +294,57 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
                 </Td>
                 <Td>
                   <HStack spacing={2}>
+                    {user?.role === "admin" && (
+                      <HStack spacing={2}>
+                        <Button
+                          fontSize={"20"}
+                          size="sm"
+                          rounded="lg"
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          colorScheme={
+                            opo?.status_Ap === "PENDING" ? "yellow" : "gray"
+                          }
+                          variant={
+                            opo?.status_Ap === "PENDING" ? "solid" : "outline"
+                          }
+                          onClick={() => handleStatus(opo, "PENDING")}
+                        >
+                          ລໍຖ້າ
+                        </Button>
+
+                        <Button
+                          fontSize={"20"}
+                          size="sm"
+                          rounded="lg"
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          colorScheme={
+                            opo?.status_Ap === "APPROVED" ? "green" : "gray"
+                          }
+                          variant={
+                            opo?.status_Ap === "APPROVED" ? "solid" : "outline"
+                          }
+                          onClick={() => handleStatus(opo, "APPROVED")}
+                        >
+                          ອະນຸມັດ
+                        </Button>
+
+                        <Button
+                          fontSize={"20"}
+                          size="sm"
+                          rounded="lg"
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          colorScheme={
+                            opo?.status_Ap === "CANCELLED" ? "red" : "gray"
+                          }
+                          variant={
+                            opo?.status_Ap === "CANCELLED" ? "solid" : "outline"
+                          }
+                          onClick={() => handleStatus(opo, "CANCELLED")}
+                        >
+                          ຍົກເລີກ
+                        </Button>
+                      </HStack>
+                    )}
                     <IconButton
                       icon={<FileText size={18} />}
                       size="sm"
@@ -224,7 +354,7 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
                     />
                     {(user?.role === "admin" ||
                       (user?.role === "staff" &&
-                        opo?.status !== "APPROVED")) && (
+                        opo?.status_Ap !== "APPROVED")) && (
                       <IconButton
                         icon={<Edit size={18} />}
                         size="sm"
@@ -235,7 +365,7 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
                     )}
                     {(user?.role === "admin" ||
                       (user?.role === "staff" &&
-                        opo?.status !== "APPROVED")) && (
+                        opo?.status_Ap !== "APPROVED")) && (
                       <IconButton
                         icon={<Trash2 size={18} />}
                         size="sm"
@@ -251,6 +381,43 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
           })}
         </Tbody>
       </Table>
+      <HStack paddingTop={"60px"} spacing={2} justify="center">
+        <IconButton
+          icon={<ChevronLeftIcon />}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          isDisabled={page === 1}
+          colorScheme="purple"
+          variant="outline"
+          borderRadius="full"
+          aria-label="Previous page"
+          _hover={{
+            transform: "scale(1.1)",
+          }}
+        />
+
+        <Badge
+          colorScheme="purple"
+          fontSize="md"
+          px={4}
+          py={2}
+          borderRadius="full"
+        >
+          {page} / {totalPages}
+        </Badge>
+
+        <IconButton
+          icon={<ChevronRightIcon />}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          isDisabled={page === totalPages}
+          colorScheme="purple"
+          variant="outline"
+          borderRadius="full"
+          aria-label="Next page"
+          _hover={{
+            transform: "scale(1.1)",
+          }}
+        />
+      </HStack>
     </Box>
   );
 };
@@ -262,7 +429,7 @@ OPOTable.propTypes = {
       serial: PropTypes.string,
       number: PropTypes.string,
       date: PropTypes.string.isRequired,
-      status: PropTypes.string.isRequired,
+      status_Ap: PropTypes.string.isRequired,
       items: PropTypes.arrayOf(PropTypes.object),
     })
   ).isRequired,
@@ -276,7 +443,7 @@ const OPOSystem = () => {
   const [opos, setOpos] = useState([]);
   const [selectedOpo, setSelectedOpo] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
@@ -290,7 +457,8 @@ const OPOSystem = () => {
     onClose: onPdfClose,
   } = useDisclosure();
   const toast = useToast();
-
+  const pageSize = 30;
+  const [page, setPage] = useState(1);
   const shortDesc = (desc) => {
     if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
@@ -300,11 +468,12 @@ const OPOSystem = () => {
     id: null,
     serial: "",
     date: new Date().toISOString().split("T")[0],
-    status: "PENDING",
+    status_Ap: "PENDING",
     requester: "",
     manager: "",
     createdBy: "",
     items: [],
+    status: "unpaid",
     role: "",
   });
 
@@ -345,7 +514,7 @@ const OPOSystem = () => {
     if (!formData.serial || formData.items.length === 0) {
       toast({
         title: "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-        description: "ຕ້ອງມີເລກທີ ແລະ ລາຍການຢ່າງໜ້ອຍ 1 ລາຍການ",
+        description: "ຕ້ອງລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
         status: "warning",
         duration: 3000,
       });
@@ -571,12 +740,13 @@ const OPOSystem = () => {
       id: opo._id || "",
       serial: opo.serial || opo.number || "",
       date: opo.date,
-      status: opo.status,
+      status_Ap: opo.status_Ap,
       requester: opo.requester || "",
       manager: opo.manager || "",
       createdBy: opo.createdBy || "",
       items: opo.items || [],
       role: opo.userId.role || "",
+      status: opo?.status || "",
     });
     onOpen();
   };
@@ -597,7 +767,7 @@ const OPOSystem = () => {
             .includes(searchTerm.toLowerCase());
 
         const matchStatus =
-          filterStatus === "all" || opo.status === filterStatus;
+          filterStatus === "all" || opo.status_Ap === filterStatus;
         const matchDate =
           (!filterDateFrom || opo.date >= filterDateFrom) &&
           (!filterDateTo || opo.date <= filterDateTo);
@@ -605,6 +775,11 @@ const OPOSystem = () => {
       }),
     [opos, searchTerm, filterStatus, filterDateFrom, filterDateTo]
   );
+  const totalPages = Math.ceil(filteredOpos.length / pageSize);
+  const pageData = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filteredOpos.slice(s, s + pageSize);
+  }, [filteredOpos, page]);
   const exportToCSV = () => {
     const csvData = [
       [
@@ -625,7 +800,7 @@ const OPOSystem = () => {
         (opo.items || []).map((item) => [
           opo.serial || opo.number,
           opo.date,
-          STATUS_TEXTS[opo.status] || opo.status,
+          STATUS_TEXTS[opo.status_Ap] || opo.status_Ap,
           item.description,
           PAYMENT_METHODS[item.paymentMethod],
           item.currency,
@@ -663,21 +838,21 @@ const OPOSystem = () => {
   };
   const summaryOPO = {
     PENDING: {
-      count: opos.filter((item) => item.status === "PENDING").length,
+      count: opos.filter((item) => item.status_Ap === "PENDING").length,
       total: opos
-        .filter((item) => item.status === "PENDING")
+        .filter((item) => item.status_Ap === "PENDING")
         .reduce((sum, item) => sum + item.amount, 0),
     },
     APPROVED: {
-      count: opos.filter((item) => item.status === "APPROVED").length,
+      count: opos.filter((item) => item.status_Ap === "APPROVED").length,
       total: opos
-        .filter((item) => item.status === "APPROVED")
+        .filter((item) => item.status_Ap === "APPROVED")
         .reduce((sum, item) => sum + item.amount, 0),
     },
     CANCELLED: {
-      count: opos.filter((item) => item.status === "CANCELLED").length,
+      count: opos.filter((item) => item.status_Ap === "CANCELLED").length,
       total: opos
-        .filter((item) => item.status === "CANCELLED")
+        .filter((item) => item.status_Ap === "CANCELLED")
         .reduce((sum, item) => sum + item.amount, 0),
     },
   };
@@ -1099,15 +1274,14 @@ const OPOSystem = () => {
                 </div>
                 <div class="info-row">
                   <div class="info-label">ວັນທີ / Date:</div>
-                  <div class="info-value">${formatDate(
-                    selectedOpo.date
-                  )}</div>
+                  <div class="info-value">${formatDate(selectedOpo.date)}</div>
                 </div>
                 <div class="info-row">
                   <div class="info-label">ສະຖານະ / Status:</div>
                   <div class="info-value">
                     <span class="status-badge">${
-                      STATUS_TEXTS[selectedOpo.status] || selectedOpo.status
+                      STATUS_TEXTS[selectedOpo.status_Ap] ||
+                      selectedOpo.status_Ap
                     }</span>
                   </div>
                 </div>
@@ -1411,11 +1585,16 @@ const OPOSystem = () => {
         {/* OPO List */}
         {!loading && (
           <OPOTable
+            fetchOPOs={fetchOPOs}
+            toast={toast}
             user={user}
-            opos={filteredOpos}
+            opos={pageData}
+            totalPages={totalPages}
             onEdit={editOpo}
             onDelete={deleteOpo}
             onExportPDF={exportPDF}
+            setPage={setPage}
+            page={page}
           />
         )}
 
@@ -1464,9 +1643,12 @@ const OPOSystem = () => {
                     </FormLabel>
                     {user?.role === "admin" ? (
                       <Select
-                        value={formData.status} // สมมติ user มี field status
+                        value={formData.status_Ap} // สมมติ user มี field status
                         onChange={(e) =>
-                          setFormData({ ...formData, status: e.target.value })
+                          setFormData({
+                            ...formData,
+                            status_Ap: e.target.value,
+                          })
                         }
                         size="sm"
                         bg="gray.50"
@@ -1479,9 +1661,12 @@ const OPOSystem = () => {
                       </Select>
                     ) : (
                       <Select
-                        value={formData.status} // สมมติ user มี field status
+                        value={formData.status_Ap} // สมมติ user มี field status
                         onChange={(e) =>
-                          setFormData({ ...formData, status: e.target.value })
+                          setFormData({
+                            ...formData,
+                            status_Ap: e.target.value,
+                          })
                         }
                         size="sm"
                         bg="gray.50"
@@ -1497,7 +1682,24 @@ const OPOSystem = () => {
                     )}
                   </FormControl>
                 </HStack>
-
+                <FormControl isRequired>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ສະຖານະການຊຳລະເງິນ
+                  </FormLabel>
+                  <Select
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    value={formData.status} // สมมติ user มี field status
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        status: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
+                    <option value="paid">ຊຳລະແລ້ວ</option>
+                  </Select>
+                </FormControl>
                 <HStack>
                   <FormControl>
                     <FormLabel fontFamily="Noto Sans Lao, sans-serif">
@@ -1857,12 +2059,12 @@ const OPOSystem = () => {
                     <Box textAlign="right">
                       <Badge
                         fontFamily="Noto Sans Lao, sans-serif"
-                        colorScheme={STATUS_COLORS[selectedOpo.status]}
+                        colorScheme={STATUS_COLORS[selectedOpo.status_Ap]}
                         fontSize="md"
                         p={2}
                         borderRadius="md"
                       >
-                        {STATUS_TEXTS[selectedOpo.status]}
+                        {STATUS_TEXTS[selectedOpo.status_Ap]}
                       </Badge>
                     </Box>
                   </Flex>
@@ -2057,7 +2259,7 @@ const OPOSystem = () => {
                     (selectedOpo.items || []).length === 0
                   }
                 >
-                  Print 
+                  Print
                 </Button>
               </ModalFooter>
             </ModalContent>

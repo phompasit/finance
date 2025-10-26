@@ -59,6 +59,7 @@ router.get("/", authenticate, async (req, res) => {
             { "items.reason": { $regex: searchText, $options: "i" } },
           ];
         }
+        opoQuery.status = { $ne: "CANCELLED" };
 
         const opos = await OPO.find(opoQuery)
           .sort({ date: -1, createdAt: -1 })
@@ -75,7 +76,9 @@ router.get("/", authenticate, async (req, res) => {
               date: opo.date,
               type: "OPO", // OPO คือรายจ่าย
               category: "OPO",
+              status_Ap: opo.status_Ap,
               status: opo.status,
+              paymentMethod: opo.paymentMethod,
               requester: opo.requester,
               manager: opo.manager,
               createdBy: opo.createdBy,
@@ -95,7 +98,10 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "income" || type === "expense") {
       try {
-        let transQuery = { ...dateFilter, userId: req.user._id };
+        let transQuery = {
+          ...dateFilter,
+          userId: req.user._id,
+        };
 
         // Filter by type
         if (type === "income" || type === "expense") {
@@ -115,7 +121,7 @@ router.get("/", authenticate, async (req, res) => {
             { note: { $regex: searchText, $options: "i" } },
           ];
         }
-
+        transQuery.status_Ap = { $ne: "cancel" };
         const transactions = await Transaction.find(transQuery)
           .sort({ date: -1, createdAt: -1 })
           .lean();
@@ -134,7 +140,8 @@ router.get("/", authenticate, async (req, res) => {
               category: trans.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ",
               paymentMethod: trans.paymentMethod,
               listAmount: trans.amounts,
-              status: "paid",
+              status: trans.status,
+              status_Ap: trans?.status_Ap,
               notes: trans.note,
               createdAt: trans.createdAt,
               updatedAt: trans.updatedAt || trans.createdAt,
@@ -159,7 +166,6 @@ router.get("/", authenticate, async (req, res) => {
         } else if (type === "payable") {
           debtQuery.debtType = "payable";
         }
-
         // Filter by paymentMethod
         if (paymentMethod) {
           debtQuery.paymentMethod = paymentMethod;
@@ -370,7 +376,7 @@ router.get("/", authenticate, async (req, res) => {
 });
 
 // ============================================
-// GET /api/reports/summary - 
+// GET /api/reports/summary -
 // ============================================
 router.get("/summary", async (req, res) => {
   try {

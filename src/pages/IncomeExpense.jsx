@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Button,
@@ -75,6 +75,8 @@ import {
   Calendar,
   FileText,
   CreditCard,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "lucide-react";
 import { on } from "events";
 import { useAuth } from "../context/AuthContext";
@@ -83,7 +85,6 @@ export default function IncomeExpense() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [bulkMode, setBulkMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [views, setViews] = useState();
   const { user } = useAuth();
@@ -94,6 +95,10 @@ export default function IncomeExpense() {
     onClose: onEditClose,
   } = useDisclosure();
   const [selectedTransactions, setSelectedTransactions] = useState([]);
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("purple.200", "purple.600");
+  const badgeBg = useColorModeValue("purple.50", "purple.900");
+
   const {
     isOpen: isViews,
     onOpen: onOpenViews,
@@ -111,6 +116,12 @@ export default function IncomeExpense() {
   const statBg = useColorModeValue("white", "gray.700");
   const tableBg = useColorModeValue("white", "gray.800");
   const tableHeaderBg = useColorModeValue("teal.600", "teal.700");
+  const statusColors = {
+    pending: "yellow",
+    approve: "green",
+    cancel: "red",
+    reject: "gray",
+  };
 
   const [formData, setFormData] = useState({
     serial: "",
@@ -121,6 +132,7 @@ export default function IncomeExpense() {
     amounts: [{ currency: "LAK", amount: "" }],
     note: "",
     status: "paid",
+    status_Ap: "pending",
   });
   const [formEditData, setFormEditData] = useState({
     id: null,
@@ -132,6 +144,7 @@ export default function IncomeExpense() {
     amounts: [{ currency: "LAK", amount: "" }],
     note: "",
     status: "paid",
+    status_Ap: "pending",
   });
 
   const [filters, setFilters] = useState({
@@ -142,6 +155,7 @@ export default function IncomeExpense() {
     currency: "",
     paymentMethod: "",
     status: "",
+    status_Ap: "",
   });
 
   const toast = useToast();
@@ -178,11 +192,19 @@ export default function IncomeExpense() {
       setLoading(false);
     }
   };
+  const pageSize = 30;
+  const [page, setPage] = useState(1);
 
   const paymentMethodLabels = {
     cash: "ເງິນສົດ",
     bank_transfer: "ໂອນເງິນ",
-    ໂອນເງິນ:"bank_transfer"
+    ໂອນເງິນ: "bank_transfer",
+  };
+  const status_Ap = {
+    cancel: "ຍົກເລີກ",
+    approve: "ອະນຸມັດ",
+    success_approve: "ອະນູມັດແລ້ວ",
+    pending: "ລໍຖ້າ",
   };
   function formatDate(dateString) {
     const d = new Date(dateString);
@@ -207,17 +229,24 @@ export default function IncomeExpense() {
     const matchesPaymentMethod =
       !filters.paymentMethod || t.paymentMethod === filters.paymentMethod;
     const matchesStatus = !filters.status || t.status === filters.status;
-
+    const matchstatus_Ap =
+      !filters.status_Ap || t.status_Ap === filters.status_Ap;
     return (
       matchesSearch &&
       matchesDate &&
       matchesType &&
       matchesCurrency &&
       matchesPaymentMethod &&
-      matchesStatus
+      matchesStatus &&
+      matchstatus_Ap
     );
   });
-
+  const totalPages = Math.ceil(filteredTransactions.length / pageSize);
+  const offset = (page - 1) * pageSize;
+  const pageData = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filteredTransactions.slice(s, s + pageSize);
+  }, [filteredTransactions, page]);
   // Calculate statistics
   const calculateStats = () => {
     const totals = {}; // { LAK: 0, THB: 0, USD: 0, CNY: 0, ... }
@@ -226,7 +255,16 @@ export default function IncomeExpense() {
       t.amounts.forEach((a) => {
         const amount = parseFloat(a.amount || 0);
         if (!totals[a.currency]) totals[a.currency] = { income: 0, expense: 0 };
-        totals[a.currency][t.type] += amount;
+
+        // Logic สำหรับแต่ละ type และ status
+        if (t.type === "expense") {
+          if (t.status_Ap !== "cancel") {
+            totals[a.currency].expense += amount;
+          }
+          // ถ้า cancel ไม่บวก
+        } else if (t.type === "income") {
+          totals[a.currency].income += amount; // รายได้บวกตามปกติ
+        }
       });
     });
 
@@ -433,6 +471,7 @@ export default function IncomeExpense() {
         formEditData.id
       }`;
       const body = JSON.stringify(formEditData);
+      console.log(body);
       const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
@@ -496,18 +535,71 @@ export default function IncomeExpense() {
     setViews(data);
     onOpenViews();
   };
+
+  const handleStatus = async (data, status) => {
+    try {
+      console.log("data", data);
+      const endpoint = `${
+        import.meta.env.VITE_API_URL
+      }/api/income-expense/status/:${data._id}`;
+
+      // เตรียม body ให้เป็น JSON string
+      const body = JSON.stringify({
+        status_Ap: status,
+      });
+
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body,
+      });
+
+      if (response.ok) {
+        fetchTransactions();
+        toast({
+          title: "ສຳເລັດ",
+          description: `${status} ສຳເລັດແລ້ວ`,
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+        onClose();
+      } else {
+        const data = await response.json();
+        toast({
+          title: "ກະລຸນາກວດສອບຄືນ",
+          description: data.message,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "something with wrong",
+        description: "ກະລຸນາລອງໃໝ່",
+        status: "error",
+        duration: 2000,
+        isClosable: true,
+        position: "top-right",
+      });
+    }
+  };
   const exportToPDF = () => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
-       <!DOCTYPE html>
+      <!DOCTYPE html>
 <html lang="lo">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title  font-family: 'Noto Sans Lao', sans-serif;>ການຈັດການການເງິນ</title>
+  <title font-family: 'Noto Sans Lao', sans-serif;>-</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * {
+     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -521,7 +613,7 @@ export default function IncomeExpense() {
     }
     
     .container {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
       background: white;
       border-radius: 15px;
@@ -565,15 +657,15 @@ export default function IncomeExpense() {
     }
     
     .pdf-content {
-      padding: 40px 50px;
+      padding: 30px 40px;
     }
     
-    /* ສ່ວນຫົວ */
+    /* Header */
     .header {
       text-align: center;
       border-bottom: 3px double #2d3748;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
     }
     
     .header-line1 {
@@ -587,20 +679,27 @@ export default function IncomeExpense() {
       font-size: 14px;
       font-weight: 500;
       color: #4a5568;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     
     .header-line3 {
       font-size: 15px;
       font-weight: 600;
       color: #2d3748;
-      margin-top: 10px;
     }
     
-    /* ວັນທີ */
+    /* Company Info */
+    .company-info {
+      text-align: left;
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    
+    /* Date Section */
     .date-section {
       text-align: right;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
       font-size: 14px;
       color: #4a5568;
     }
@@ -614,97 +713,154 @@ export default function IncomeExpense() {
       width: 150px;
     }
     
-    /* ຕາຕະລາງ */
+    /* Table */
     .table-section {
-      margin: 30px 0;
+      margin: 20px 0;
+      overflow-x: auto;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
+      font-family: 'Noto Sans Lao', sans-serif;
+      font-size: 11px;
+      text-align: left;
+      table-layout: fixed;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
     }
+    
+    /* Column widths for optimal space usage */
+    table th:nth-child(1),
+    table td:nth-child(1) { width: 4%; }
+    table th:nth-child(2),
+    table td:nth-child(2) { width: 8%; }
+    table th:nth-child(3),
+    table td:nth-child(3) { width: 7%; }
+    table th:nth-child(4),
+    table td:nth-child(4) { width: 28%; }
+    table th:nth-child(5),
+    table td:nth-child(5) { width: 11%; }
+    table th:nth-child(6),
+    table td:nth-child(6) { width: 9%; }
+    table th:nth-child(7),
+    table td:nth-child(7) { width: 9%; }
+    table th:nth-child(8),
+    table td:nth-child(8) { width: 9%; }
+    table th:nth-child(9),
+    table td:nth-child(9) { width: 15%; }
     
     th {
       background: linear-gradient(90deg, #0f172a, #1e293b);
       color: white;
-      padding: 12px;
-      text-align: center;
+      padding: 8px 6px;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 11px;
       border: 1px solid #334155;
+      text-align: center;
     }
     
     td {
-      padding: 10px 12px;
-      border: 1px solid #e2e8f0;
-      font-size: 13px;
+      padding: 6px 5px;
+      border: 1px solid #e5e7eb;
+      font-size: 10.5px;
+      white-space: normal;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      vertical-align: top;
+      line-height: 1.4;
     }
+    
+    /* Specific alignment for columns */
+    td:nth-child(1) { text-align: center; }
+    td:nth-child(2) { text-align: center; }
+    td:nth-child(3) { text-align: center; }
+    td:nth-child(4) { text-align: left; padding-left: 8px; }
+    td:nth-child(5),
+    td:nth-child(6),
+    td:nth-child(7),
+    td:nth-child(8) { text-align: right; padding-right: 8px; }
+    td:nth-child(9) { text-align: left; padding-left: 8px; }
     
     tr:hover td {
       background: #f7fafc;
     }
     
-    td input, td textarea {
-      width: 100%;
-      border: 1px solid #e2e8f0;
+    .summary-row td {
+      background: #e2e8f0;
+      font-weight: 700;
+      font-size: 11px;
       padding: 8px;
-      font-family: 'Noto Sans Lao', sans-serif;
-      border-radius: 4px;
-      font-size: 13px;
+      border: 2px solid #1a202c;
     }
     
-    td textarea {
-      resize: vertical;
-      min-height: 60px;
-    }
-    
-    /* ສ່ວນລາຍເຊັນ */
+    /* Signature Section */
     .signature-section {
       display: flex;
       justify-content: flex-end;
-      margin-top: 50px;
-      padding-top: 50px;
-      border-top: 2px solid #e2e8f0;
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 2px solid #e5e7eb;
     }
-
+    
     .signature-box {
       text-align: center;
       min-width: 220px;
     }
-
+    
     .signature-label {
       font-weight: 600;
       margin-bottom: 10px;
       color: #2d3748;
       font-size: 14px;
     }
-
+    
     .signature-line {
-      margin: 60px 0 10px 0;
-      padding-top: 10px;
+      margin: 50px 0 10px 0;
       font-size: 12px;
       color: #718096;
     }
-       .summary-row td {
-      background: #e2e8f0 !important;
-      font-weight: 700 !important;
-      font-size: 10px !important;
-      padding: 8px 4px !important;
-      border: 2px solid #1a202c !important;
-    }
-    /* ພິມ */
+    
+    /* Print Styles */
     @media print {
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+      
       body {
         background: white;
         padding: 0;
       }
       
-      /* ✅ บังคับให้หัวตารางมีสีตอนพิมพ์ */
+      .container {
+        box-shadow: none;
+        border-radius: 0;
+        max-width: 100%;
+      }
+      
+      .toolbar {
+        display: none;
+      }
+      
+      .pdf-content {
+        padding: 10mm;
+      }
+      
+      .table-section {
+        overflow: visible;
+      }
+      
       table {
         width: 100%;
         border-collapse: collapse;
-        text-align: center;
+        page-break-inside: auto;
+      }
+      
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
       }
       
       th {
@@ -713,54 +869,44 @@ export default function IncomeExpense() {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         border: 1px solid #000 !important;
-        padding: 10px !important;
+        padding: 6px 4px !important;
+        font-size: 10px !important;
       }
       
       td {
-        border: 1px solid #000 !important;
-        padding: 8px !important;
-          /* เพิ่มบรรทัดตัด wrap */
-  white-space: normal;   /* จาก nowrap เป็น normal ให้ตัดคำอัตโนมัติ */
-  word-wrap: break-word; /* บังคับตัดคำยาวเกิน cell */
-  word-break: break-word; /* รองรับ browser เก่า */
-  text-align: left;      /* ถ้าเป็นข้อความยาวจะอ่านง่าย */
-      }
-      
-      thead th {
-        background-color: #0f172a !important;
-        color: white !important;
+        border: 1px solid #333 !important;
+        padding: 5px 4px !important;
+        font-size: 9.5px !important;
+        line-height: 1.3;
       }
       
       tbody tr:nth-child(even) {
-        background-color: #f2f2f2 !important;
+        background-color: #f8f8f8 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
       
-      /* แถวรวม */
-      tbody tr:last-child {
-        background: #f8fafc !important;
+      .summary-row td {
+        background: #d9d9d9 !important;
         font-weight: bold !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-      }
-      
-      .toolbar {
-        display: none;
-      }
-      
-      .container {
-        box-shadow: none;
-        border-radius: 0;
-      }
-      
-      .pdf-content {
-        padding: 20px;
+        border: 2px solid #000 !important;
       }
       
       input, textarea {
         border: none !important;
         border-bottom: 1px dotted #999 !important;
+      }
+      
+      .header-line1,
+      .header-line2,
+      .header-line3 {
+        font-size: 12px !important;
+      }
+      
+      .company-info {
+        font-size: 10px !important;
       }
     }
   </style>
@@ -768,99 +914,86 @@ export default function IncomeExpense() {
 <body>
   <div class="container">
     <div class="toolbar">
-      <h2>📄 ແມ່ແບບລາຍງານ</h2>
+      <h2>📄 ແບບລາຍງານ</h2>
       <button class="btn-print" onclick="window.print()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 6 2 18 2 18 9"></polyline>
           <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
           <rect x="6" y="14" width="12" height="8"></rect>
         </svg>
-        ລາຍງານ
+        ພິມລາຍງານ
       </button>
     </div>
     
     <div class="pdf-content">
-    
-  <!-- ส่วนหัวบริษัท -->
-    <!-- ชื่อบริษัททางซ้าย -->
-    <div class="company-info" style="text-align: left; font-size: 12px; color: #555;">
-      <div class="company-name" style="font-weight: normal;">${
-        user?.companyInfo?.name
-      }</div>
-      <div class="company-address" style="margin-top: 2px;">${
-        user?.companyInfo?.address
-      }</div>
-    </div>
-
-    <!-- ส่วนราชการตรงกลาง -->
-    <div class="govt-info" style="text-align: center;">
-      <div class="header-line1" style="font-size: 16px; font-weight: bold; color: #000;">
-        ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
-      </div>
-      <div class="header-line2" style="font-size: 14px; color: #000; margin-top: 2px;">
-        ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ
-      </div>
-    </div>
-      <!-- ຫົວຂໍ້ລາຍງານ -->
-      <div style="text-align: center; margin: 30px 0;">
-        <h2 style="font-size: 20px; font-weight: 700; color: #2d3748;">
-          ລາຍງານ 
-        </h2>
+      <!-- Company Info -->
+      <div class="company-info">
+        <div class="company-name">${user?.companyInfo?.name || ""}</div>
+        <div class="company-address">${user?.companyInfo?.address || ""}</div>
+          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
       </div>
       
-      <!-- ຕາຕະລາງຂໍ້ມູນ -->
-      <div class="table-section" style="margin-top: 20px;">
-        <table style="
-            width: 100%;
-  border-collapse: collapse;
-  font-family: 'Noto Sans Lao', sans-serif;
-  font-size: 14px;
-  text-align: center;
-  table-layout: fixed;  /* เปลี่ยนจาก auto เป็น fixed */
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  border-radius: 8px;
-  overflow: hidden;
-        ">
-          <thead style="
-           background: linear-gradient(90deg, #0f172a, #1e293b);
-    color: #ffffff;
-    font-weight: 600;
-    text-transform: uppercase;
-          ">
+      <!-- Government Info -->
+      <div class="header">
+        <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
+        <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
+        <div class="header-line3">ລາຍງານການເງິນ</div>
+      </div>
+      
+      <!-- Date Section -->
+      <div class="date-section">
+        ວັນທີ: <input type="text" value="${formatDate(new Date())}" readonly>
+      </div>
+      
+      <!-- Table Section -->
+      <div class="table-section">
+        <table>
+          <thead>
             <tr>
-      <th style="width: 10%;">ລຳດັບ</th>
-    <th style="width: 14%;">ວັນ/ເດືອນ/ປີ</th>
-    <th style="width: 10%;">ເລກທີ່</th>
-    <th style="width: 30%;">ເນື້ອໃນລາຍການ</th>
-    <th style="width: 14%;">ຈຳນວນ (ກີບ)</th>
-    <th style="width: 11%;">ຈຳນວນ (ບາດ)</th>
-    <th style="width: 13%;">ຈຳນວນ (ໂດລາ)</th>
-    <th style="width: 11%;">ຈຳນວນ (ຍວນ)</th>
-    <th style="width: 10%;">ໝາຍເຫດ</th>
+              <th>ລຳດັບ</th>
+              <th>ວັນ/ເດືອນ/ປີ</th>
+              <th>ເລກທີ່</th>
+              <th>ເນື້ອໃນລາຍການ</th>
+              <th>ຈຳນວນ (ກີບ)</th>
+              <th>ຈຳນວນ (ບາດ)</th>
+              <th>ຈຳນວນ (ໂດລາ)</th>
+              <th>ຈຳນວນ (ຍວນ)</th>
+              <th>ໝາຍເຫດ</th>
             </tr>
           </thead>
-
           <tbody>
             ${(() => {
+              // Fallback for empty transactions
+              if (!selectedTransactions || selectedTransactions.length === 0) {
+                return `
+                  <tr>
+                    <td colspan="9" style="text-align: center; padding: 20px;">
+                      ບໍ່ມີຂໍ້ມູນ
+                    </td>
+                  </tr>`;
+              }
+
               let totalLAK = 0,
                 totalTHB = 0,
                 totalUSD = 0,
                 totalCNY = 0;
 
               const rows = selectedTransactions
-
-                .slice() // สร้างสำเนา array เพื่อไม่แก้ตัวต้นฉบับ
-                .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
-                ?.map((item, index) => {
+                .slice()
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map((item, index) => {
                   const amountLAK =
-                    item.amounts.find((a) => a.currency === "LAK")?.amount || 0;
+                    item.amounts?.find((a) => a.currency === "LAK")?.amount ||
+                    0;
                   const amountTHB =
-                    item.amounts.find((a) => a.currency === "THB")?.amount || 0;
+                    item.amounts?.find((a) => a.currency === "THB")?.amount ||
+                    0;
                   const amountUSD =
-                    item.amounts.find((a) => a.currency === "USD")?.amount || 0;
+                    item.amounts?.find((a) => a.currency === "USD")?.amount ||
+                    0;
                   const amountCNY =
-                    item.amounts.find((a) => a.currency === "CNY")?.amount || 0;
+                    item.amounts?.find((a) => a.currency === "CNY")?.amount ||
+                    0;
 
                   totalLAK += amountLAK;
                   totalTHB += amountTHB;
@@ -868,68 +1001,31 @@ export default function IncomeExpense() {
                   totalCNY += amountCNY;
 
                   return `
-                    <tr style="background: #ffffff; transition: background 0.3s;">
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">${
-                        index + 1
-                      }</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">${formatDate(
-                        item.date
-                      )}</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">${
-                        item.serial || "-"
-                      }</td>
-                      <td  style="
-  font-size: 11px;             border: 1px solid #e5e7eb; 
-            padding: 8px; 
-            text-align: left;
-            word-wrap: break-word;      /* เพิ่ม */
-            word-break: break-word;     /* เพิ่ม */
-            white-space: normal;        /* เพิ่ม */
-            overflow-wrap: break-word;  /* เพิ่ม */
-          ">${item.description || "-"}</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">₭ ${amountLAK.toLocaleString(
-                        "lo-LA",
-                        { minimumFractionDigits: 2 }
-                      )}</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">฿ ${amountTHB.toLocaleString(
-                        "lo-LA",
-                        { minimumFractionDigits: 2 }
-                      )}</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">$ ${amountUSD.toLocaleString(
-                        "lo-LA",
-                        { minimumFractionDigits: 2 }
-                      )}</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">¥ ${amountCNY.toLocaleString(
-                        "lo-LA",
-                        { minimumFractionDigits: 2 }
-                      )}</td>
-                      <td   style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 8px;">${
-                        item.note || ""
-                      }</td>
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td>${formatDate(item.date)}</td>
+                      <td>${item.serial || "-"}</td>
+                      <td>${item.description || "-"}</td>
+                      <td> ${amountLAK.toLocaleString("lo-LA")}</td>
+                      <td> ${amountTHB.toLocaleString("lo-LA")}</td>
+                      <td> ${amountUSD.toLocaleString("lo-LA")}</td>
+                      <td> ${amountCNY.toLocaleString("lo-LA")}</td>
+                      <td>${item.note || "-"}</td>
                     </tr>`;
                 })
                 .join("");
-
+              // { minimumFractionDigits: 2 }
+              // { minimumFractionDigits: 2 }
+              // { minimumFractionDigits: 2 }
+              // { minimumFractionDigits: 2 }
               const totalRow = `
-                <tr class="summary-row" style="font-weight: bold; background: #f8fafc;">
-                  <td colspan="4" style="  font-size: 11px;text-align: right; border: 1px solid #e5e7eb; padding: 10px;">ລວມທັງໝົດ</td>
-                  <td style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 10px;">₭ ${totalLAK.toLocaleString(
-                    "lo-LA",
-                    { minimumFractionDigits: 2 }
-                  )}</td>
-                  <td style="  font-size: 11px;border: 1px solid #e5e7eb; padding: 10px;">฿ ${totalTHB.toLocaleString(
-                    "lo-LA",
-                    { minimumFractionDigits: 2 }
-                  )}</td>
-                  <td style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 10px;">$ ${totalUSD.toLocaleString(
-                    "lo-LA",
-                    { minimumFractionDigits: 2 }
-                  )}</td>
-                  <td style="  font-size: 11px; border: 1px solid #e5e7eb; padding: 10px;">¥ ${totalCNY.toLocaleString(
-                    "lo-LA",
-                    { minimumFractionDigits: 2 }
-                  )}</td>
-                  <td  style="  font-size: 11px; font-size: 11px; border: 1px solid #e5e7eb; padding: 10px;"></td>
+                <tr style" class="summary-row">
+                  <td colspan="4" style="text-align: right;">ລວມທັງໝົດ</td>
+                  <td> ${totalLAK.toLocaleString("lo-LA")}</td>
+                  <td> ${totalTHB.toLocaleString("lo-LA")}</td>
+                  <td> ${totalUSD.toLocaleString("lo-LA")}</td>
+                  <td> ${totalCNY.toLocaleString("lo-LA")}</td>
+                  <td></td>
                 </tr>`;
 
               return rows + totalRow;
@@ -938,15 +1034,60 @@ export default function IncomeExpense() {
         </table>
       </div>
       
-      <!-- ສ່ວນລາຍເຊັນ -->
+      <!-- Signature Section -->
       <div class="signature-section">
         <div class="signature-box">
-          <div>ນະຄອນຫລວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}</div>
+          <div>ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}</div>
           <div class="signature-label">ຜູ້ສັງລວມ</div>
+          <div class="signature-line">_________________________</div>
         </div>
       </div>
     </div>
   </div>
+
+  <script>
+    // Mock formatDate function (replace with actual implementation)
+    function formatDate(date) {
+      if (!date) return "-";
+      const d = new Date(date);
+      return \`\${d.getDate().toString().padStart(2, "0")}/\${(d.getMonth() + 1).toString().padStart(2, "0")}/\${d.getFullYear()}\`;
+    }
+
+    // Mock user and selectedTransactions data (replace with actual data source)
+    const user = {
+      companyInfo: {
+        name: "ບໍລິສັດ ຕົວຢ່າງ ຈຳກັດ",
+        address: "ນະຄອນຫຼວງວຽງຈັນ, ປະເທດລາວ"
+      }
+    };
+
+    const selectedTransactions = [
+      {
+        date: "2025-10-01",
+        serial: "INV001",
+        description: "ຊຳລະຄ່າສິນຄ້າໃຫ້ຜູ້ສະໜອງ A ສຳລັບໂຄງການພັດທະນາ",
+        amounts: [
+          { currency: "LAK", amount: 1000000 },
+          { currency: "THB", amount: 0 },
+          { currency: "USD", amount: 0 },
+          { currency: "CNY", amount: 0 }
+        ],
+        note: "ຈ່າຍຜ່ານທະນາຄານ"
+      },
+      {
+        date: "2025-10-02",
+        serial: "INV002",
+        description: "ຄ່າບໍລິການຂົນສົ່ງສິນຄ້າ",
+        amounts: [
+          { currency: "LAK", amount: 500000 },
+          { currency: "THB", amount: 2000 },
+          { currency: "USD", amount: 0 },
+          { currency: "CNY", amount: 0 }
+        ],
+        note: ""
+      }
+    ];
+  </script>
 </body>
 </html>`);
 
@@ -959,29 +1100,6 @@ export default function IncomeExpense() {
       position: "top-right",
     });
   };
-
-  const exportToCSV = () => {
-    const csvData = selectedTransactions.map((t) => ({
-      ເລກທີ່: t.serial || "-",
-      ວັນທີ່: new Date(t.date).toLocaleDateString("lo-LA"),
-      ປະເພດ: t.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ",
-      ລາຍລະອຽດ: t.description,
-      ວິທີຊຳລະ: paymentMethodLabels[t.paymentMethod] || t.paymentMethod,
-      ຈຳນວນເງິນ: t.amounts
-        .map((amt) => `${amt.amount} ${amt.currency}`)
-        .join(", "),
-      ໝາຍເຫດ: t.note || "-",
-      ສະຖານະ: t.status === "paid" ? "ຊຳລະແລ້ວ" : "ຍັງບໍ່ຊຳລະ",
-    }));
-
-    const csv = Papa.unparse(csvData, { header: true });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "ລາຍງານລາຍຮັບ-ລາຍຈ່າຍ.csv";
-    link.click();
-  };
-
   const renderFormFields = (data, index) => {
     const updateField = (field, value) => {
       setFormData({ ...data, [field]: value });
@@ -1208,6 +1326,26 @@ export default function IncomeExpense() {
             onChange={(e) => updateField("note", e.target.value)}
             placeholder="ໝາຍເຫດເພີ່ມເຕີມ (ຖ້າມີ)"
             rows={3}
+            size="md"
+            rounded="lg"
+          />
+        </FormControl>
+        <FormControl>
+          <FormLabel
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            color={labelClr}
+            fontSize="sm"
+          >
+            ສະຖານະ
+          </FormLabel>
+          <Input
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            type="text"
+            isDisabled
+            value={data?.status_Ap}
+            onChange={(e) => updateField("status_Ap", e.target.value)}
+            placeholder=""
+            isRequired
             size="md"
             rounded="lg"
           />
@@ -1446,6 +1584,27 @@ export default function IncomeExpense() {
             rounded="lg"
           />
         </FormControl>
+
+        <FormControl>
+          <FormLabel
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            color={labelClr}
+            fontSize="sm"
+          >
+            ສະຖານະ
+          </FormLabel>
+          <Input
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            type="text"
+            isDisabled
+            value={data?.status_Ap}
+            onChange={(e) => updateField("status_Ap", e.target.value)}
+            placeholder=""
+            isRequired
+            size="md"
+            rounded="lg"
+          />
+        </FormControl>
       </VStack>
     );
   };
@@ -1477,12 +1636,7 @@ export default function IncomeExpense() {
   }
 
   return (
-    <Box
-      fontFamily={"Noto Sans Lao, sans-serif"}
-      minH="100vh"
-      bgGradient={bgGradient}
-      py={8}
-    >
+    <Box>
       <Container maxW="container.xl">
         {/* Header */}
         <Flex justify="space-between" align="center" mb={8}>
@@ -1710,7 +1864,28 @@ export default function IncomeExpense() {
                         <option value="expense">ລາຍຈ່າຍ</option>
                       </Select>
                     </FormControl>
-
+                    <FormControl>
+                      <FormLabel
+                        fontFamily={"Noto Sans Lao, sans-serif"}
+                        color={labelClr}
+                        fontSize="sm"
+                      >
+                        ເລືອກສະຖານະ
+                      </FormLabel>
+                      <Select
+                        fontFamily={"Noto Sans Lao, sans-serif"}
+                        value={filters.status_Ap}
+                        onChange={(e) =>
+                          setFilters({ ...filters, status_Ap: e.target.value })
+                        }
+                        rounded="lg"
+                      >
+                        <option value="">ທັງໝົດ</option>
+                        <option value="approve">ອະນຸມັດ</option>
+                        <option value="cancel">ຍົກເລີກ</option>
+                        <option value="pending">ລໍຖ້າ</option>
+                      </Select>
+                    </FormControl>
                     <FormControl>
                       <FormLabel
                         fontFamily={"Noto Sans Lao, sans-serif"}
@@ -1824,16 +1999,7 @@ export default function IncomeExpense() {
           >
             Print ({selectedTransactions.length})
           </Button>
-          {/* <Button
-            leftIcon={<DownloadIcon />}
-            colorScheme="blue"
-            variant="outline"
-            onClick={exportToCSV}
-            isDisabled={selectedTransactions.length === 0}
-            rounded="lg"
-          >
-            CSV ({selectedTransactions.length})
-          </Button> */}
+
           <Text
             fontFamily={"Noto Sans Lao, sans-serif"}
             fontSize="sm"
@@ -1844,269 +2010,370 @@ export default function IncomeExpense() {
         </HStack>
 
         {/* Transactions Table */}
-        <Card
-          bg={tableBg}
-          rounded="2xl"
-          shadow="lg"
-          border="1px"
-          borderColor={borderClr}
-          overflow="hidden"
-        >
-          <Box overflowX="auto">
-            <Table variant="simple">
-              <Thead bg={tableHeaderBg}>
+
+        <Box>
+          <Table variant="simple">
+            <Thead bg={tableHeaderBg}>
+              <Tr>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"}>
+                  <Checkbox
+                    fontFamily={"Noto Sans Lao, sans-serif"}
+                    colorScheme="teal"
+                    isChecked={
+                      selectedTransactions.length === pageData.length &&
+                      pageData.length > 0
+                    }
+                    onChange={(e) =>
+                      setSelectedTransactions(e.target.checked ? pageData : [])
+                    }
+                  />
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ລຳດັບ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ເລກທີ່
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ວັນທີ່
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ປະເພດ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ລາຍລະອຽດ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ວິທີຊຳລະ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ຈຳນວນເງິນ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ສະຖານະຊຳລະ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ຜູ້ສ້າງ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ສະຖານະ
+                </Th>
+                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
+                  ການກະທຳ
+                </Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {pageData.length === 0 ? (
                 <Tr>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"}>
-                    <Checkbox
-                      fontFamily={"Noto Sans Lao, sans-serif"}
-                      colorScheme="teal"
-                      isChecked={
-                        selectedTransactions.length ===
-                          filteredTransactions.length &&
-                        filteredTransactions.length > 0
-                      }
-                      onChange={(e) =>
-                        setSelectedTransactions(
-                          e.target.checked ? filteredTransactions : []
-                        )
-                      }
-                    />
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ເລກທີ່
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ວັນທີ່
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ປະເພດ
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ລາຍລະອຽດ
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ວິທີຊຳລະ
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ຈຳນວນເງິນ
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ສະຖານະ
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ຜູ້ສ້າງ
-                  </Th>
-                  <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                    ການກະທຳ
-                  </Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {filteredTransactions.length === 0 ? (
-                  <Tr>
-                    <Td colSpan={9} textAlign="center" py={12}>
-                      <VStack spacing={3}>
-                        <Icon as={FileText} boxSize={12} color="gray.400" />
-                        <Text
-                          fontFamily={"Noto Sans Lao, sans-serif"}
-                          color={labelClr}
-                          fontSize="lg"
-                        >
-                          ບໍ່ມີລາຍການທີ່ຕົງກັບເງື່ອນໄຂການຄົ້ນຫາ
-                        </Text>
-                      </VStack>
-                    </Td>
-                  </Tr>
-                ) : (
-                  filteredTransactions
-                    .slice() // สร้างสำเนา array เพื่อไม่แก้ตัวต้นฉบับ
-                    .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
-                    .map((transaction, idx) => (
-                      <Tr
-                        key={transaction._id}
-                        _hover={{ bg: hoverBg }}
-                        transition="all 0.2s"
+                  <Td colSpan={9} textAlign="center" py={12}>
+                    <VStack spacing={3}>
+                      <Icon as={FileText} boxSize={12} color="gray.400" />
+                      <Text
+                        fontFamily={"Noto Sans Lao, sans-serif"}
+                        color={labelClr}
+                        fontSize="lg"
                       >
-                        <Td>
-                          <Checkbox
-                            colorScheme="teal"
-                            isChecked={selectedTransactions.includes(
-                              transaction
-                            )}
-                            onChange={(e) =>
-                              setSelectedTransactions(
-                                e.target.checked
-                                  ? [...selectedTransactions, transaction]
-                                  : selectedTransactions.filter(
-                                      (t) => t._id !== transaction._id
-                                    )
-                              )
-                            }
-                          />
-                        </Td>
-                        <Td>
-                          <Text fontWeight="600" color={labelClr}>
-                            {transaction.serial || "-"}
+                        ບໍ່ມີລາຍການທີ່ຕົງກັບເງື່ອນໄຂການຄົ້ນຫາ
+                      </Text>
+                    </VStack>
+                  </Td>
+                </Tr>
+              ) : (
+                pageData
+                  .slice() // สร้างสำเนา array เพื่อไม่แก้ตัวต้นฉบับ
+                  .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
+                  .map((transaction, idx) => (
+                    <Tr
+                      key={transaction._id}
+                      _hover={{ bg: hoverBg }}
+                      transition="all 0.2s"
+                    >
+                      <Td>
+                        <Checkbox
+                          colorScheme="teal"
+                          isChecked={selectedTransactions.includes(transaction)}
+                          onChange={(e) =>
+                            setSelectedTransactions(
+                              e.target.checked
+                                ? [...selectedTransactions, transaction]
+                                : selectedTransactions.filter(
+                                    (t) => t._id !== transaction._id
+                                  )
+                            )
+                          }
+                        />
+                      </Td>
+                      <Td>
+                        <Text fontWeight="600" color={labelClr}>
+                          {offset + idx + 1 || "-"}
+                        </Text>
+                      </Td>
+                      <Td>
+                        <Text fontWeight="600" color={labelClr}>
+                          {transaction.serial || "-"}
+                        </Text>
+                      </Td>
+                      <Td>
+                        <HStack spacing={2}>
+                          <Icon as={Calendar} boxSize={4} color="gray.400" />
+                          <Text color={labelClr}>
+                            {formatDate(new Date(transaction.date))}
                           </Text>
-                        </Td>
-                        <Td>
-                          <HStack spacing={2}>
-                            <Icon as={Calendar} boxSize={4} color="gray.400" />
-                            <Text color={labelClr}>
-                              {formatDate(new Date(transaction.date))}
-                            </Text>
-                          </HStack>
-                        </Td>
-                        <Td>
-                          <Badge
-                            px={3}
-                            py={1}
-                            borderRadius="full"
-                            colorScheme={
-                              transaction.type === "income" ? "green" : "red"
-                            }
-                            fontSize="sm"
-                            fontWeight="600"
+                        </HStack>
+                      </Td>
+                      <Td>
+                        <Badge
+                          px={3}
+                          py={1}
+                          borderRadius="full"
+                          colorScheme={
+                            transaction.type === "income" ? "green" : "red"
+                          }
+                          fontSize="sm"
+                          fontWeight="600"
+                          fontFamily={"Noto Sans Lao, sans-serif"}
+                        >
+                          {transaction.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ"}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Tooltip label={transaction.note} placement="top">
+                          <Text
                             fontFamily={"Noto Sans Lao, sans-serif"}
+                            color={labelClr}
+                            fontWeight="500"
                           >
-                            {transaction.type === "income"
-                              ? "ລາຍຮັບ"
-                              : "ລາຍຈ່າຍ"}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Tooltip label={transaction.note} placement="top">
-                            <Text
-                              fontFamily={"Noto Sans Lao, sans-serif"}
-                              color={labelClr}
-                              fontWeight="500"
-                            >
-                              {shortDesc(transaction.description) || "-"}
-                            </Text>
-                          </Tooltip>
-                        </Td>
-                        <Td>
-                          <Badge
-                            variant="outline"
-                            colorScheme="blue"
-                            rounded="md"
-                            fontFamily={"Noto Sans Lao, sans-serif"}
-                          >
-                            {paymentMethodLabels[transaction?.paymentMethod] ||
-                              transaction?.paymentMethod}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <VStack spacing={1} align="start">
-                            {transaction.amounts.map((amt, i) => (
-                              <HStack key={i} spacing={1}>
-                                <Text
-                                  color={
-                                    transaction.type === "income"
-                                      ? "green.500"
-                                      : "red.500"
+                            {shortDesc(transaction.description) || "-"}
+                          </Text>
+                        </Tooltip>
+                      </Td>
+                      <Td>
+                        <Badge
+                          variant="outline"
+                          colorScheme="blue"
+                          rounded="md"
+                          fontFamily={"Noto Sans Lao, sans-serif"}
+                        >
+                          {paymentMethodLabels[transaction?.paymentMethod] ||
+                            transaction?.paymentMethod}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <VStack spacing={1} align="start">
+                          {transaction.amounts.map((amt, i) => (
+                            <HStack key={i} spacing={1}>
+                              <Text
+                                color={
+                                  transaction.type === "income"
+                                    ? "green.500"
+                                    : "red.500"
+                                }
+                                fontWeight="bold"
+                                fontSize="md"
+                              >
+                                {transaction.type === "income" ? "+" : "-"}
+                                {amt.currency === "LAK" && "₭"}
+                                {amt.currency === "THB" && "฿"}
+                                {amt.currency === "USD" && "$"}
+                                {amt.currency === "CNY" && "¥"}
+                                {parseFloat(amt.amount).toLocaleString()}
+                              </Text>
+                            </HStack>
+                          ))}
+                        </VStack>
+                      </Td>
+                      <Td>
+                        <Badge
+                          fontFamily={"Noto Sans Lao, sans-serif"}
+                          px={3}
+                          py={1}
+                          borderRadius="full"
+                          colorScheme={
+                            transaction.status === "paid" ? "green" : "orange"
+                          }
+                          variant="subtle"
+                        >
+                          {transaction.status === "paid"
+                            ? "✓ ຊຳລະແລ້ວ"
+                            : "⏳ ຍັງບໍ່ຊຳລະ"}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Badge
+                          fontFamily={"Noto Sans Lao, sans-serif"}
+                          px={3}
+                          py={1}
+                          borderRadius="full"
+                          colorScheme={
+                            transaction.status === "paid" ? "green" : "orange"
+                          }
+                          variant="subtle"
+                        >
+                          {transaction?.createdBy?.username}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Badge
+                          rounded="lg"
+                          colorScheme={
+                            statusColors[transaction?.status_Ap] || "blue"
+                          }
+                          fontFamily={"Noto Sans Lao, sans-serif"}
+                          px={4}
+                          py={2}
+                          fontWeight="bold"
+                          fontSize={"22px"}
+                          textTransform="capitalize"
+                          variant="solid" // ใช้แบบทึบจะเด่นกว่า outline
+                          boxShadow="0px 2px 10px rgba(0,0,0,0.25)" // เพิ่มเงาให้ลอยขึ้น
+                          border="1px solid rgba(255,255,255,0.6)" // ขอบจาง ๆ ให้ดูมีชั้น
+                          letterSpacing="0.5px"
+                        >
+                          {status_Ap[transaction?.status_Ap] || "ບໍ່ມີຂໍ້ມູນ"}
+                        </Badge>
+                      </Td>
+
+                      <Td>
+                        <HStack spacing={1}>
+                          {user?.role === "admin" &&
+                            transaction.type !== "income" && (
+                              <HStack spacing={2}>
+                                <Button
+                                  fontSize={"20"}
+                                  size="sm"
+                                  rounded="lg"
+                                  fontFamily="Noto Sans Lao, sans-serif"
+                                  colorScheme={
+                                    transaction.status_Ap === "pending"
+                                      ? "yellow"
+                                      : "gray"
                                   }
-                                  fontWeight="bold"
-                                  fontSize="md"
+                                  variant={
+                                    transaction.status_Ap === "pending"
+                                      ? "solid"
+                                      : "outline"
+                                  }
+                                  onClick={() =>
+                                    handleStatus(transaction, "pending")
+                                  }
                                 >
-                                  {transaction.type === "income" ? "+" : "-"}
-                                  {amt.currency === "LAK" && "₭"}
-                                  {amt.currency === "THB" && "฿"}
-                                  {amt.currency === "USD" && "$"}
-                                  {amt.currency === "CNY" && "¥"}
-                                  {parseFloat(amt.amount).toLocaleString()}
-                                </Text>
+                                  ລໍຖ້າ
+                                </Button>
+
+                                <Button
+                                  fontSize={"20"}
+                                  size="sm"
+                                  rounded="lg"
+                                  fontFamily="Noto Sans Lao, sans-serif"
+                                  colorScheme={
+                                    transaction.status_Ap === "approve"
+                                      ? "green"
+                                      : "gray"
+                                  }
+                                  variant={
+                                    transaction.status_Ap === "approve"
+                                      ? "solid"
+                                      : "outline"
+                                  }
+                                  onClick={() =>
+                                    handleStatus(transaction, "approve")
+                                  }
+                                >
+                                  ອະນຸມັດ
+                                </Button>
+
+                                <Button
+                                  fontSize={"20"}
+                                  size="sm"
+                                  rounded="lg"
+                                  fontFamily="Noto Sans Lao, sans-serif"
+                                  colorScheme={
+                                    transaction.status_Ap === "cancel"
+                                      ? "red"
+                                      : "gray"
+                                  }
+                                  variant={
+                                    transaction.status_Ap === "cancel"
+                                      ? "solid"
+                                      : "outline"
+                                  }
+                                  onClick={() =>
+                                    handleStatus(transaction, "cancel")
+                                  }
+                                >
+                                  ຍົກເລີກ
+                                </Button>
                               </HStack>
-                            ))}
-                          </VStack>
-                        </Td>
-                        <Td>
-                          <Badge
-                            fontFamily={"Noto Sans Lao, sans-serif"}
-                            px={3}
-                            py={1}
-                            borderRadius="full"
-                            colorScheme={
-                              transaction.status === "paid" ? "green" : "orange"
-                            }
-                            variant="subtle"
-                          >
-                            {transaction.status === "paid"
-                              ? "✓ ຊຳລະແລ້ວ"
-                              : "⏳ ຍັງບໍ່ຊຳລະ"}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Badge
-                            fontFamily={"Noto Sans Lao, sans-serif"}
-                            px={3}
-                            py={1}
-                            borderRadius="full"
-                            colorScheme={
-                              transaction.status === "paid" ? "green" : "orange"
-                            }
-                            variant="subtle"
-                          >
-                            {transaction?.createdBy?.username}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <HStack spacing={1}>
-                            <Tooltip label="ແກ້ໄຂ" placement="top">
-                              <IconButton
-                                icon={<EditIcon />}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="blue"
-                                rounded="lg"
-                                onClick={() => {
-                                  setFormEditData({
-                                    serial: transaction.serial || "",
-                                    type: transaction.type,
-                                    description: transaction.description,
-                                    date: transaction.date.slice(0, 10),
-                                    paymentMethod: transaction.paymentMethod,
-                                    status: transaction.status,
-                                    amounts: transaction.amounts.map((amt) => ({
-                                      currency: amt.currency,
-                                      amount: amt.amount,
-                                    })),
-                                    note: transaction.note || "",
-                                    id: transaction._id,
-                                  });
-                                  onEditOpen();
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip label="ເບີງລາຍລະອຽດ" placement="top">
-                              <IconButton
-                                onClick={() => handleViews(transaction)}
-                                icon={<ViewIcon />}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="red"
-                                rounded="lg"
-                              />
-                            </Tooltip>
-                            <Tooltip label="ລຶບ" placement="top">
-                              <IconButton
-                                onClick={() => handleDelete(transaction._id)}
-                                icon={<DeleteIcon />}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="red"
-                                rounded="lg"
-                              />
-                            </Tooltip>
-                          </HStack>
-                        </Td>
-                      </Tr>
-                    ))
-                )}
-              </Tbody>
-            </Table>
-          </Box>
-        </Card>
+                            )}
+
+                          <Tooltip label="ແກ້ໄຂ" placement="top">
+                            <IconButton
+                              icon={<EditIcon />}
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="blue"
+                              rounded="lg"
+                              isDisabled={
+                                !(user.role === "admin") &&
+                                (transaction?.status_Ap === "approve" ||
+                                  transaction?.status_Ap === "cancel")
+                              }
+                              onClick={() => {
+                                setFormEditData({
+                                  serial: transaction.serial || "",
+                                  type: transaction.type,
+                                  description: transaction.description,
+                                  date: transaction.date.slice(0, 10),
+                                  paymentMethod: transaction.paymentMethod,
+                                  status: transaction.status,
+                                  status_Ap: transaction.status_Ap,
+                                  amounts: transaction.amounts.map((amt) => ({
+                                    currency: amt.currency,
+                                    amount: amt.amount,
+                                  })),
+                                  note: transaction.note || "",
+                                  id: transaction._id,
+                                });
+                                onEditOpen();
+                              }}
+                            />
+                          </Tooltip>
+                          <Tooltip label="ເບີງລາຍລະອຽດ" placement="top">
+                            <IconButton
+                              onClick={() => handleViews(transaction)}
+                              icon={<ViewIcon />}
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="red"
+                              rounded="lg"
+                            />
+                          </Tooltip>
+
+                          <Tooltip label="ລຶບ" placement="top">
+                            <IconButton
+                              onClick={() => handleDelete(transaction._id)}
+                              icon={<DeleteIcon />}
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="red"
+                              rounded="lg"
+                              isDisabled={
+                                !(user.role === "admin") &&
+                                (transaction?.status_Ap === "approve" ||
+                                  transaction?.status_Ap === "cancel")
+                              }
+                            />
+                          </Tooltip>
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  ))
+              )}
+            </Tbody>
+          </Table>
+        </Box>
+        {/* </Card> */}
 
         {/* Add/Edit Modal */}
         <Modal
@@ -2159,7 +2426,7 @@ export default function IncomeExpense() {
               <Button
                 fontFamily={"Noto Sans Lao, sans-serif"}
                 variant="ghost"
-                onClick={onClose}
+                onClose={onClose}
                 rounded="xl"
               >
                 ຍົກເລີກ
@@ -2463,6 +2730,7 @@ export default function IncomeExpense() {
           </ModalContent>
         </Modal>
         {/* Footer info */}
+
         <Flex
           justify="space-between"
           align="center"
@@ -2476,9 +2744,45 @@ export default function IncomeExpense() {
             fontSize="sm"
             color={labelClr}
           >
-            ສະແດງ {filteredTransactions.length} ລາຍການຈາກທັງໝົດ{" "}
-            {transactions.length} ລາຍການ
+            ສະແດງ {pageData.length} ລາຍການຈາກທັງໝົດ {transactions.length} ລາຍການ
           </Text>
+          <HStack spacing={2} justify="center">
+            <IconButton
+              icon={<ChevronLeftIcon />}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              isDisabled={page === 1}
+              colorScheme="purple"
+              variant="outline"
+              borderRadius="full"
+              aria-label="Previous page"
+              _hover={{
+                transform: "scale(1.1)",
+              }}
+            />
+
+            <Badge
+              colorScheme="purple"
+              fontSize="md"
+              px={4}
+              py={2}
+              borderRadius="full"
+            >
+              {page} / {totalPages}
+            </Badge>
+
+            <IconButton
+              icon={<ChevronRightIcon />}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              isDisabled={page === totalPages}
+              colorScheme="purple"
+              variant="outline"
+              borderRadius="full"
+              aria-label="Next page"
+              _hover={{
+                transform: "scale(1.1)",
+              }}
+            />
+          </HStack>
           <Text
             fontFamily={"Noto Sans Lao, sans-serif"}
             fontSize="sm"

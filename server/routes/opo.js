@@ -317,4 +317,28 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
       .json({ message: "Error removing item", error: error.message });
   }
 });
+
+router.patch("/status/:id", authenticate, async (req, res) => {
+  try {
+    const id = req.params.id.replace(/^:/, "");
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
+    const record = await OPO.findOneAndUpdate({ _id: id, ...query }, req.body, {
+      new: true,
+    });
+    if (!record) {
+      return res.status(404).json({ message: "ไม่พบข้อมูล" });
+    }
+    res.json(record);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+  }
+});
 export default router;

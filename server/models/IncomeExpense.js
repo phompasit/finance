@@ -28,6 +28,14 @@ const incomeExpenseSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    status: {
+      type: String,
+    },
+    status_Ap: {
+      type: String,
+      enum: ["approve", "cancel", "pending", "success_approve"],
+      default: "pending",
+    },
     amounts: [
       {
         currency: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Button,
@@ -46,6 +46,9 @@ import {
   CreditCard,
   Calendar,
   DollarSign,
+  TrendingDown,
+  ChevronRightIcon,
+  ChevronLeftIcon,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -66,11 +69,15 @@ const Report = () => {
     currency: "",
     searchText: "",
     status: "",
+    status_Ap: "",
   });
+  const pageSize = 30;
+  const [page, setPage] = useState(1);
+
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const shortDesc = (desc) => {
-    if (!desc) return "-"; 
+    if (!desc) return "-";
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
   };
   // Normalize payment methods (map Lao and English terms)
@@ -124,12 +131,13 @@ const Report = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
   // Handle select all
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedItems(new Set(data.map((item) => item._id)));
+      // ✅ เลือกเฉพาะ item ในหน้านี้
+      setSelectedItems(new Set(pageData.map((item) => item._id)));
     } else {
+      // ✅ ยกเลิก = ล้างทั้งหมด
       setSelectedItems(new Set());
     }
   };
@@ -158,7 +166,12 @@ const Report = () => {
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   }
-
+  const totalPages = Math.ceil(data.length / pageSize);
+  const offset = (page - 1) * pageSize;
+  const pageData = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return data.slice(s, s + pageSize);
+  }, [data, page]);
   // Get badge for type
   const getTypeBadge = (type, sourceType) => {
     const colors = {
@@ -184,14 +197,6 @@ const Report = () => {
   };
   //get print
   const getTypeBadgePrint = (sourceType) => {
-    const colors = {
-      income: "#48BB78", // green
-      expense: "#F56565", // red
-      receivable: "#9F7AEA", // purple
-      ໜີ້ຕ້ອງຮັບ: "#4299E1", // blue
-      payable: "#ED8936", // orange
-    };
-
     const labels = {
       income: "ລາຍຮັບ",
       expense: "ລາຍຈ່າຍ",
@@ -212,21 +217,46 @@ const Report = () => {
     font-size:8px;
   ">${labels[key] || sourceType}</span>`;
   };
+  const paymentStatusMap = {
+    ຊຳລະບາງສ່ວນ: { label: "ຊຳລະບາງສ່ວນ", color: "gray" },
+    unpaid: { label: "ຍັງບໍ່ຈ່າຍ", color: "red" },
+    paid: { label: "ຈ່າຍແລ້ວ", color: "green" },
+  };
 
+  // สถานะการอนุมัติ
+  const approveStatusMap = {
+    pending: { label: "ລໍຖ້າອະນຸມັດ", color: "yellow" },
+    approve: { label: "ອະນຸມັດແລ້ວ", color: "green" },
+    cancel: { label: "ຍົກເລີກ", color: "red" },
+    PENDING: { label: "ລໍຖ້າອະນຸມັດ", color: "yellow" },
+    APPROVED: { label: "ອະນຸມັດ", color: "green" },
+    CANCELLED: { label: "ຍົກເລີກ", color: "red" },
+  };
   // Get badge for status
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      paid: { label: "ຊຳລະແລ້ວ", color: "green" },
-      PENDING: { label: "ລໍຖ້າ", color: "yellow" },
-      ຊຳລະບາງສ່ວນ: { label: "ຊຳລະບາງສ່ວນ", color: "gray" },
-      APPROVED: { label: "ອະນຸມັດ", color: "green" },
-    };
+  const getPaymentBadge = (status) => {
+    const st = paymentStatusMap[status] || { label: status, color: "gray" };
     return (
       <Badge
+        colorScheme={st.color}
+        variant="subtle"
+        rounded="md"
         fontFamily="Noto Sans Lao, sans-serif"
-        colorScheme={statusMap[status]?.color || "gray"}
       >
-        {statusMap[status]?.label || status}
+        {st.label}
+      </Badge>
+    );
+  };
+
+  const getApproveBadge = (statusAp) => {
+    const st = approveStatusMap[statusAp] || { label: statusAp, color: "gray" };
+    return (
+      <Badge
+        colorScheme={st.color}
+        variant="outline"
+        rounded="md"
+        fontFamily="Noto Sans Lao, sans-serif"
+      >
+        {st.label}
       </Badge>
     );
   };
@@ -260,7 +290,7 @@ const Report = () => {
       return;
     }
 
-    const selectedData = data.filter((item) => selectedItems.has(item._id));
+    const selectedData = pageData.filter((item) => selectedItems.has(item._id));
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
 <!DOCTYPE html>
@@ -268,8 +298,8 @@ const Report = () => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ແມ່ແບບລາຍງານ</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title  font-family: 'Noto Sans Lao', sans-serif;>-</title>
   <style>
     * {
       margin: 0;
@@ -285,7 +315,7 @@ const Report = () => {
     }
     
     .container {
-      max-width: 210mm;
+      max-width: 297mm;
       margin: 0 auto;
       background: white;
       border-radius: 15px;
@@ -329,8 +359,8 @@ const Report = () => {
     }
     
     .pdf-content {
-      padding: 20mm 15mm;
-      min-height: 297mm;
+      padding: 15mm 12mm;
+      min-height: 210mm;
     }
     
     /* ສ່ວນຫົວ - ຮູບແບບທາງການ */
@@ -338,7 +368,7 @@ const Report = () => {
       text-align: center;
       border-bottom: 2px solid #1a202c;
       padding-bottom: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     
     .header-line1 {
@@ -359,22 +389,24 @@ const Report = () => {
     /* ວັນທີ - ແບບທາງການ */
     .date-section {
       text-align: right;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       font-size: 11px;
       color: #2d3748;
       font-weight: 500;
     }
-     .document-title {
+    
+    .document-title {
       text-align: left;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       font-size: 14px;
       color: #2d3748;
       font-weight: 500;
     }
+    
     /* ຫົວຂໍ້ລາຍງານ */
     .report-title {
       text-align: center;
-      margin: 15px 0 20px 0;
+      margin: 12px 0 15px 0;
     }
     
     .report-title h2 {
@@ -387,32 +419,41 @@ const Report = () => {
     
     /* ຕາຕະລາງ - ແບບທາງການ */
     .table-section {
-      margin: 20px 0;
+      margin: 15px 0;
+      overflow-x: auto;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
+      margin: 10px 0;
       font-size: 10px;
+      table-layout: fixed;
     }
     
     th {
       background: #1a202c;
       color: white;
-      padding: 8px 4px;
+      padding: 8px 6px;
       text-align: center;
       font-weight: 600;
       font-size: 10px;
       border: 1px solid #000;
       line-height: 1.3;
+      word-wrap: break-word;
+      white-space: normal;
+      overflow-wrap: break-word;
     }
     
     td {
-      padding: 6px 4px;
+      padding: 6px;
       border: 1px solid #2d3748;
-      font-size: 9px;
+      font-size: 14.5px;
       line-height: 1.4;
+      word-wrap: break-word;
+      white-space: normal;
+      overflow-wrap: break-word;
+      vertical-align: top;
     }
     
     tbody tr:nth-child(even) {
@@ -424,7 +465,7 @@ const Report = () => {
       background: #e2e8f0 !important;
       font-weight: 700 !important;
       font-size: 10px !important;
-      padding: 8px 4px !important;
+      padding: 8px 6px !important;
       border: 2px solid #1a202c !important;
     }
     
@@ -437,7 +478,7 @@ const Report = () => {
       display: grid;
       grid-template-columns: repeat(1, 1fr);
       gap: 30px;
-      margin-top: 35px;
+      margin-top: 30px;
       padding-top: 20px;
       page-break-inside: avoid;
     }
@@ -475,15 +516,15 @@ const Report = () => {
       .container {
         box-shadow: none;
         border-radius: 0;
-        max-width: 210mm;
+        max-width: 297mm;
       }
       
       .pdf-content {
-        padding: 15mm 12mm;
+        padding: 10mm 12mm;
       }
       
       @page {
-        size: A4;
+        size: A4 landscape;
         margin: 0;
       }
       
@@ -496,19 +537,20 @@ const Report = () => {
       .date-section {
         page-break-after: avoid;
         break-after: avoid;
-
       }
+      
       .document-title {
         page-break-after: avoid;
         break-after: avoid;
-          font-size: 14pt;
-            font-weight: bold;
-            margin: 5px 0 2px 0;
-            text-transform: uppercase;
-            color: #1a202c;
-            text-decoration: underline;
-            text-underline-offset: 3px;
+        font-size: 14pt;
+        font-weight: bold;
+        margin: 5px 0 2px 0;
+        text-transform: uppercase;
+        color: #1a202c;
+        text-decoration: underline;
+        text-underline-offset: 3px;
       }
+      
       .report-title {
         page-break-after: avoid;
         break-after: avoid;
@@ -533,6 +575,8 @@ const Report = () => {
         background: #e2e8f0 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+
+
       }
       
       /* ກັນບໍ່ໃຫ້ແຖວແຍກ */
@@ -551,13 +595,19 @@ const Report = () => {
       thead {
         display: table-header-group;
       }
+      
+      td {
+        word-wrap: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="toolbar">
-      <h2>📄 ແມ່ແບບລາຍງານ</h2>
+      <h2>📄 ແມ່ແບບລາຍງານ (A4 ແນວນອນ)</h2>
       <button class="btn-print" onclick="window.print()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -574,9 +624,13 @@ const Report = () => {
         <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
         <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</div>
       </div>
-            <div class="document-title">
-     ${user?.companyInfo?.name}
-    </div>
+      
+      <div class="company-info" style="text-align: left; font-size: 12px; color: #555;">
+        <div class="company-name" style="font-weight: normal;">${user?.companyInfo?.name}</div>
+        <div class="company-address" style="margin-top: 2px;">${user?.companyInfo?.address}</div>
+        <div class="company-address">${user?.companyInfo?.phone || ""}</div>
+      </div>
+      
       <!-- ວັນທີ -->
       <div class="date-section">
         ວັນທີ: ${formatDate(new Date()) || "N/A"}
@@ -592,16 +646,16 @@ const Report = () => {
         <table>
           <thead>
             <tr>
-              <th style="width: 30px;">ລຳດັບ</th>
-              <th style="width: 65px;">ວັນ/ເດືອນ/ປີ</th>
-              <th style="width: 55px;">ເລກທີ</th>
-              <th style="width: 180px;">ເນື້ອໃນລາຍການ</th>
-              <th style="width: 85px;">ຈຳນວນ<br/>(ກີບ)</th>
-              <th style="width: 85px;">ຈຳນວນ<br/>(ບາດ)</th>
-              <th style="width: 85px;">ຈຳນວນ<br/>(ໂດລາ)</th>
-              <th style="width: 85px;">ຈຳນວນ<br/>(ຢວນ)</th>
-              <th style="width: 105px;">ປະເພດ<br/></th>
-              <th style="width: 110px;">ໝາຍເຫດ</th>
+              <th style="width: 35px;">ລຳດັບ</th>
+              <th style="width: 70px;">ວັນ/ເດືອນ/ປີ</th>
+              <th style="width: 60px;">ເລກທີ</th>
+              <th style="width: 200px;">ເນື້ອໃນລາຍການ</th>
+              <th style="width: 90px;">ຈຳນວນ<br/>(ກີບ)</th>
+              <th style="width: 90px;">ຈຳນວນ<br/>(ບາດ)</th>
+              <th style="width: 90px;">ຈຳນວນ<br/>(ໂດລາ)</th>
+              <th style="width: 90px;">ຈຳນວນ<br/>(ຢວນ)</th>
+              <th style="width: 100px;">ປະເພດ<br/></th>
+              <th style="width: 120px;">ໝາຍເຫດ</th>
             </tr>
           </thead>
           <tbody>
@@ -639,12 +693,12 @@ const Report = () => {
                         <td style="text-align: right; padding-right: 6px;">${
                           cnyAmount > 0 ? cnyAmount.toLocaleString() : "-"
                         }</td>
-                        <td style=" font-size:10px ;text-align: left; padding-left: 6px;">${getTypeBadgePrint(
+                        <td style="font-size:10px; text-align: left; padding-left: 6px;">${getTypeBadgePrint(
                           amt.type || item.type || "-"
                         )}</td>
-                         <td style="text-align: left; padding-left: 6px;">${
-                           amt.notes || item.notes || "-"
-                         }</td>
+                        <td style="text-align: left; padding-left: 6px;">${
+                          amt.notes || item.notes || "-"
+                        }</td>
                       </tr>
                     `;
                     })
@@ -665,18 +719,18 @@ const Report = () => {
                       <td style="text-align: right; padding-right: 6px;">${
                         kipAmount > 0 ? kipAmount.toLocaleString() : "-"
                       }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
-                          thbAmount > 0 ? thbAmount.toLocaleString() : "-"
-                        }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
-                          usdAmount > 0 ? usdAmount.toLocaleString() : "-"
-                        }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
-                          cnyAmount > 0 ? cnyAmount.toLocaleString() : "-"
-                        }</td>
-                         <td style=" font-size:10px ; text-align: left; padding-left: 6px;">${getTypeBadgePrint(
-                           item.type || "-"
-                         )}</td>
+                      <td style="text-align: right; padding-right: 6px;">${
+                        thbAmount > 0 ? thbAmount.toLocaleString() : "-"
+                      }</td>
+                      <td style="text-align: right; padding-right: 6px;">${
+                        usdAmount > 0 ? usdAmount.toLocaleString() : "-"
+                      }</td>
+                      <td style="text-align: right; padding-right: 6px;">${
+                        cnyAmount > 0 ? cnyAmount.toLocaleString() : "-"
+                      }</td>
+                      <td style="font-size:20px; text-align: left; padding-left: 6px;">${getTypeBadgePrint(
+                        item.type || "-"
+                      )}</td>
                       <td style="text-align: left; padding-left: 6px;">${
                         item.notes || "-"
                       }</td>
@@ -720,15 +774,15 @@ const Report = () => {
                 </tr>
               `;
             })()}
-            </tbody>
-            </table>
-            </div>
+          </tbody>
+        </table>
+      </div>
 
-            <div class="signature-section">
-              <div class="signature-box">
-                <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
-              </div>
-            </div>
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
+        </div>
+      </div>
     </div>
   </div>
 </body>
@@ -863,7 +917,9 @@ const Report = () => {
                 .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
                 .map((item, index) => (
                   <Tr key={item._id}>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{index + 1}</Td>
+                    <Td fontFamily="Noto Sans Lao, sans-serif">
+                      {offset + index + 1}
+                    </Td>
                     <Td fontFamily="Noto Sans Lao, sans-serif">
                       <Text>{item.description}</Text>
                     </Td>
@@ -1683,7 +1739,7 @@ const Report = () => {
               onClick={exportToPDF}
               isDisabled={selectedItems.size === 0}
             >
-             Print ({selectedItems.size})
+              Print ({selectedItems.size})
             </Button>
             <Button
               fontFamily="Noto Sans Lao, sans-serif"
@@ -1814,6 +1870,22 @@ const Report = () => {
                   <option value="PENDING">ລໍຖ້າ</option>
                   <option value="ຊຳລະບາງສ່ວນ">ຊຳລະບາງສ່ວນ</option>
                 </Select>
+
+                {/* <Select
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  placeholder="ເລືອກສະຖານະ"
+                  value={filters.status_Ap}
+                  onChange={(e) =>
+                    setFilters({ ...filters, status_Ap: e.target.value })
+                  }
+                  flex={1}
+                  minW="150px"
+                >
+                  <option value="">ທັງໝົດ</option>
+                  <option value="APPROVED">ອະນຸມັດ</option>
+                  <option value="PENDING">ລໍຖ້າອະນຸມັດ</option>
+                  <option value="CANCELLED">ຍົກເລີກ</option>
+                </Select> */}
               </HStack>
             </VStack>
           </CardBody>
@@ -1852,12 +1924,13 @@ const Report = () => {
                       <Th fontFamily="Noto Sans Lao, sans-serif">
                         <Checkbox
                           isChecked={
-                            selectedItems.size === data.length &&
-                            data.length > 0
+                            selectedItems.size === pageData.length &&
+                            pageData.length > 0
                           }
                           onChange={handleSelectAll}
                         />
                       </Th>
+                      <Th fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
                       <Th fontFamily="Noto Sans Lao, sans-serif">ວັນທີ່</Th>
                       <Th fontFamily="Noto Sans Lao, sans-serif">ເລກທີ</Th>
                       <Th fontFamily="Noto Sans Lao, sans-serif">ລາຍລະອຽດ</Th>
@@ -1872,10 +1945,10 @@ const Report = () => {
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {data
+                    {pageData
                       .slice()
                       .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
-                      .map((item) => (
+                      .map((item, index) => (
                         <Tr key={item._id} _hover={{ bg: "gray.50" }}>
                           {/* ✅ Checkbox */}
                           <Td fontFamily="Noto Sans Lao, sans-serif">
@@ -1884,7 +1957,9 @@ const Report = () => {
                               onChange={() => handleSelectItem(item._id)}
                             />
                           </Td>
-
+                          <Td fontFamily="Noto Sans Lao, sans-serif">
+                            {offset + index + 1}
+                          </Td>
                           {/* ✅ วันที่ */}
                           <Td fontFamily="Noto Sans Lao, sans-serif">
                             {formatDate(item.date)}
@@ -1961,18 +2036,23 @@ const Report = () => {
                           {/* ✅ สถานะ */}
                           <Td fontFamily="Noto Sans Lao, sans-serif">
                             {item?.listAmount && item.listAmount.length > 1 ? (
-                              <Box fontFamily="Noto Sans Lao, sans-serif">
+                              <VStack align="start" spacing={1}>
                                 {item.listAmount.map((amt, idx) => (
-                                  <Box
-                                    fontFamily="Noto Sans Lao, sans-serif"
+                                  <HStack
                                     key={idx}
+                                    spacing={2}
+                                    fontFamily="Noto Sans Lao, sans-serif"
                                   >
-                                    {getStatusBadge(amt.status || item.status)}
-                                  </Box>
+                                    {getPaymentBadge(amt.status || item.status)}
+                                    {getApproveBadge(item.status_Ap)}
+                                  </HStack>
                                 ))}
-                              </Box>
+                              </VStack>
                             ) : (
-                              getStatusBadge(item.status)
+                              <HStack spacing={2}>
+                                {getPaymentBadge(item.status)}
+                                {getApproveBadge(item.status_Ap)}
+                              </HStack>
                             )}
                           </Td>
 
@@ -2019,7 +2099,7 @@ const Report = () => {
                       ))}
                   </Tbody>
                 </Table>
-                {data.length === 0 && !loading && (
+                {pageData.length === 0 && !loading && (
                   <Flex justify="center" align="center" h="200px">
                     <Text
                       fontFamily="Noto Sans Lao, sans-serif"
@@ -2031,6 +2111,43 @@ const Report = () => {
                 )}
               </Box>
             )}
+            <HStack spacing={2} justify="center">
+              <IconButton
+                icon={<ChevronLeftIcon />}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                isDisabled={page === 1}
+                colorScheme="purple"
+                variant="outline"
+                borderRadius="full"
+                aria-label="Previous page"
+                _hover={{
+                  transform: "scale(1.1)",
+                }}
+              />
+
+              <Badge
+                colorScheme="purple"
+                fontSize="md"
+                px={4}
+                py={2}
+                borderRadius="full"
+              >
+                {page} / {totalPages}
+              </Badge>
+
+              <IconButton
+                icon={<ChevronRightIcon />}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                isDisabled={page === totalPages}
+                colorScheme="purple"
+                variant="outline"
+                borderRadius="full"
+                aria-label="Next page"
+                _hover={{
+                  transform: "scale(1.1)",
+                }}
+              />
+            </HStack>
           </CardBody>
         </Card>
       </VStack>

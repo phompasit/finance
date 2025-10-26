@@ -137,35 +137,34 @@ export default function Users() {
 
   const handleAddUser = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(newUser),
-      })
-        .unrwp()
-        .then((res) => {
-          toast({
-            title: "ເພີ່ມຜູ້ໃຊ້ງານເຮັດສຳເລັດແລ້ວ",
-            status: "success",
-            duration: 2000,
-            isClosable: true,
-          });
-          fetchUsers();
-          setNewUser({ username: "", email: "", password: "", role: "user" });
-        })
-        .catch((error) => {
-          toast({
-            title: "ເກີດຂໍ້ຜິດພາດ",
-            description: error.message || "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-        });
-      onClose();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(newUser),
+        }
+      );
+
+      if (!res.ok) {
+        // อ่านข้อความ error จาก response ถ้ามี
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້");
+      }
+
+      toast({
+        title: "ເພີ່ມຜູ້ໃຊ້ງານເຮັດສໍາເລັດແລ້ວ",
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+      });
+
+      fetchUsers(); // รีเฟรช list
+      setNewUser({ username: "", email: "", password: "", role: "user" });
+      onClose(); // ปิด modal หรือ form
     } catch (error) {
       toast({
         title: "ເກີດຂໍ້ຜິດພາດ",
@@ -176,6 +175,7 @@ export default function Users() {
       });
     }
   };
+
   const handleOpenEdit = (user) => {
     setEditUser({
       _id: user._id,

@@ -7,7 +7,7 @@ import validator from "validator";
 const router = express.Router();
 import ErrorLog from "../models/ErrorLog.js";
 import AuditLog from "../models/AuditLog.js";
-import crypto from "crypto"
+import crypto from "crypto";
 // Register
 router.post("/register", registerLimiter, authenticate, async (req, res) => {
   try {
@@ -29,13 +29,13 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
         message: "ຮູບແບບອິເມວບໍ່ຖືກຕ້ອງ",
       });
     }
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      return res.status(400).json({
-        message:
-          "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
-      });
-    }
+    // const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    // if (!passwordRegex.test(password)) {
+    //   return res.status(400).json({
+    //     message:
+    //       "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
+    //   });
+    // }
     const allowedRoles = ["user", "admin", "staff"];
     const userRole = role || "user";
     if (!allowedRoles.includes(userRole)) {
@@ -66,7 +66,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET || "secret",
       {
-        expiresIn: "7d",
+        expiresIn: process.env.JWT_EXPIRE,
       }
     );
 
@@ -172,7 +172,7 @@ const detectSuspiciousActivity = (req, res, next) => {
   ) {
     console.warn(`Suspicious user agent detected: ${userAgent} from IP: ${ip}`);
     return res.status(403).json({
-      message:  "ການເຂົ້າເຖິງຖືກປະຕິເສດ",
+      message: "ການເຂົ້າເຖິງຖືກປະຕິເສດ",
     });
   }
 
@@ -229,11 +229,9 @@ router.post(
       }
 
       // 3. Find user - ใช้ lean() และ select เฉพาะฟิลด์ที่จำเป็น
-      const user = await User.findOne({ email: sanitizedEmail })
-        .select(
-          "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret"
-        )
-        
+      const user = await User.findOne({ email: sanitizedEmail }).select(
+        "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret"
+      );
 
       // 4. Timing-safe user check
       const userExists = !!user;
@@ -349,9 +347,9 @@ router.post(
           companyId: user.companyId,
           iat: Math.floor(Date.now() / 1000),
         },
-        process.env.JWT_SECRET ||'secret',
+        process.env.JWT_SECRET || "secret",
         {
-          expiresIn: "7d",
+          expiresIn: process.env.JWT_EXPIRE,
           algorithm: "HS256",
           issuer: "admin",
           audience: "admin",

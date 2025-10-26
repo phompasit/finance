@@ -18,6 +18,10 @@ const OPOSchema = new mongoose.Schema({
   date: { type: Date, required: true, default: Date.now },
   status: {
     type: String,
+    enum: ["paid", "unpaid"],
+  },
+  status_Ap: {
+    type: String,
     required: true,
     enum: ["PENDING", "APPROVED", "PAID", "CANCELLED"],
   },
