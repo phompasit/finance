@@ -1,46 +1,39 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import rateLimit from "express-rate-limit"
+import rateLimit from "express-rate-limit";
 export const authenticate = async (req, res, next) => {
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
-    console.log(token);
     if (!token) {
-      return res.status(401).json({ message: "กรุณาเข้าสู่ระบบ" });
+      return res.status(401).json({ message: "ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ" });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "secret"
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret");
     const user = await User.findById(decoded.userId);
 
     if (!user || !user.isActive) {
-      return res.status(401).json({ message: "ไม่พบผู้ใช้หรือบัญชีถูกระงับ" });
+      return res.status(401).json({ message: "ບໍ່ພົບບັນຊີ" });
     }
 
     req.user = user;
-    console.log(req.user )
     next();
   } catch (error) {
-    console.log(error)
-    res.status(401).json({ message: "การยืนยันตัวตนล้มเหลว" });
+    res.status(401).json({ message: "ການຢືນຢັນຕົວຕົ້ນລົ້ມເຫລວ" });
   }
 };
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "คุณไม่มีสิทธิ์เข้าถึงส่วนนี้" });
+      return res.status(403).json({ message: "ບໍ່ມີສິດເຂົ້າເຖິງສ່ວນນີ້" });
     }
     next();
   };
 };
-// Rate limiting สำหรับการสมัครสมาชิก
 
 export const registerLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 นาที
-  max: 5, // จำกัด 5 ครั้งต่อ IP
+  windowMs: 1 * 60 * 1000,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

@@ -77,14 +77,16 @@ const ReportsPage = () => {
         if (filters[key]) queryParams.append(key, filters[key]);
       });
       const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/report?${queryParams}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/report?${queryParams}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const data = await response.json();
-      console.log(data);
       if (data.success) {
         setReports(data.data);
         setSummaryReport(data);
@@ -112,12 +114,15 @@ const ReportsPage = () => {
       if (filters.endDate) queryParams.append("endDate", filters.endDate);
       queryParams.append("groupBy", "month");
       const token = localStorage.getItem("token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/report/summary?${queryParams}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/report/summary?${queryParams}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const data = await response;
 
       if (data.success) {
@@ -202,43 +207,38 @@ const ReportsPage = () => {
   const formatAmount = (amount, currency) => {
     return new Intl.NumberFormat("lo-LA").format(amount) + " " + currency;
   };
-  console.log("summary", summary);
   // Prepare chart data
-const prepareChartDataFromSummary = () => {
-  const trendByDate = summaryReport?.summary?.trendByDate;
-  
-  if (!trendByDate) return [];
-  
-  return Object.entries(trendByDate).map(([date, data]) => {
-    return {
-      date,
-      // รายรับ แยกตามสกุลเงิน
-      ລາຍຮັບ_LAK: data.ລາຍຮັບ?.LAK || 0,
-      ລາຍຮັບ_USD: data.ລາຍຮັບ?.USD || 0,
-      ລາຍຮັບ_THB: data.ລາຍຮັບ?.THB || 0,
-      
-      // รายจ่าย แยกตามสกุลเงิน
-      ລາຍຈ່າຍ_LAK: data.ລາຍຈ່າຍ?.LAK || 0,
-      ລາຍຈ່າຍ_USD: data.ລາຍຈ່າຍ?.USD || 0,
-      ລາຍຈ່າຍ_THB: data.ລາຍຈ່າຍ?.THB || 0,
-      
-      // // OPO แยกตามสกุลเงิน
-      // OPO_LAK: data.OPO?.LAK || 0,
-      // OPO_USD: data.OPO?.USD || 0,
-      // OPO_THB: data.OPO?.THB || 0,
-      
-      // // ลูกหนี้ แยกตามสกุลเงิน
-      // ໜີ້ຕ້ອງຮັບ_LAK: data.ໜີ້ຕ້ອງຮັບ?.LAK || 0,
-      // ໜີ້ຕ້ອງຮັບ_USD: data.ໜີ້ຕ້ອງຮັບ?.USD || 0,
-      // ໜີ້ຕ້ອງຮັບ_THB: data.ໜີ້ຕ້ອງຮັບ?.THB || 0,
-      
-      // // เจ้าหนี้ แยกตามสกุลเงิน
-      // ໜີ້ຕ້ອງສົ່ງ_LAK: data.ໜີ້ຕ້ອງສົ່ງ?.LAK || 0,
-      // ໜີ້ຕ້ອງສົ່ງ_USD: data.ໜີ້ຕ້ອງສົ່ງ?.USD || 0,
-      // ໜີ້ຕ້ອງສົ່ງ_THB: data.ໜີ້ຕ້ອງສົ່ງ?.THB || 0,
-    };
-  });
-};
+  const prepareChartDataFromSummary = () => {
+    const trendByDate = summaryReport?.summary?.trendByDate;
+
+    if (!trendByDate) return [];
+
+    return Object.entries(trendByDate).map(([date, data]) => {
+      return {
+        date,
+
+        ລາຍຮັບ_LAK: data.ລາຍຮັບ?.LAK || 0,
+        ລາຍຮັບ_USD: data.ລາຍຮັບ?.USD || 0,
+        ລາຍຮັບ_THB: data.ລາຍຮັບ?.THB || 0,
+
+        ລາຍຈ່າຍ_LAK: data.ລາຍຈ່າຍ?.LAK || 0,
+        ລາຍຈ່າຍ_USD: data.ລາຍຈ່າຍ?.USD || 0,
+        ລາຍຈ່າຍ_THB: data.ລາຍຈ່າຍ?.THB || 0,
+
+        // OPO_LAK: data.OPO?.LAK || 0,
+        // OPO_USD: data.OPO?.USD || 0,
+        // OPO_THB: data.OPO?.THB || 0,
+
+        // ໜີ້ຕ້ອງຮັບ_LAK: data.ໜີ້ຕ້ອງຮັບ?.LAK || 0,
+        // ໜີ້ຕ້ອງຮັບ_USD: data.ໜີ້ຕ້ອງຮັບ?.USD || 0,
+        // ໜີ້ຕ້ອງຮັບ_THB: data.ໜີ້ຕ້ອງຮັບ?.THB || 0,
+
+        // ໜີ້ຕ້ອງສົ່ງ_LAK: data.ໜີ້ຕ້ອງສົ່ງ?.LAK || 0,
+        // ໜີ້ຕ້ອງສົ່ງ_USD: data.ໜີ້ຕ້ອງສົ່ງ?.USD || 0,
+        // ໜີ້ຕ້ອງສົ່ງ_THB: data.ໜີ້ຕ້ອງສົ່ງ?.THB || 0,
+      };
+    });
+  };
   const getTypeBadgePrint = (sourceType) => {
     const labels = {
       income: "ລາຍຮັບ",
@@ -573,25 +573,54 @@ const prepareChartDataFromSummary = () => {
                     >
                       📈 ແນວໂນ້ມລາຍຮັບ-ລາຍຈ່າຍຕາມເວລາ
                     </Heading>
-                  <ResponsiveContainer width="100%" height={300}>
-  <BarChart data={prepareChartDataFromSummary()}>
-    <CartesianGrid strokeDasharray="3 3" />
-    <XAxis dataKey="date" />
-    <YAxis />
-    <Tooltip />
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={prepareChartDataFromSummary()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
 
-    
-    {/* รายรับ */}
-    <Bar  dataKey="ລາຍຮັບ_LAK" fill="#38A169" strokeWidth={2} name="ລາຍຮັບ (LAK)" />
-    <Bar  dataKey="ລາຍຮັບ_USD" fill="#48BB78" strokeWidth={2} name="ລາຍຮັບ (USD)" />
-    <Bar  dataKey="ລາຍຮັບ_THB" fill="#68D391" strokeWidth={2} name="ລາຍຮັບ (THB)" />
-    
-    {/* รายจ่าย */}
-    <Bar  dataKey="ລາຍຈ່າຍ_LAK" fill="#E53E3E" strokeWidth={2} name="ລາຍຈ່າຍ (LAK)" />
-    <Bar  dataKey="ລາຍຈ່າຍ_USD" fill="#FC8181" strokeWidth={2} name="ລາຍຈ່າຍ (USD)" />
-    <Bar  dataKey="ລາຍຈ່າຍ_THB" fill="#F56565" strokeWidth={2} name="ລາຍຈ່າຍ (THB)" />
-    
-{/*     
+                        {/* รายรับ */}
+                        <Bar
+                          dataKey="ລາຍຮັບ_LAK"
+                          fill="#38A169"
+                          strokeWidth={2}
+                          name="ລາຍຮັບ (LAK)"
+                        />
+                        <Bar
+                          dataKey="ລາຍຮັບ_USD"
+                          fill="#48BB78"
+                          strokeWidth={2}
+                          name="ລາຍຮັບ (USD)"
+                        />
+                        <Bar
+                          dataKey="ລາຍຮັບ_THB"
+                          fill="#68D391"
+                          strokeWidth={2}
+                          name="ລາຍຮັບ (THB)"
+                        />
+
+                        {/* รายจ่าย */}
+                        <Bar
+                          dataKey="ລາຍຈ່າຍ_LAK"
+                          fill="#E53E3E"
+                          strokeWidth={2}
+                          name="ລາຍຈ່າຍ (LAK)"
+                        />
+                        <Bar
+                          dataKey="ລາຍຈ່າຍ_USD"
+                          fill="#FC8181"
+                          strokeWidth={2}
+                          name="ລາຍຈ່າຍ (USD)"
+                        />
+                        <Bar
+                          dataKey="ລາຍຈ່າຍ_THB"
+                          fill="#F56565"
+                          strokeWidth={2}
+                          name="ລາຍຈ່າຍ (THB)"
+                        />
+
+                        {/*     
     <Line dataKey="OPO_LAK" stroke="#3182CE" strokeWidth={2} name="OPO (LAK)" />
     <Line dataKey="OPO_USD" stroke="#4299E1" strokeWidth={2} name="OPO (USD)" />
     <Line dataKey="OPO_THB" stroke="#63B3ED" strokeWidth={2} name="OPO (THB)" />
@@ -601,11 +630,11 @@ const prepareChartDataFromSummary = () => {
     
     <Line dataKey="ໜີ້ຕ້ອງສົ່ງ_LAK" stroke="#D69E2E" strokeWidth={2} name="ໜີ້ຕ້ອງສົ່ງ (LAK)" />
     <Line dataKey="ໜີ້ຕ້ອງສົ່ງ_USD" stroke="#F6AD55" strokeWidth={2} name="ໜີ້ຕ້ອງສົ່ງ (USD)" /> */}
-  </BarChart>
-</ResponsiveContainer>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </CardBody>
                 </Card>
-{/* 
+                {/* 
                 <Grid templateColumns="repeat(2, 1fr)" gap={6} w="full">
                   <Card>
                     <CardBody>

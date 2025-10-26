@@ -70,7 +70,6 @@ const DebtDetailsModal = ({ isOpen, onClose, documentData }) => {
   };
 
   if (!documentData) return null;
-  console.log("documentData", documentData);
   return (
     <Modal
       isOpen={isOpen}

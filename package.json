@@ -9,7 +9,32 @@
     "client": "vite",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "preview": "vite preview",
-    "server": "nodemon server/index.js"
+    "server": "nodemon server/index.js",
+    "start": "electron .",
+    "electron-build": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.financial.app",
+    "productName": "Financial Management",
+    "win": {
+      "target": [
+        "dir"
+      ]
+    },
+    "files": [
+      "main.mjs",
+      "dist/**/*",
+      "server/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "server/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    }
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",
@@ -47,7 +72,7 @@
     "react-dom": "^19",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",
-    "react-router-dom": "latest",
+    "react-router-dom": "^6.28.0",
     "recharts": "latest",
     "sass": "latest",
     "sass-embedded": "latest",

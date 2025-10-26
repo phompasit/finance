@@ -67,11 +67,11 @@ const STATUS_TEXTS = {
   PENDING: "ລໍຖ້າອະນຸມັດ",
   APPROVED: "ອະນຸມັດແລ້ວ",
   CANCELLED: "ຍົກເລີກ",
-  ALL: "all",
+  ALL: "ALL",
 };
 const STATUS_TEXTS_staff = {
   PENDING: "ລໍຖ້າອະນຸມັດ",
-  ALL: "all",
+  ALL: "ALL",
 };
 
 const PAYMENT_METHODS = {
@@ -101,49 +101,6 @@ const sanitizeInput = (input) => {
   if (!input) return "";
   return String(input).trim();
 };
-
-// Storage utilities with error handling
-const storage = {
-  async get(key) {
-    try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      console.error("Storage get error:", error);
-      return null;
-    }
-  },
-  async set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch (error) {
-      console.error("Storage set error:", error);
-      return false;
-    }
-  },
-  async delete(key) {
-    try {
-      localStorage.removeItem(key);
-      return true;
-    } catch (error) {
-      console.error("Storage delete error:", error);
-      return false;
-    }
-  },
-  async list(prefix) {
-    try {
-      const keys = Object.keys(localStorage).filter((key) =>
-        key.startsWith(prefix)
-      );
-      return keys;
-    } catch (error) {
-      console.error("Storage list error:", error);
-      return [];
-    }
-  },
-};
-
 // Components
 const OPOItem = ({ item, onRemove }) => (
   <Box p={3} bg="gray.50" borderRadius="md" mb={2}>
@@ -220,7 +177,6 @@ const OPOTable = ({ opos, onEdit, onDelete, onExportPDF, user }) => {
         </Thead>
         <Tbody>
           {opos.map((opo) => {
-            console.log("opo", opo);
             const totals = groupByCurrency(opo.items || []);
             return (
               <Tr key={opo._id} _hover={{ bg: "gray.50" }}>
@@ -320,14 +276,13 @@ const OPOSystem = () => {
   const [opos, setOpos] = useState([]);
   const [selectedOpo, setSelectedOpo] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  console.log(user);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isPdfOpen,
@@ -379,41 +334,13 @@ const OPOSystem = () => {
       }
 
       const data = await response.json();
-      console.log(data);
       setOpos(data.sort((a, b) => new Date(b.date) - new Date(a.date)));
     } catch (error) {
       console.error("Fetch error:", error);
-
-      // Fallback to local storage
-      try {
-        const keys = await storage.list("opo:");
-        const allOpos = await Promise.all(
-          keys.map(async (key) => {
-            const data = await storage.get(key);
-            return data;
-          })
-        );
-
-        const validOpos = allOpos.filter((o) => o !== null);
-        setOpos(validOpos.sort((a, b) => new Date(b.date) - new Date(a.date)));
-
-        if (validOpos.length > 0) {
-          toast({
-            title: "ໃຊ້ຂໍ້ມູນທ້ອງຖິ່ນ",
-            description: "ບໍ່ສາມາດເຊື່ອມຕໍ່ເຊີເວີໄດ້, ກຳລັງໃຊ້ຂໍ້ມູນທ້ອງຖິ່ນ",
-            status: "warning",
-            duration: 3000,
-          });
-        }
-      } catch (storageError) {
-        console.error("Storage error:", storageError);
-        setError("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໄດ້");
-      }
     } finally {
       setLoading(false);
     }
   }, [toast]);
-
   const saveOpo = useCallback(async () => {
     if (!formData.serial || formData.items.length === 0) {
       toast({
@@ -492,8 +419,6 @@ const OPOSystem = () => {
     } catch (error) {
       console.error("Save error:", error);
 
-      // Fallback to local storage
-      await storage.set(`opo:${sanitizedData.id}`, sanitizedData);
       await fetchOPOs();
       onClose();
       resetForm();
@@ -530,9 +455,6 @@ const OPOSystem = () => {
         });
       } catch (error) {
         console.error("Delete error:", error);
-
-        // Fallback to local storage
-        await storage.delete(`opo:${id}`);
         await fetchOPOs();
         toast({
           title: "ລຶບສຳເລັດ",
@@ -591,7 +513,6 @@ const OPOSystem = () => {
       reason: "",
     });
   };
-  console.log(formData);
   const removeItem = (id) => {
     try {
       // if (formData.items.length === 1) {
@@ -645,7 +566,6 @@ const OPOSystem = () => {
   };
 
   const editOpo = (opo) => {
-    console.log("opos", opo);
     setSelectedOpo(opo);
     setFormData({
       id: opo._id || "",
@@ -660,7 +580,6 @@ const OPOSystem = () => {
     });
     onOpen();
   };
-
   const filteredOpos = useMemo(
     () =>
       opos.filter((opo) => {
@@ -678,7 +597,7 @@ const OPOSystem = () => {
             .includes(searchTerm.toLowerCase());
 
         const matchStatus =
-          filterStatus === "ALL" || opo.status === filterStatus;
+          filterStatus === "all" || opo.status === filterStatus;
         const matchDate =
           (!filterDateFrom || opo.date >= filterDateFrom) &&
           (!filterDateTo || opo.date <= filterDateTo);
@@ -686,7 +605,6 @@ const OPOSystem = () => {
       }),
     [opos, searchTerm, filterStatus, filterDateFrom, filterDateTo]
   );
-
   const exportToCSV = () => {
     const csvData = [
       [
@@ -743,7 +661,6 @@ const OPOSystem = () => {
     setSelectedItems([]);
     onPdfOpen();
   };
-  // สรุป OPO ตามสถานะ
   const summaryOPO = {
     PENDING: {
       count: opos.filter((item) => item.status === "PENDING").length,
@@ -1182,9 +1099,9 @@ const OPOSystem = () => {
                 </div>
                 <div class="info-row">
                   <div class="info-label">ວັນທີ / Date:</div>
-                  <div class="info-value">${new Date(
+                  <div class="info-value">${formatDate(
                     selectedOpo.date
-                  ).toLocaleDateString("lo-LA")}</div>
+                  )}</div>
                 </div>
                 <div class="info-row">
                   <div class="info-label">ສະຖານະ / Status:</div>
@@ -1307,7 +1224,7 @@ const OPOSystem = () => {
                     <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
                       new Date()
                     )}
-                    )}</div>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -1319,7 +1236,7 @@ const OPOSystem = () => {
                      <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
                        new Date()
                      )}
-                    )}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2140,7 +2057,7 @@ const OPOSystem = () => {
                     (selectedOpo.items || []).length === 0
                   }
                 >
-                  ດາວໂຫລດ PDF
+                  Print 
                 </Button>
               </ModalFooter>
             </ModalContent>

@@ -11,7 +11,6 @@ import Users from "./pages/Users";
 import Layout from "./components/Layout";
 import axios from "axios";
 import { useEffect } from "react";
-import Detail from "./pages/Detail";
 
 function App() {
   const refreshToken = async () => {
@@ -23,8 +22,8 @@ function App() {
         refreshToken: storedRefreshToken,
       });
 
-      const { token, expiresIn } = res.data;
-      localStorage.setItem("token", token); // เก็บ JWT ใหม่
+      const { token } = res.data;
+      localStorage.setItem("token", token); 
       return token;
     } catch (err) {
       console.error("Refresh token failed:", err);
@@ -34,7 +33,7 @@ function App() {
   useEffect(() => {
     const interval = setInterval(async () => {
       await refreshToken();
-    }, 10 * 60 * 1000); // ทุก 10 นาที
+    }, 10 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -57,7 +56,6 @@ function App() {
           <Route path="debt" element={<Debt />} />
           <Route path="reports" element={<Reports />} />
           <Route path="users" element={<Users />} />
-          <Route path="details" element={<Detail />} />
         </Route>
       </Routes>
     </AuthProvider>

@@ -52,21 +52,22 @@ export default function Users() {
   useEffect(() => {
     fetchUsers();
   }, []);
-  console.log("users", users);
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
       const data = await response.json();
       setUsers(data);
     } catch (error) {
-      console.error("Error fetching users:", error);
       toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดึงข้อมูลผู้ใช้งานได้",
+        title: "something with wrong",
+        description: error.message || "ບໍ່ສາມາດດືງຂໍ້ມູນຜູ້ໃຊ້ງານ",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -78,26 +79,28 @@ export default function Users() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users/${userId}/role`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ role: newRole }),
-      });
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/users/${userId}/role`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ role: newRole }),
+        }
+      );
       fetchUsers();
       toast({
-        title: "อัปเดตบทบาทเรียบร้อยแล้ว",
+        title: "ອັບເດດສຳເລັດ",
         status: "success",
         duration: 2000,
         isClosable: true,
       });
     } catch (error) {
-      console.error("Error updating user role:", error);
       toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถอัปเดตบทบาทได้",
+        title: "something with wrong",
+        description: error.message || "please try again",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -106,7 +109,7 @@ export default function Users() {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบผู้ใช้งานนี้?")) return;
+    if (!confirm("ເຈົ້າແນ່ໃຈບໍ່ທີ່ຈະລົບບັນຊີນີ້?")) return;
     try {
       await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users/${userId}`, {
         method: "DELETE",
@@ -122,10 +125,9 @@ export default function Users() {
         isClosable: true,
       });
     } catch (error) {
-      console.error("Error deleting user:", error);
       toast({
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description: "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້",
+        description: error.message || "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -165,10 +167,9 @@ export default function Users() {
         });
       onClose();
     } catch (error) {
-      console.error("Error adding user:", error);
       toast({
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description: "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້",
+        description: error.message || "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -201,15 +202,17 @@ export default function Users() {
         companyInfo: editUser.companyInfo,
       };
 
-      // เพิ่ม password เฉพาะเมื่อมีการกรอก
-      await fetch(`${import.meta.env.VITE_API_URL}/api/auth/user/${editUser._id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(updateData),
-      });
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/user/${editUser._id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
 
       fetchUsers();
       toast({
@@ -257,11 +260,12 @@ export default function Users() {
           borderRadius: "8px",
           fontWeight: "bold",
           border: "1px solid #f44336",
-          fontFamily:"Noto Sans Lao, sans-serif"
+          fontFamily: "Noto Sans Lao, sans-serif",
         }}
       >
-        ⚠️  ຫ້າມລົບບັນຊີຜູ້ໃຊ້ເດັດຂາດ! 
-        ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້ ແລະ ບໍ່ສາມາດກູ້ຄືນໄດ້
+        ⚠️ ຫ້າມລົບບັນຊີຜູ້ໃຊ້ເດັດຂາດ!
+        ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້ ແລະ
+        ບໍ່ສາມາດກູ້ຄືນໄດ້
       </p>
       <Button colorScheme="green" mb={4} onClick={onOpen}>
         ເພີ່ມສະມາຊິກໃໝ່

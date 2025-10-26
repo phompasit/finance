@@ -87,7 +87,6 @@ export default function IncomeExpense() {
   const [showFilters, setShowFilters] = useState(false);
   const [views, setViews] = useState();
   const { user } = useAuth();
-  console.log(user);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isEdit,
@@ -183,10 +182,7 @@ export default function IncomeExpense() {
   const paymentMethodLabels = {
     cash: "ເງິນສົດ",
     bank_transfer: "ໂອນເງິນ",
-    credit_card: "ບັດເຄຣດິດ",
-    debit_card: "ບັດເດບິດ",
-    e_wallet: "ກະເປົາເງິນດິຈິຕອລ",
-    check: "ເຊັກ",
+    ໂອນເງິນ:"bank_transfer"
   };
   function formatDate(dateString) {
     const d = new Date(dateString);
@@ -248,9 +244,8 @@ export default function IncomeExpense() {
   };
 
   const stats = calculateStats();
-  console.log("FormEditData", formEditData);
+
   const addCurrency = (index = null) => {
-    console.log(index);
     if (index !== null) {
       // ใช้ formEditData
       const updated = { ...formEditData };
@@ -270,7 +265,6 @@ export default function IncomeExpense() {
     }
   };
   const removeCurrency = async (currencyIndex, index = null) => {
-    console.log(currencyIndex, index);
     if (index !== null) {
       // formEditData
       const response = await fetch(
@@ -503,7 +497,6 @@ export default function IncomeExpense() {
     onOpenViews();
   };
   const exportToPDF = () => {
-    console.log(selectedTransactions);
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
        <!DOCTYPE html>
@@ -511,7 +504,7 @@ export default function IncomeExpense() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ລາຍງານລາຍການ</title>
+  <title  font-family: 'Noto Sans Lao', sans-serif;>ການຈັດການການເງິນ</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * {
@@ -1829,7 +1822,7 @@ export default function IncomeExpense() {
             isDisabled={selectedTransactions.length === 0}
             rounded="lg"
           >
-            PDF ({selectedTransactions.length})
+            Print ({selectedTransactions.length})
           </Button>
           {/* <Button
             leftIcon={<DownloadIcon />}
@@ -1999,8 +1992,8 @@ export default function IncomeExpense() {
                             rounded="md"
                             fontFamily={"Noto Sans Lao, sans-serif"}
                           >
-                            {paymentMethodLabels[transaction.paymentMethod] ||
-                              transaction.paymentMethod}
+                            {paymentMethodLabels[transaction?.paymentMethod] ||
+                              transaction?.paymentMethod}
                           </Badge>
                         </Td>
                         <Td>

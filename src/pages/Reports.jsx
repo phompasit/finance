@@ -70,7 +70,7 @@ const Report = () => {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const shortDesc = (desc) => {
-    if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
+    if (!desc) return "-"; 
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
   };
   // Normalize payment methods (map Lao and English terms)
@@ -105,7 +105,6 @@ const Report = () => {
         );
       }
       const result = await response.json();
-      console.log(result);
       if (result.success) {
         setData(result.data);
       } else {
@@ -262,7 +261,6 @@ const Report = () => {
     }
 
     const selectedData = data.filter((item) => selectedItems.has(item._id));
-    console.log(selectedData);
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
 <!DOCTYPE html>
@@ -754,7 +752,6 @@ const Report = () => {
           (acc[item.currency] || 0) + parseFloat(item.amount || 0);
         return acc;
       }, {});
-    console.log("selectedOpo", selectedOpo);
     return (
       <Box id="pdf-preview" bg="white" p={8} border="1px solid #e2e8f0">
         {/* Header */}
@@ -981,7 +978,6 @@ const Report = () => {
     );
   };
   const renderIncomeAndExpese = (views) => {
-    console.log("views", views);
     return (
       <VStack py={6} spacing={6} align="stretch">
         {/* Transaction Type Badge */}
@@ -1204,7 +1200,6 @@ const Report = () => {
     );
   };
   const renderDebt = (documentData) => {
-    console.log("documentData", documentData);
     return (
       <Stack spacing={6}>
         {/* General Information */}
@@ -1688,7 +1683,7 @@ const Report = () => {
               onClick={exportToPDF}
               isDisabled={selectedItems.size === 0}
             >
-              Export PDF ({selectedItems.size})
+             Print ({selectedItems.size})
             </Button>
             <Button
               fontFamily="Noto Sans Lao, sans-serif"

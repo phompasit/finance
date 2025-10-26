@@ -62,7 +62,6 @@ export default function Layout() {
       name: "ໜ້າຫຼັກ",
       path: "/dashboard",
       icon: FiHome,
-      // admin เท่านั้น
       show: user?.role === "admin",
     },
     {
@@ -83,21 +82,18 @@ export default function Layout() {
       name: "ໜີ້ສິນ",
       path: "/debt",
       icon: FiCreditCard,
-      // admin เท่านั้น
       show: user?.role === "admin",
     },
     {
       name: "ລາຍງານ",
       path: "/reports",
       icon: FiBarChart2,
-      // admin เท่านั้น
       show: user?.role === "admin",
     },
     {
       name: "ຜູ້ໃຊ້ງານ",
       path: "/users",
       icon: FiUsers,
-      // admin เท่านั้น
       show: user?.role === "admin",
     },
   ];

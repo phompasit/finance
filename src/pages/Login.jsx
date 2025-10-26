@@ -40,23 +40,22 @@ export default function Login() {
         isClosable: true,
       });
 
-      console.log(res); // ✅ res มีค่าแน่นอน
       navigate("/dashboard");
     } catch (err) {
       const description =
-        err?.response?.data?.message || err?.message || "เกิดข้อผิดพลาด";
+        err?.response?.data?.message || err?.message || "something with wrong";
       if (err.response?.status === 429) {
         toast({
           title: "ເກີດຂໍ້ຜິດພາດ",
-          description: description || "คุณส่งคำขอเกินจำนวนที่กำหนด",
+          description: description || "something with wrong",
           status: "error",
           duration: 3000,
           isClosable: true,
         });
       } else {
         toast({
-        title: "ເກີດຂໍ້ຜິດພາດ",
-          description: description || "เกิดข้อผิดพลาด",
+          title: "ເກີດຂໍ້ຜິດພາດ",
+          description: description || "something with wrong",
           status: "error",
           duration: 3000,
           isClosable: true,
@@ -93,11 +92,17 @@ export default function Login() {
             <Text fontFamily="Noto Sans Lao, sans-serif" color="gray.300">
               ເຂົ້າສູ່ລະບົບ
             </Text>
-            <Text  fontFamily="Noto Sans Lao, sans-serif" color="gray.300">ກະລຸນາຢ່າເຂົ້າລະບົບເກີນ 5 ຄັ້ງ </Text>
+            <Text fontFamily="Noto Sans Lao, sans-serif" color="gray.300">
+              ກະລຸນາຢ່າເຂົ້າລະບົບເກີນ 5 ຄັ້ງ{" "}
+            </Text>
           </Box>
 
           {error && (
-            <Alert  fontFamily="Noto Sans Lao, sans-serif"  status="error" borderRadius="md">
+            <Alert
+              fontFamily="Noto Sans Lao, sans-serif"
+              status="error"
+              borderRadius="md"
+            >
               <AlertIcon />
               {error}
             </Alert>

@@ -260,24 +260,23 @@ router.get("/", authenticate, async (req, res) => {
             (summary.trendByDate[dateKey][sourceType][currency] || 0) + amount;
         }
       });
-      // ✅ เรียงแนวโน้มตามวันที่ (ใหม่ -> เก่า)
+      // ✅ ລຽງຈາກໃໝ່ໄປເກົ່າ
       summary.trendByDate = Object.fromEntries(
         Object.entries(summary.trendByDate).sort(
           (a, b) => new Date(b[0]) - new Date(a[0])
         )
       );
-      // --- 1. สรุปตามประเภท ---
-      // --- 1. สรุปตามประเภท ---
+
       const typeKey = item.type || item.category || "N/A";
 
       if (!summary.byType[typeKey]) {
         summary.byType[typeKey] = { count: 0, total: {} };
       }
 
-      // เพิ่มจำนวนรายการ
+      // total list
       summary.byType[typeKey].count++;
 
-      // รวมยอดตามสกุลเงินจาก listAmount
+      //  listAmount
       item.listAmount?.forEach(({ amount, currency }) => {
         if (!summary.byType[typeKey].total[currency]) {
           summary.byType[typeKey].total[currency] = 0;
@@ -285,8 +284,8 @@ router.get("/", authenticate, async (req, res) => {
         summary.byType[typeKey].total[currency] += amount;
       });
 
-      // --- 2. สรุปตามสกุลเงิน ---
-      // ถ้ามีหลายสกุลเงินใน listAmount
+      // --- 2. currency ---
+      //  listAmount
       if (Array.isArray(item.listAmount)) {
         item.listAmount.forEach((amt) => {
           const cur = amt.currency || "N/A";
@@ -371,7 +370,7 @@ router.get("/", authenticate, async (req, res) => {
 });
 
 // ============================================
-// GET /api/reports/summary - สรุปภาพรวม
+// GET /api/reports/summary - 
 // ============================================
 router.get("/summary", async (req, res) => {
   try {
@@ -399,13 +398,13 @@ router.get("/summary", async (req, res) => {
     const incomeData = await Transaction.find({
       ...dateFilter,
       type: "income",
-      userId: req.user._id,
+      userId: req?.user?._id,
     }).lean();
 
     const expenseData = await Transaction.find({
       ...dateFilter,
       type: "expense",
-      userId: req.user._id,
+      userId: req?.user?._id,
     }).lean();
 
     // คำนวณยอดรวม
