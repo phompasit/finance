@@ -336,8 +336,8 @@ const ReportsPage = () => {
                     }
                   >
                     <option value="">ທັງໝົດ</option>
-                    <option value="payable">ໜີ້ຈ່າຍ</option>
-                    <option value="receivable">ໜີ້ຮັບ</option>
+                    <option value="payable">ໜີ້ຕ້ອງສົ່ງ</option>
+                    <option value="receivable">ໜີ້ຕ້ອງຮັບ</option>
                   </Select>
                 </GridItem>
                 <GridItem>
@@ -463,9 +463,9 @@ const ReportsPage = () => {
                       ? "green.50"
                       : type === "ລາຍຈ່າຍ"
                       ? "red.50"
-                      : type === "ໜີ້ຮັບ"
+                      : type === "ໜີ້ຕ້ອງຮັບ"
                       ? "blue.50"
-                      : type === "ໜີ້ຈ່າຍ"
+                      : type === "ໜີ້ຕ້ອງສົ່ງ"
                       ? "orange.50"
                       : "purple.50";
 
@@ -538,7 +538,7 @@ const ReportsPage = () => {
                       {formatAmount(totalPerCurrency[currency].receivable, "")}
                     </Text>
                     <Text fontFamily="Noto Sans Lao, sans-serif">
-                      ໜີ້ຕ້ອງຈ່າຍ:{" "}
+                      ໜີ້ຕ້ອງສົ່ງ:{" "}
                       {formatAmount(totalPerCurrency[currency].payable, "")}
                     </Text>
                     <Text fontFamily="Noto Sans Lao, sans-serif">
