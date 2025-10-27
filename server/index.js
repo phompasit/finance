@@ -164,15 +164,7 @@ if (process.env.NODE_ENV === "production") {
   );
 
   // Catch-all route for SPA (must be last!)
-  app.get("*", (req, res) => {
-    // Don't catch API routes
-    if (req.path.startsWith("/api/")) {
-      return res.status(404).json({ message: "API endpoint not found" });
-    }
-    res.sendFile(path.join(distPath, "index.html"));
-  });
 }
-
 // ============================================
 // 🔒 ERROR HANDLING
 // ============================================
