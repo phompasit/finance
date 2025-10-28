@@ -11,6 +11,7 @@ import Users from "./pages/Users";
 import Layout from "./components/Layout";
 import axios from "axios";
 import { useEffect } from "react";
+import ChartOfAccounts from "./accounting/ChartOfAccounts";
 
 function App() {
   const refreshToken = async () => {
@@ -55,7 +56,10 @@ function App() {
           <Route path="opo" element={<OPO />} />
           <Route path="debt" element={<Debt />} />
           <Route path="reports" element={<Reports />} />
+
+          
           <Route path="users" element={<Users />} />
+          <Route path="chart" element={<ChartOfAccounts />} />
         </Route>
       </Routes>
     </AuthProvider>

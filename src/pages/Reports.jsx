@@ -211,10 +211,8 @@ const Report = () => {
     display:inline-block;
     padding:2px 6px;
     border-radius:12px;
+    font-size:15px;
     font-family:'Noto Sans Lao', sans-serif;
-
-
-    font-size:8px;
   ">${labels[key] || sourceType}</span>`;
   };
   const paymentStatusMap = {
@@ -300,314 +298,254 @@ const Report = () => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
   <title  font-family: 'Noto Sans Lao', sans-serif;>-</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Noto Sans Lao', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 297mm;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+
+  .toolbar {
+    background: #2d3748;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .toolbar h2 {
+    color: white;
+    font-size: 18px;
+  }
+
+  .btn-print {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Noto Sans Lao', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+  }
+
+  .btn-print:hover {
+    background: #38a169;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+  }
+
+  .pdf-content {
+    padding: 15mm 12mm;
+    min-height: 210mm;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    text-align: center;
+    border-bottom: 2px solid #1a202c;
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+  }
+
+  .header-line1 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a202c;
+    margin-bottom: 3px;
+    letter-spacing: 0.3px;
+  }
+
+  .header-line2 {
+    font-size: 11px;
+    font-weight: 500;
+    color: #4a5568;
+    margin-bottom: 8px;
+  }
+
+  .date-section {
+    text-align: right;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: #2d3748;
+    font-weight: 500;
+  }
+
+  .document-title {
+    text-align: left;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #2d3748;
+    font-weight: 600;
+  }
+
+  .report-title {
+    text-align: center;
+    margin: 12px 0 15px 0;
+  }
+
+  .report-title h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a202c;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* ===== Table ===== */
+  .table-section {
+    margin: 15px 0;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 11px;
+    table-layout: auto; /* ✅ ปรับจาก fixed → auto */
+    word-wrap: break-word;
+  }
+
+  th {
+    background: #1a202c;
+    color: white;
+    padding: 8px 6px;
+    text-align: center;
+    font-weight: 600;
+    border: 1px solid #000;
+    line-height: 1.4;
+  }
+
+  td {
+    padding: 6px;
+    border: 1px solid #2d3748;
+    font-size: 15px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f7fafc;
+  }
+
+  .summary-row td {
+    background: #e2e8f0 !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    padding: 8px 6px !important;
+    border: 2px solid #1a202c !important;
+  }
+
+  .summary-label {
+    text-align: center !important;
+  }
+
+  /* ===== Signatures ===== */
+.signature-section { display: grid; grid-template-columns: repeat(1, 1fr); gap: 30px; margin-top: 30px; padding-top: 20px; page-break-inside: avoid; } .signature-box { text-align: right; } .signature-label { font-weight: 600; margin-bottom: 5px; color: #1a202c; font-size: 16px; } .signature-line { border-top: 1px solid #1a202c; margin: 45px 10px 5px; padding-top: 5px; font-size: 9px; color: #4a5568; }
+
+  /* ===== Print ===== */
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
     }
-    
+
     body {
-      font-family: 'Noto Sans Lao', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 20px;
+      background: white !important;
+      padding: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    
-    .container {
-      max-width: 297mm;
-      margin: 0 auto;
-      background: white;
-      border-radius: 15px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      overflow: hidden;
-    }
-    
+
     .toolbar {
-      background: #2d3748;
-      padding: 15px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      display: none;
     }
-    
-    .toolbar h2 {
-      color: white;
-      font-size: 18px;
-    }
-    
-    .btn-print {
-      background: #48bb78;
-      color: white;
-      border: none;
-      padding: 10px 25px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: 'Noto Sans Lao', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.3s;
-    }
-    
-    .btn-print:hover {
-      background: #38a169;
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
-    }
-    
-    .pdf-content {
-      padding: 15mm 12mm;
-      min-height: 210mm;
-    }
-    
-    /* ສ່ວນຫົວ - ຮູບແບບທາງການ */
-    .header {
-      text-align: center;
-      border-bottom: 2px solid #1a202c;
-      padding-bottom: 12px;
-      margin-bottom: 15px;
-    }
-    
-    .header-line1 {
-      font-size: 14px;
-      font-weight: 700;
-      color: #1a202c;
-      margin-bottom: 3px;
-      letter-spacing: 0.3px;
-    }
-    
-    .header-line2 {
-      font-size: 11px;
-      font-weight: 500;
-      color: #4a5568;
-      margin-bottom: 8px;
-    }
-    
-    /* ວັນທີ - ແບບທາງການ */
-    .date-section {
-      text-align: right;
-      margin-bottom: 12px;
-      font-size: 11px;
-      color: #2d3748;
-      font-weight: 500;
-    }
-    
-    .document-title {
-      text-align: left;
-      margin-bottom: 12px;
-      font-size: 14px;
-      color: #2d3748;
-      font-weight: 500;
-    }
-    
-    /* ຫົວຂໍ້ລາຍງານ */
-    .report-title {
-      text-align: center;
-      margin: 12px 0 15px 0;
-    }
-    
-    .report-title h2 {
-      font-size: 16px;
-      font-weight: 700;
-      color: #1a202c;
-      text-decoration: underline;
-      text-underline-offset: 4px;
-    }
-    
-    /* ຕາຕະລາງ - ແບບທາງການ */
-    .table-section {
-      margin: 15px 0;
-      overflow-x: auto;
-    }
-    
-    table {
+
+    .container {
+      box-shadow: none;
+      border-radius: 0;
       width: 100%;
-      border-collapse: collapse;
-      margin: 10px 0;
-      font-size: 10px;
-      table-layout: fixed;
+      max-width: 297mm;
     }
-    
+
+    .pdf-content {
+      padding: 10mm 12mm;
+    }
+
+    /* หัวไม่แยกหน้า */
+    .header, .date-section, .document-title, .report-title {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    /* คงสีไว้ตอนพิมพ์ */
     th {
-      background: #1a202c;
-      color: white;
-      padding: 8px 6px;
-      text-align: center;
-      font-weight: 600;
-      font-size: 10px;
-      border: 1px solid #000;
-      line-height: 1.3;
-      word-wrap: break-word;
-      white-space: normal;
-      overflow-wrap: break-word;
+      background: #1a202c !important;
+      color: white !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
-    
-    td {
-      padding: 6px;
-      border: 1px solid #2d3748;
-      font-size: 14.5px;
-      line-height: 1.4;
-      word-wrap: break-word;
-      white-space: normal;
-      overflow-wrap: break-word;
-      vertical-align: top;
-    }
-    
+
     tbody tr:nth-child(even) {
-      background: #f7fafc;
+      background: #f7fafc !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
-    
-    /* ແຖວສະຫຼຸບ */
+
     .summary-row td {
       background: #e2e8f0 !important;
-      font-weight: 700 !important;
-      font-size: 10px !important;
-      padding: 8px 6px !important;
-      border: 2px solid #1a202c !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
-    
-    .summary-label {
-      text-align: center !important;
-    }
-    
-    /* ສ່ວນລາຍເຊັນ - ແບບທາງການ */
-    .signature-section {
-      display: grid;
-      grid-template-columns: repeat(1, 1fr);
-      gap: 30px;
-      margin-top: 30px;
-      padding-top: 20px;
+
+    /* ป้องกันตัดแถว */
+    tr, .signature-section {
       page-break-inside: avoid;
+      break-inside: avoid;
     }
-    
-    .signature-box {
-      text-align: right;
-    }
-    
-    .signature-label {
-      font-weight: 600;
-      margin-bottom: 5px;
-      color: #1a202c;
-      font-size: 11px;
-    }
-    
-    .signature-line {
-      border-top: 1px solid #1a202c;
-      margin: 45px 10px 5px;
-      padding-top: 5px;
-      font-size: 9px;
-      color: #4a5568;
-    }
-    
-    /* ພິມ */
-    @media print {
-      body {
-        background: white;
-        padding: 0;
-      }
-      
-      .toolbar {
-        display: none;
-      }
-      
-      .container {
-        box-shadow: none;
-        border-radius: 0;
-        max-width: 297mm;
-      }
-      
-      .pdf-content {
-        padding: 10mm 12mm;
-      }
-      
-      @page {
-        size: A4 landscape;
-        margin: 0;
-      }
-      
-      /* ກັນບໍ່ໃຫ້ແບ່ງຫນ້າ */
-      .header {
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-      
-      .date-section {
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-      
-      .document-title {
-        page-break-after: avoid;
-        break-after: avoid;
-        font-size: 14pt;
-        font-weight: bold;
-        margin: 5px 0 2px 0;
-        text-transform: uppercase;
-        color: #1a202c;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-      }
-      
-      .report-title {
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-      
-      /* ບັງຄັບໃຫ້ມີສີຕອນພິມ */
-      th {
-        background: #1a202c !important;
-        color: white !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        border: 1px solid #000 !important;
-      }
-      
-      tbody tr:nth-child(even) {
-        background: #f7fafc !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      
-      .summary-row td {
-        background: #e2e8f0 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
 
-
-      }
-      
-      /* ກັນບໍ່ໃຫ້ແຖວແຍກ */
-      tr {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-      
-      /* ລາຍເຊັນຢູ່ກັນ */
-      .signature-section {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-      
-      /* ຫົວຕາຕະລາງຊ້ຳທຸກໆຫນ້າ */
-      thead {
-        display: table-header-group;
-      }
-      
-      td {
-        word-wrap: break-word;
-        white-space: normal;
-        overflow-wrap: break-word;
-      }
+    thead {
+      display: table-header-group;
     }
-  </style>
+
+    td {
+      white-space: normal;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+  }
+</style>
+
 </head>
 <body>
   <div class="container">
     <div class="toolbar">
-      <h2>📄 ແມ່ແບບລາຍງານ (A4 ແນວນອນ)</h2>
+      <h2>📄 ແບບລາຍງານ (A4 ແນວນອນ)</h2>
       <button class="btn-print" onclick="window.print()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -626,8 +564,12 @@ const Report = () => {
       </div>
       
       <div class="company-info" style="text-align: left; font-size: 12px; color: #555;">
-        <div class="company-name" style="font-weight: normal;">${user?.companyInfo?.name}</div>
-        <div class="company-address" style="margin-top: 2px;">${user?.companyInfo?.address}</div>
+        <div class="company-name" style="font-weight: normal;">${
+          user?.companyInfo?.name
+        }</div>
+        <div class="company-address" style="margin-top: 2px;">${
+          user?.companyInfo?.address
+        }</div>
         <div class="company-address">${user?.companyInfo?.phone || ""}</div>
       </div>
       
@@ -638,7 +580,7 @@ const Report = () => {
       
       <!-- ຫົວຂໍ້ລາຍງານ -->
       <div class="report-title">
-        <h2>ລາຍງານ</h2>
+        <h2>ລາຍງານການເງິນ</h2>
       </div>
       
       <!-- ຕາຕະລາງຂໍ້ມູນ -->
@@ -728,9 +670,7 @@ const Report = () => {
                       <td style="text-align: right; padding-right: 6px;">${
                         cnyAmount > 0 ? cnyAmount.toLocaleString() : "-"
                       }</td>
-                      <td style="font-size:20px; text-align: left; padding-left: 6px;">${getTypeBadgePrint(
-                        item.type || "-"
-                      )}</td>
+                      <td >${getTypeBadgePrint(item.type || "-")}</td>
                       <td style="text-align: left; padding-left: 6px;">${
                         item.notes || "-"
                       }</td>

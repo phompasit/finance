@@ -206,6 +206,10 @@ export default function IncomeExpense() {
     success_approve: "ອະນູມັດແລ້ວ",
     pending: "ລໍຖ້າ",
   };
+   const status_income_expense = {
+    income:"ລາຍຮັບ",
+    expense:"ລາຍຈ່າຍ",
+  };
   function formatDate(dateString) {
     const d = new Date(dateString);
     const day = String(d.getDate()).padStart(2, "0");
@@ -667,26 +671,30 @@ export default function IncomeExpense() {
       padding-bottom: 15px;
       margin-bottom: 20px;
     }
-    
-    .header-line1 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #2d3748;
-      margin-bottom: 5px;
+        .topHeader {
+      text-align: center;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
     }
+    // .header-line1 {
+    //   font-size: 16px;
+    //   font-weight: 600;
+    //   color: #2d3748;
+    //   margin-bottom: 5px;
+    // }
     
-    .header-line2 {
-      font-size: 14px;
-      font-weight: 500;
-      color: #4a5568;
-      margin-bottom: 10px;
-    }
+    // .header-line2 {
+    //   font-size: 14px;
+    //   font-weight: 500;
+    //   color: #4a5568;
+    //   margin-bottom: 10px;
+    // }
     
-    .header-line3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #2d3748;
-    }
+    // .header-line3 {
+    //   font-size: 15px;
+    //   font-weight: 600;
+    //   color: #2d3748;
+    // }
     
     /* Company Info */
     .company-info {
@@ -731,57 +739,82 @@ export default function IncomeExpense() {
       overflow: hidden;
     }
     
-    /* Column widths for optimal space usage */
-    table th:nth-child(1),
-    table td:nth-child(1) { width: 4%; }
-    table th:nth-child(2),
-    table td:nth-child(2) { width: 8%; }
-    table th:nth-child(3),
-    table td:nth-child(3) { width: 7%; }
-    table th:nth-child(4),
-    table td:nth-child(4) { width: 28%; }
-    table th:nth-child(5),
-    table td:nth-child(5) { width: 11%; }
-    table th:nth-child(6),
-    table td:nth-child(6) { width: 9%; }
-    table th:nth-child(7),
-    table td:nth-child(7) { width: 9%; }
-    table th:nth-child(8),
-    table td:nth-child(8) { width: 9%; }
-    table th:nth-child(9),
-    table td:nth-child(9) { width: 15%; }
-    
-    th {
-      background: linear-gradient(90deg, #0f172a, #1e293b);
-      color: white;
-      padding: 8px 6px;
-      font-weight: 600;
-      font-size: 11px;
-      border: 1px solid #334155;
-      text-align: center;
-    }
-    
-    td {
-      padding: 6px 5px;
-      border: 1px solid #e5e7eb;
-      font-size: 10.5px;
-      white-space: normal;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      vertical-align: top;
-      line-height: 1.4;
-    }
-    
-    /* Specific alignment for columns */
-    td:nth-child(1) { text-align: center; }
-    td:nth-child(2) { text-align: center; }
-    td:nth-child(3) { text-align: center; }
-    td:nth-child(4) { text-align: left; padding-left: 8px; }
-    td:nth-child(5),
-    td:nth-child(6),
-    td:nth-child(7),
-    td:nth-child(8) { text-align: right; padding-right: 8px; }
-    td:nth-child(9) { text-align: left; padding-left: 8px; }
+/* ✅ ปรับความกว้างของแต่ละคอลัมน์ให้เหมาะกับ A4 แนวนอน */
+/* รวมแล้วจะไม่เกิน ~100% */
+table th:nth-child(1),
+table td:nth-child(1) { width: 4%; min-width: 40px; }
+
+table th:nth-child(2),
+table td:nth-child(2) { width: 8%; min-width: 60px; }
+
+table th:nth-child(3),
+table td:nth-child(3) { width: 7%; min-width: 55px; }
+
+table th:nth-child(4),
+table td:nth-child(4) { width: 22%; min-width: 160px; } /* ✅ ปรับลดลงจาก 28% เพื่อไม่บีบคอลัมน์ท้าย */
+
+table th:nth-child(5),
+table td:nth-child(5) { width: 10%; min-width: 75px; }
+
+table th:nth-child(6),
+table td:nth-child(6) { width: 8%; min-width: 60px; }
+
+table th:nth-child(7),
+table td:nth-child(7) { width: 8%; min-width: 60px; }
+
+table th:nth-child(8),
+table td:nth-child(8) { width: 8%; min-width: 60px; }
+
+table th:nth-child(9),
+table td:nth-child(9) { width: 12%; min-width: 90px; }
+
+table th:nth-child(10),
+table td:nth-child(10) { width: 13%; min-width: 100px; } /* ✅ ปรับจาก 20% → 13% ให้พอดีแนวนอน */
+
+/* ✅ ปรับหัวตารางให้เรียบหรูและพิมพ์ชัด */
+th {
+  background: linear-gradient(90deg, #0f172a, #1e293b);
+  color: white;
+  padding: 8px 6px;
+  font-weight: 600;
+  font-size: 11px;
+  border: 1px solid #334155;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ✅ เซลล์ข้อมูล */
+td {
+  padding: 6px 5px;
+  border: 1px solid #e5e7eb;
+  font-size: 7px;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+/* ✅ การจัดแนวคอลัมน์เฉพาะ */
+td:nth-child(1),
+td:nth-child(2),
+td:nth-child(3) {
+  text-align: center;
+}
+
+td:nth-child(4),
+td:nth-child(5),
+td:nth-child(6),
+td:nth-child(7),
+td:nth-child(8),
+td:nth-child(9),
+td:nth-child(10) {
+  text-align: left;
+  padding-left: 8px;
+}
     
     tr:hover td {
       background: #f7fafc;
@@ -926,20 +959,22 @@ export default function IncomeExpense() {
     </div>
     
     <div class="pdf-content">
-      <!-- Company Info -->
-      <div class="company-info">
-        <div class="company-name">${user?.companyInfo?.name || ""}</div>
-        <div class="company-address">${user?.companyInfo?.address || ""}</div>
-          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
-      </div>
+ 
       
       <!-- Government Info -->
       <div class="header">
         <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
         <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
-        <div class="header-line3">ລາຍງານການເງິນ</div>
       </div>
-      
+           <!-- Company Info -->
+      <div class="company-info">
+        <div class="company-name">${user?.companyInfo?.name || ""}</div>
+        <div class="company-address">${user?.companyInfo?.address || ""}</div>
+          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
+      </div>
+  <div class="topHeader">
+  <div class="">ລາຍງານການເງິນ</div>
+  </div>
       <!-- Date Section -->
       <div class="date-section">
         ວັນທີ: <input type="text" value="${formatDate(new Date())}" readonly>
@@ -958,6 +993,7 @@ export default function IncomeExpense() {
               <th>ຈຳນວນ (ບາດ)</th>
               <th>ຈຳນວນ (ໂດລາ)</th>
               <th>ຈຳນວນ (ຍວນ)</th>
+              <th>ປະເພດ</th>
               <th>ໝາຍເຫດ</th>
             </tr>
           </thead>
@@ -1010,7 +1046,8 @@ export default function IncomeExpense() {
                       <td> ${amountTHB.toLocaleString("lo-LA")}</td>
                       <td> ${amountUSD.toLocaleString("lo-LA")}</td>
                       <td> ${amountCNY.toLocaleString("lo-LA")}</td>
-                      <td>${item.note || "-"}</td>
+                      <td>${status_income_expense[item.type] || "-"}</td>
+                      <td>${item.note}</td>
                     </tr>`;
                 })
                 .join("");
@@ -1026,6 +1063,7 @@ export default function IncomeExpense() {
                   <td> ${totalUSD.toLocaleString("lo-LA")}</td>
                   <td> ${totalCNY.toLocaleString("lo-LA")}</td>
                   <td></td>
+                  <td></td>
                 </tr>`;
 
               return rows + totalRow;
@@ -1039,7 +1077,7 @@ export default function IncomeExpense() {
         <div class="signature-box">
           <div>ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}</div>
           <div class="signature-label">ຜູ້ສັງລວມ</div>
-          <div class="signature-line">_________________________</div>
+          
         </div>
       </div>
     </div>
