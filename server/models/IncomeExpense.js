@@ -58,6 +58,14 @@ const incomeExpenseSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    advance: {
+      type: String,
+      enum: ["advance"],
+      default: "advance",
+    },
+    referance: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
   },
   {
     timestamps: true,

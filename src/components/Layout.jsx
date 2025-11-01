@@ -62,39 +62,58 @@ export default function Layout() {
       name: "ໜ້າຫຼັກ",
       path: "/dashboard",
       icon: FiHome,
-      show: user?.role === "admin",
+      show: user?.role === "admin" || user.role == "master",
     },
     {
       name: "ລາຍຮັບ-ລາຍຈ່າຍ",
       path: "/income-expense",
       icon: FiDollarSign,
       // admin และ staff
-      show: user?.role === "admin" || user?.role === "staff",
+      show:
+        user?.role === "admin" ||
+        user?.role === "staff" ||
+        user.role == "master",
+    },
+    {
+      name: "ລາຍຈ່າຍຈ່າຍລ່ວງໜ້າ",
+      path: "/prepaid",
+      icon: FiDollarSign,
+      // admin และ staff
+      show: user?.role === "admin" || user.role == "master",
     },
     {
       name: "OPO",
       path: "/opo",
       icon: FiFileText,
       // admin และ staff
-      show: user?.role === "admin" || user?.role === "staff",
+      show:
+        user?.role === "admin" ||
+        user?.role === "staff" ||
+        user.role == "master",
     },
     {
       name: "ໜີ້ສິນ",
       path: "/debt",
       icon: FiCreditCard,
-      show: user?.role === "admin",
+      show: user?.role === "admin" || user.role == "master",
     },
     {
       name: "ລາຍງານ",
       path: "/reports",
       icon: FiBarChart2,
-      show: user?.role === "admin",
+      show: user?.role === "admin" || user.role == "master",
+    },
+    {
+      name: "ລູກໜີ້/ຜູ້ສະໜອງ",
+      path: "/partner",
+      icon: FiBarChart2,
+      show: user?.role === "admin" || user.role == "master",
     },
     {
       name: "ຜູ້ໃຊ້ງານ",
       path: "/users",
       icon: FiUsers,
-      show: user?.role === "admin",
+      show: user?.role === "admin" || user.role == "master",
     },
   ];
 
@@ -117,6 +136,8 @@ export default function Layout() {
         return "ຜູ້ດູແລລະບົບ";
       case "staff":
         return "ພະນັກງານ";
+      case "master":
+        return "master";
       default:
         return "ຜູ້ໃຊ້ງານ";
     }

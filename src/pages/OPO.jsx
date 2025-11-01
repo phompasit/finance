@@ -219,7 +219,7 @@ const OPOTable = ({
   };
 
   return (
-    <Box bg="white" borderRadius="lg" shadow="sm" overflow="hidden">
+    <Box bg="white" borderRadius="lg" shadow="sm" overflow="auto">
       <Table>
         <Thead bg="blue.50">
           <Tr>
@@ -245,19 +245,56 @@ const OPOTable = ({
                   {formatDate(opo.date)}
                 </Td>
                 <Td fontFamily="Noto Sans Lao, sans-serif">
-                  {(opo.items || []).length} ລາຍການ
+                  {(opo.items || []).length}
                 </Td>
                 <Td>
-                  {Object.entries(totals).map(([currency, amount]) => (
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      key={currency}
-                      fontSize="sm"
-                    >
-                      {amount.toLocaleString()} {currency}
-                    </Text>
-                  ))}
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    alignItems="flex-end"
+                    gap={0.5}
+                    justifyContent="center"
+                    minW="120px"
+                  >
+                    {Object.entries(totals).map(([currency, amount], index) => (
+                      <Box
+                        key={currency}
+                        display="flex"
+                        justifyContent="space-between"
+                        w="full"
+                        borderBottom={
+                          index !== Object.entries(totals).length - 1
+                            ? "1px dashed #CBD5E0"
+                            : "none"
+                        }
+                        pb={
+                          index !== Object.entries(totals).length - 1 ? 0.5 : 0
+                        }
+                      >
+                        <Text
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          fontSize="sm"
+                          fontWeight="600"
+                          color="gray.800"
+                        >
+                          {amount.toLocaleString(undefined, {
+                            minimumFractionDigits: 0,
+                          })}
+                        </Text>
+                        <Text
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          fontSize="sm"
+                          fontWeight="600"
+                          color="gray.500"
+                          pl={2}
+                        >
+                          {currency}
+                        </Text>
+                      </Box>
+                    ))}
+                  </Box>
                 </Td>
+
                 <Td>
                   <Badge
                     fontFamily={"Noto Sans Lao, sans-serif"}
@@ -294,7 +331,7 @@ const OPOTable = ({
                 </Td>
                 <Td>
                   <HStack spacing={2}>
-                    {user?.role === "admin" && (
+                    {(user?.role === "admin" || user?.role === "master") && (
                       <HStack spacing={2}>
                         <Button
                           fontSize={"20"}
@@ -640,7 +677,8 @@ const OPOSystem = () => {
     setFormData({
       serial: "",
       date: new Date().toISOString().split("T")[0],
-      status: "PENDING",
+      status_Ap: "PENDING",
+      status: "paid",
       requester: "",
       manager: "",
       createdBy: "",
@@ -882,550 +920,444 @@ const OPOSystem = () => {
     // Create formatted content for PDF
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
-    <!DOCTYPE html>
-    <html lang="lo">
-      <head>
-        <meta charset="UTF-8">
-        <title>ໃບສັ່ງຈ່າຍເງິນ (OPO) - ${
-          selectedOpo.serial || selectedOpo.number
-        }</title>
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          @page {
-            size: A4 landscape;
-            margin: 10mm 12mm;
-          }
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+  <meta charset="UTF-8">
+  <title>ໃບສັ່ງຊື້ (PO) - Print Template</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+   @page {
+      size: A4 landscape;
+      margin: 8mm 10mm;
+    }
 
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-          body {
-            font-family: 'Noto Sans Lao', 'Phetsarath OT', sans-serif;
-            font-size: 10pt;
-            line-height: 1.3;
-            color: #000;
-            background: #fff;
-          }
+    body {
+      font-family: 'Noto Sans Lao', 'Phetsarath OT', sans-serif;
+      font-size: 8.5pt;
+      line-height: 1.15;
+      color: #000;
+      background: #fff;
+      padding: 0;
+    }
 
-          .document {
-            max-width: 100%;
-            margin: 0 auto;
-            background: white;
-          }
+    .document {
+      width: 100%;
+      margin: 0 auto;
+      background: white;
+    }
 
-          /* Header - ແບບທາງການ */
-          .header {
-            text-align: center;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #1a202c;
-          }
+    .header-band {
+      height: 4px;
+      background: linear-gradient(90deg, #1a202c 0%, #4a5568 50%, #1a202c 100%);
+      margin-bottom: 8px;
+    }
 
-          .company-name {
-            font-size: 16pt;
-            font-weight: bold;
-            margin-bottom: 3px;
-            text-transform: uppercase;
-            color: #1a202c;
-            letter-spacing: 0.5px;
-          }
+    .document-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+      border-bottom: 2px solid #1a202c;
+    }
 
-          .document-title {
-            font-size: 14pt;
-            font-weight: bold;
-            margin: 5px 0 2px 0;
-            text-transform: uppercase;
-            color: #1a202c;
-            text-decoration: underline;
-            text-underline-offset: 3px;
-          }
+    .company-section {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
 
-          .document-subtitle {
-            font-size: 10pt;
-            color: #4a5568;
-            font-weight: 500;
-          }
+    .company-logo {
+      width: 55px;
+      height: 55px;
+      background: #1a202c;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: white;
+      font-weight: bold;
+      border: 2px solid #2d3748;
+    }
 
-          /* Document Info - ກະທັດຮັດ */
-          .doc-info {
-            margin: 10px 0;
-            border: 2px solid #1a202c;
-            padding: 8px 10px;
-            background: #f7fafc;
-          }
+    .company-details {
+      flex: 1;
+    }
 
-          .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-          }
+    .company-name {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 3px;
+    }
 
-          .info-row {
-            display: flex;
-            padding: 3px 0;
-            border-bottom: 1px solid #cbd5e0;
-          }
+    .contact-section {
+      font-size: 7.5pt;
+      color: #2d3748;
+      line-height: 1.3;
+    }
 
-          .info-row:last-child {
-            border-bottom: none;
-          }
+    .national-header {
+      flex: 1.2;
+      text-align: center;
+      padding: 0 10px;
+    }
 
-          .info-label {
-            font-weight: 600;
-            width: 130px;
-            color: #2d3748;
-            font-size: 9pt;
-          }
+    .doc-reference {
+      flex: 1;
+      text-align: right;
+      font-size: 7pt;
+      color: #4a5568;
+    }
 
-          .info-value {
-            flex: 1;
-            color: #1a202c;
-            font-size: 9pt;
-          }
+    .document-title {
+      text-align: center;
+      font-size: 17pt;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 2px;
+    }
 
-          .status-badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border: 1.5px solid #1a202c;
-            font-weight: 600;
-            background: #e2e8f0;
-            font-size: 8.5pt;
-          }
+    .document-subtitle {
+      text-align: center;
+      font-size: 10pt;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
 
-          /* Items Table - ກະທັດຮັດ */
-          .section-title {
-            font-size: 10pt;
-            font-weight: bold;
-            margin: 10px 0 6px 0;
-            padding: 6px 10px;
-            background: #1a202c;
-            color: #fff;
-            text-transform: uppercase;
-          }
+    .doc-info {
+      background: #f7fafc;
+      border: 2px solid #1a202c;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
 
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 8px 0;
-            border: 2px solid #1a202c;
-            font-size: 9pt;
-          }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px 10px;
+    }
 
-          thead {
-            background: #e2e8f0;
-          }
+    .info-row {
+      display: flex;
+      align-items: center;
+      padding: 3px 6px;
+      background: white;
+      border: 1px solid #cbd5e0;
+      border-radius: 2px;
+    }
 
-          th {
-            font-weight: 600;
-            padding: 6px 5px;
-            text-align: left;
-            font-size: 8.5pt;
-            border: 1px solid #1a202c;
-            color: #1a202c;
-            line-height: 1.2;
-          }
+    .section-title {
+      font-size: 9pt;
+      font-weight: 700;
+      margin: 6px 0 4px 0;
+      padding: 4px 8px;
+      background: #1a202c;
+      color: white;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
 
-          tbody tr {
-            background: white;
-          }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 2px solid #1a202c;
+      font-size: 7.5pt;
+      page-break-inside: auto;
+    }
 
-          tbody tr:nth-child(even) {
-            background: #f7fafc;
-          }
+    thead {
+      background: #e2e8f0;
+    }
 
-          td {
-            padding: 5px;
-            border: 1px solid #2d3748;
-            font-size: 8.5pt;
-            vertical-align: top;
-            color: #1a202c;
-          }
+    th {
+      padding: 5px 3px;
+      border: 1px solid #1a202c;
+      text-align: left;
+      color: #1a202c;
+    }
 
-          td.number {
-            text-align: right;
-            font-weight: 600;
-          }
+    td {
+      padding: 4px 3px;
+      border: 1px solid #2d3748;
+      font-size: 7pt;
+    }
 
-          td.center {
-            text-align: center;
-          }
+    tbody tr:nth-child(even) {
+      background: #f7fafc;
+    }
 
-          /* Total Section - ກະທັດຮັດ */
-          .total-section {
-            margin: 8px 0 10px 0;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-          }
+    .total-section {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+      margin-bottom: 6px;
+      page-break-inside: avoid;
+    }
 
-          .total-item {
-            padding: 8px 12px;
-            border: 2px solid #1a202c;
-            background: #e2e8f0;
-            min-width: 180px;
-          }
+    .total-item {
+      padding: 6px 12px;
+      background: #1a202c;
+      color: white;
+      border-radius: 3px;
+      min-width: 150px;
+    }
 
-          .total-title {
-            font-size: 9pt;
-            font-weight: bold;
-            margin-bottom: 4px;
-            color: #1a202c;
-          }
+    .signatures {
+      background: #f7fafc;
+      border: 2px solid #1a202c;
+      border-radius: 4px;
+      padding: 8px;
+      margin-top: 6px;
+      page-break-before: auto;
+      page-break-inside: avoid;
+    }
 
-          .total-amount {
-            font-size: 12pt;
-            font-weight: bold;
-            color: #1a202c;
-          }
+    .signature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
 
-          /* Signatures - ກະທັດຮັດ */
-          .signatures {
-            margin-top: 12px;
-            page-break-inside: avoid;
-            border: 2px solid #1a202c;
-            padding: 12px;
-            background: white;
-          }
+    .signature-cell {
+      text-align: center;
+      background: white;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 3px;
+      min-height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
 
-          .signature-title {
-            font-size: 10pt;
-            font-weight: bold;
-            margin-bottom: 12px;
-            text-align: center;
-            text-transform: uppercase;
-            color: #1a202c;
-            padding-bottom: 6px;
-            border-bottom: 2px solid #1a202c;
-          }
+    .footer {
+      margin-top: 6px;
+      text-align: center;
+      font-size: 6pt;
+      color: #718096;
+    }
 
-          .signature-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 12px;
-          }
+    @media print {
+      body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
 
-          .signature-cell {
-            text-align: center;
-            padding: 10px 6px;
-            border: 1px solid #2d3748;
-            background: #f7fafc;
-            min-height: 150px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-          }
+      thead {
+        display: table-header-group;
+      }
 
-          .signature-label {
-            font-weight: 600;
-            font-size: 9pt;
-            color: #1a202c;
-            margin-bottom: 70px;
-            display: block;
-            text-transform: uppercase;
-            line-height: 1.3;
-          }
+      tr, td, th {
+        page-break-inside: avoid;
+      }
 
-          .signature-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-          }
+      .total-section, .signatures {
+        page-break-before: auto !important;
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+      }
 
-          .signature-line {
-            border-top: 1.5px solid #1a202c;
-            margin: 0 auto 6px auto;
-            width: 95%;
-            padding-top: 5px;
-          }
+      tbody tr:nth-child(even) {
+        background: #f7fafc !important;
+        -webkit-print-color-adjust: exact !important;
+      }
 
-          .signature-name {
-            font-size: 8.5pt;
-            font-weight: 600;
-            min-height: 16px;
-            color: #1a202c;
-          }
-
-          .signature-date {
-            font-size: 7.5pt;
-            color: #4a5568;
-            margin-top: 5px;
-            font-weight: 500;
-          }
-
-          /* Footer */
-          .footer {
-            margin-top: 8px;
-            padding-top: 6px;
-            border-top: 1px solid #1a202c;
-            text-align: center;
-            font-size: 7.5pt;
-            color: #718096;
-          }
-
-          @media print {
-            body {
-              print-color-adjust: exact;
-              -webkit-print-color-adjust: exact;
-            }
-
-            .document {
-              box-shadow: none;
-            }
-
-            /* ກັນບໍ່ໃຫ້ແບ່ງຫນ້າ */
-            .header {
-              page-break-after: avoid;
-              break-after: avoid;
-            }
-
-            .doc-info {
-              page-break-after: avoid;
-              break-after: avoid;
-            }
-
-            table { 
-              page-break-inside: auto;
-            }
-            
-            tr { 
-              page-break-inside: avoid;
-              page-break-after: auto;
-            }
-            
-            thead { 
-              display: table-header-group;
-            }
-            
-            .signatures {
-              page-break-before: avoid;
-              page-break-inside: avoid;
-            }
-
-            .total-section {
-              page-break-before: avoid;
-              page-break-after: avoid;
-            }
-
-            /* ບັງຄັບໃຫ້ມີສີຕອນພິມ */
-            thead {
-              background: #e2e8f0 !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-
-            tbody tr:nth-child(even) {
-              background: #f7fafc !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-
-            .section-title {
-              background: #1a202c !important;
-              color: #fff !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-
-            .total-item {
-              background: #e2e8f0 !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-
-            .signature-cell {
-              background: #f7fafc !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-
-            .doc-info {
-              background: #f7fafc !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="document">
-          <!-- Header -->
-          <div class="header">
-               <div class="document-title">
-     ${user?.companyInfo?.name}
-    </div>
-            <div class="document-title">ໃບສັ່ງຈ່າຍເງິນ</div>
-            <div class="document-subtitle">OUTGOING PAYMENT ORDER (OPO)</div>
-          </div>
-
-          <!-- Document Info -->
-          <div class="doc-info">
-            <div class="info-grid">
-              <div>
-                <div class="info-row">
-                  <div class="info-label">ເລກທີ / No.:</div>
-                  <div class="info-value"><strong>${
-                    selectedOpo.serial || selectedOpo.number
-                  }</strong></div>
-                </div>
-                <div class="info-row">
-                  <div class="info-label">ວັນທີ / Date:</div>
-                  <div class="info-value">${formatDate(selectedOpo.date)}</div>
-                </div>
-                <div class="info-row">
-                  <div class="info-label">ສະຖານະ / Status:</div>
-                  <div class="info-value">
-                    <span class="status-badge">${
-                      STATUS_TEXTS[selectedOpo.status_Ap] ||
-                      selectedOpo.status_Ap
-                    }</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div class="info-row">
-                  <div class="info-label">ຜູ້ຮ້ອງຂໍ / Requester:</div>
-                  <div class="info-value">${selectedOpo.requester || "-"}</div>
-                </div>
-                <div class="info-row">
-                  <div class="info-label">ຜູ້ຈັດການ / Manager:</div>
-                  <div class="info-value">${selectedOpo.manager || "-"}</div>
-                </div>
-                <div class="info-row">
-                  <div class="info-label">ຜູ້ສ້າງ / Created By:</div>
-                  <div class="info-value">${selectedOpo.createdBy || "-"}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Items Table -->
-          <div class="section-title">ລາຍການຈ່າຍເງິນ / Payment Items</div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 4%;">ລຳດັບ<br>No.</th>
-                <th style="width: 28%;">ລາຍລະອຽດ<br>Description</th>
-                <th style="width: 14%;">ວິທີຊຳລະ<br>Payment Method</th>
-                <th style="width: 10%;" class="center">ສະກຸນເງິນ<br>Currency</th>
-                <th style="width: 20%;">ຈຳນວນເງິນ<br>Amount</th>
-                <th style="width: 24%;">ໝາຍເຫດ<br>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsToExport
-                .slice()
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .map(
-                  (item, index) => `
-                <tr>
-                  <td class="center"><strong>${index + 1}</strong></td>
-                  <td>${item.description || "-"}</td>
-                  <td>${
-                    PAYMENT_METHODS[item.paymentMethod] ||
-                    item.paymentMethod ||
-                    "-"
-                  }</td>
-                  <td class="center"><strong>${
-                    item.currency || "LAK"
-                  }</strong></td>
-                  <td class="number">${parseFloat(
-                    item.amount || 0
-                  ).toLocaleString()}</td>
-                  <td>${item?.notes || "-"}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-
-          <!-- Total Section -->
-          <div class="total-section">
-            ${Object.entries(totals)
-              .map(
-                ([currency, amount]) => `
-              <div class="total-item">
-                <div class="total-title">ຍອດລວມ / Total (${currency}):</div>
-                <div class="total-amount">${amount.toLocaleString()} ${currency}</div>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
-
-          <!-- Signatures -->
-          <div class="signatures">
-            <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Signatures</div>
-            <div class="signature-grid">
-              <div class="signature-cell">
-                <span class="signature-label">ຜູ້ຮ້ອງຂໍ<br>Requester</span>
-                <div class="signature-area">
-                  <div class="signature-line">
-                    <div class="signature-name">${
-                      selectedOpo.requester || ""
-                    }</div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
-                      new Date()
-                    )}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="signature-cell">
-                <span class="signature-label">ຜູ້ຈັດການພະແນກ<br>Dept. Manager</span>
-                <div class="signature-area">
-                  <div class="signature-line">
-                    <div class="signature-name">${
-                      selectedOpo.manager || ""
-                    }</div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
-                      new Date()
-                    )}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="signature-cell">
-                <span class="signature-label">ຜູ້ສ້າງ OPO<br>OPO Creator</span>
-                <div class="signature-area">
-                  <div class="signature-line">
-                    <div class="signature-name">${
-                      selectedOpo.createdBy || ""
-                    }</div>
-                    <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
-                      new Date()
-                    )}
-                  </div>
-                  </div>
-                </div>
-              </div>
-              <div class="signature-cell">
-                <span class="signature-label">CEO & CFO<br>Approved By</span>
-                <div class="signature-area">
-                  <div class="signature-line">
-                    <div class="signature-name"></div>
-                     <div class="signature-date">ວັນທີ / Date:<br>${formatDate(
-                       new Date()
-                     )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="footer">
-            ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ OPO | Generated by OPO System - ${formatDate(
-              new Date()
-            )}
+      .section-title,
+      .total-item {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    <div class="header-band"></div>
+    
+    <!-- Header -->
+    <div class="document-header">
+      <div class="company-section">
+        <div class="company-logo">C</div>
+        <div class="company-details">
+          <div class="company-name">${
+            user?.companyInfo?.name || "Company Name"
+          }</div>
+          <div class="contact-section">
+            <p>ທີ່ຢູ່: ບ້ານໂພນໄຊ, ນະຄອນຫຼວງ</p>
+            <p>ໂທ: 020 5555 1234</p>
+            <p>ອີເມວ: info@company.la</p>
           </div>
         </div>
-      </body>
-    </html>
+      </div>
+
+      <div class="national-header">
+        <div class="header-line1">
+          ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
+        </div>
+        <div class="header-line2">
+          ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ
+        </div>
+      </div>
+
+      <div class="doc-reference">
+ <div class="signature-date">ວັນທີ / Date:<br>${formatDate(new Date())}</div>
+      </div>
+    </div>
+
+    <!-- Title -->
+    <div class="document-title">ໃບສັ່ງຊື້</div>
+    <div class="document-subtitle">PURCHASE ORDER (PO)</div>
+
+    <!-- Document Info -->
+    <div class="doc-info">
+      <div class="info-grid">
+        <div class="info-row">
+          <div class="info-label">ເລກທີ / No.:</div>
+          <div class="info-value"><strong>${
+            selectedOpo.serial || selectedOpo.number
+          }</strong></div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">ຜູ້ຮ້ອງຂໍ:</div>
+          <div class="info-value">${selectedOpo.requester || "-"}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">ວັນທີ / Date:</div>
+          <div class="info-value">${formatDate(selectedOpo.date)}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">ພະແນກບັນຊີສ່ວນກາງ:</div>
+          <div class="info-value">${selectedOpo.manager || "-"}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">ສະຖານະ / Status:</div>
+          <div class="info-value">
+            <span class="status-badge">${
+              STATUS_TEXTS[selectedOpo.status_Ap] || selectedOpo.status_Ap
+            }</span>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">ຜູ້ຈັດການ:</div>
+          <div class="info-value">${selectedOpo.createdBy || "-"}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="section-title">ລາຍການຈ່າຍເງິນ / Payment Items</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 4%;">ລຳດັບ<br>No.</th>
+          <th style="width: 28%;">ລາຍລະອຽດ<br>Description</th>
+          <th style="width: 14%;">ວິທີຊຳລະ<br>Payment Method</th>
+          <th style="width: 10%;" class="center">ສະກຸນເງິນ<br>Currency</th>
+          <th style="width: 20%;">ຈຳນວນເງິນ<br>Amount</th>
+          <th style="width: 24%;">ໝາຍເຫດ<br>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsToExport
+          .slice()
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .map(
+            (item, index) => `
+        <tr>
+          <td class="center"><strong>${index + 1}</strong></td>
+          <td>${item.description || "-"}</td>
+          <td>${
+            PAYMENT_METHODS[item.paymentMethod] || item.paymentMethod || "-"
+          }</td>
+          <td class="center"><strong>${item.currency || "LAK"}</strong></td>
+          <td class="number">${parseFloat(
+            item.amount || 0
+          ).toLocaleString()}</td>
+          <td>${item?.notes || "-"}</td>
+        </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
+
+    <!-- Total Section -->
+    <div class="total-section">
+      ${Object.entries(totals)
+        .map(
+          ([currency, amount]) => `
+      <div class="total-item">
+        <div class="total-title">ຍອດລວມ / Total (${currency}):</div>
+        <div class="total-amount">${amount.toLocaleString()} ${currency}</div>
+      </div>
+      `
+        )
+        .join("")}
+    </div>
+
+    <!-- Signatures -->
+    <div class="signatures">
+      <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
+      <div class="signature-grid">
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ຮ້ອງຂໍ<br>Requester</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name">${selectedOpo.requester || ""}</div>
+          
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ພະແນກບັນຊີສ່ວນກາງ<br>A&F Dept.</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name">${selectedOpo.manager || ""}</div>
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ຈັດການ<br>Manager</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name">${selectedOpo.createdBy || ""}</div>
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">CEO & CFO<br>Approved By</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name"></div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ OPO | Generated by OPO System - ${formatDate(
+        new Date()
+      )}
+    </div>
+  </div>
+</body>
+</html>
   `);
     printWindow.document.close();
 
@@ -1988,44 +1920,6 @@ const OPOSystem = () => {
                   p={8}
                   border="1px solid #e2e8f0"
                 >
-                  {/* Header */}
-                  <Box textAlign="center" mb={6}>
-                    <Box
-                      h="80px"
-                      bg="blue.600"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      mb={4}
-                      borderRadius="md"
-                    >
-                      <Text
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        color="white"
-                        fontSize="2xl"
-                        fontWeight="bold"
-                      >
-                        {user?.companyInfo?.name}
-                      </Text>
-                    </Box>
-                    <Heading
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      size="lg"
-                      color="blue.700"
-                    >
-                      ໃບສັ່ງຈ່າຍເງິນ (OPO)
-                    </Heading>
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontSize="lg"
-                      fontWeight="bold"
-                      mt={2}
-                      color="gray.600"
-                    >
-                      Outgoing Payment Order
-                    </Text>
-                  </Box>
-
                   {/* Info */}
                   <Flex
                     justify="space-between"
@@ -2170,73 +2064,6 @@ const OPOSystem = () => {
                         {amount.toLocaleString()} {currency}
                       </Text>
                     ))}
-                  </Box>
-
-                  {/* Signatures */}
-                  <Box mt={8}>
-                    <Heading
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      size="sm"
-                      mb={4}
-                      color="blue.700"
-                    >
-                      ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ
-                    </Heading>
-                    <Flex justify="space-between" gap={4}>
-                      {[
-                        { label: "ຜູ້ຮ້ອງຂໍ", value: selectedOpo.requester },
-                        { label: "ຜູ້ຈັດການພະແນກ", value: selectedOpo.manager },
-                        { label: "ຜູ້ສ້າງ OPO", value: selectedOpo.createdBy },
-                        { label: "CEO & CFO", value: "" },
-                      ].map((sign, index) => (
-                        <Box key={index} flex="1" textAlign="center">
-                          <Text
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            fontWeight="bold"
-                            mb={16}
-                          >
-                            {sign.label}
-                          </Text>
-                          <Box
-                            borderTop="2px solid"
-                            borderColor="gray.400"
-                            pt={2}
-                          >
-                            <Text
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              fontSize="sm"
-                            >
-                              {sign.value || "___________________"}
-                            </Text>
-                            <Text
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              fontSize="xs"
-                              color="gray.500"
-                              mt={1}
-                            >
-                              ວັນທີ: ___/___/______
-                            </Text>
-                          </Box>
-                        </Box>
-                      ))}
-                    </Flex>
-                  </Box>
-
-                  {/* Footer */}
-                  <Box
-                    mt={8}
-                    pt={4}
-                    borderTop="1px solid #e2e8f0"
-                    textAlign="center"
-                  >
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontSize="xs"
-                      color="gray.500"
-                    >
-                      ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ OPO -{" "}
-                      {new Date().toLocaleDateString("lo-LA")}
-                    </Text>
                   </Box>
                 </Box>
               </ModalBody>

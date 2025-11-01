@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Financial Management System with Income/Expense, OPO, and Debt tracking",
   "type": "module",
-  "main": "server/index.js",
+  "main": "index.js",
   "scripts": {
     "build": "vite build",
     "client": "vite",
@@ -15,10 +15,8 @@
   "build": {
     "appId": "com.financial.app",
     "productName": "Financial Management",
-    "win": {
-      "target": [
-        "dir"
-      ]
+    "directories": {
+      "output": "release"
     },
     "files": [
       "main.mjs",
@@ -27,12 +25,10 @@
       "package.json"
     ],
     "asar": true,
-    "asarUnpack": [
-      "server/**/*",
-      "node_modules/**/*"
-    ],
-    "directories": {
-      "output": "release"
+    "win": {
+      "target": [
+        "nsis"
+      ]
     }
   },
   "dependencies": {
@@ -95,7 +91,6 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.21",
-    "concurrently": "^8.2.2",
     "nodemon": "^3.0.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.15",

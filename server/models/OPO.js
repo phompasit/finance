@@ -13,26 +13,38 @@ const ItemSchema = new mongoose.Schema({
   notes: { type: String },
 });
 
-const OPOSchema = new mongoose.Schema({
-  serial: { type: String, required: true, unique: true },
-  date: { type: Date, required: true, default: Date.now },
-  status: {
-    type: String,
-    enum: ["paid", "unpaid"],
+const OPOSchema = new mongoose.Schema(
+  {
+    serial: { type: String, required: true, unique: true },
+    date: { type: Date, required: true, default: Date.now },
+    status: {
+      type: String,
+      enum: ["paid", "unpaid"],
+    },
+    status_Ap: {
+      type: String,
+      required: true,
+      enum: ["PENDING", "APPROVED", "PAID", "CANCELLED"],
+      default:"PENDING"
+    },
+    requester: { type: String },
+    manager: { type: String },
+    createdBy: { type: String, required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    items: [ItemSchema],
+    staff: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    createdAt: { type: Date, default: Date.now },
   },
-  status_Ap: {
-    type: String,
-    required: true,
-    enum: ["PENDING", "APPROVED", "PAID", "CANCELLED"],
-  },
-  requester: { type: String },
-  manager: { type: String },
-  createdBy: { type: String, required: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  items: [ItemSchema],
-  staff: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  createdAt: { type: Date, default: Date.now },
-});
+  { timestamps: true }
+);
 
 const OPO = mongoose.model("OPO", OPOSchema);
 export default OPO;

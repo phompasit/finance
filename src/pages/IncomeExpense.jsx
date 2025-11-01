@@ -206,9 +206,9 @@ export default function IncomeExpense() {
     success_approve: "ອະນູມັດແລ້ວ",
     pending: "ລໍຖ້າ",
   };
-   const status_income_expense = {
-    income:"ລາຍຮັບ",
-    expense:"ລາຍຈ່າຍ",
+  const status_income_expense = {
+    income: "ລາຍຮັບ",
+    expense: "ລາຍຈ່າຍ",
   };
   function formatDate(dateString) {
     const d = new Date(dateString);
@@ -222,7 +222,8 @@ export default function IncomeExpense() {
     const matchesSearch =
       filters.search === "" ||
       t.description.toLowerCase().includes(searchLower) ||
-      t.note?.toLowerCase().includes(searchLower);
+      t.note?.toLowerCase().includes(searchLower) ||
+      t.serial.toLowerCase().includes(searchLower);
     const matchesDate =
       (!filters.dateStart || new Date(t.date) >= new Date(filters.dateStart)) &&
       (!filters.dateEnd || new Date(t.date) <= new Date(filters.dateEnd));
@@ -435,10 +436,10 @@ export default function IncomeExpense() {
         });
       }
     } catch (error) {
-      console.error("Error creating transaction:", error);
+      const data = await response.json();
       toast({
-        title: "ຜິດພາດ",
-        description: "ບໍ່ສາມາດບັນທຶກລາຍການໄດ້",
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description: data.message,
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -497,7 +498,13 @@ export default function IncomeExpense() {
         onEditClose();
       } else {
         const data = await response.json();
-        throw new Error(data.message || "Failed to edit transaction");
+        toast({
+          title: "ເກີດຂໍ້ຜິດພາດ",
+          description: data.message,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       console.error("Error editing transaction:", error);
@@ -603,345 +610,360 @@ export default function IncomeExpense() {
   <title font-family: 'Noto Sans Lao', sans-serif;>-</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-     * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Noto Sans Lao', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 20px;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 15px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      overflow: hidden;
-    }
-    
-    .toolbar {
-      background: #2d3748;
-      padding: 15px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .toolbar h2 {
-      color: white;
-      font-size: 18px;
-    }
-    
-    .btn-print {
-      background: #48bb78;
-      color: white;
-      border: none;
-      padding: 10px 25px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: 'Noto Sans Lao', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.3s;
-    }
-    
-    .btn-print:hover {
-      background: #38a169;
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
-    }
-    
-    .pdf-content {
-      padding: 30px 40px;
-    }
-    
-    /* Header */
-    .header {
-      text-align: center;
-      border-bottom: 3px double #2d3748;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-        .topHeader {
-      text-align: center;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-    // .header-line1 {
-    //   font-size: 16px;
-    //   font-weight: 600;
-    //   color: #2d3748;
-    //   margin-bottom: 5px;
-    // }
-    
-    // .header-line2 {
-    //   font-size: 14px;
-    //   font-weight: 500;
-    //   color: #4a5568;
-    //   margin-bottom: 10px;
-    // }
-    
-    // .header-line3 {
-    //   font-size: 15px;
-    //   font-weight: 600;
-    //   color: #2d3748;
-    // }
-    
-    /* Company Info */
-    .company-info {
-      text-align: left;
-      font-size: 12px;
-      color: #555;
-      margin-bottom: 10px;
-    }
-    
-    /* Date Section */
-    .date-section {
-      text-align: right;
-      margin-bottom: 20px;
-      font-size: 14px;
-      color: #4a5568;
-    }
-    
-    .date-section input {
-      border: none;
-      border-bottom: 1px dotted #cbd5e0;
-      padding: 5px;
-      font-family: 'Noto Sans Lao', sans-serif;
-      text-align: center;
-      width: 150px;
-    }
-    
-    /* Table */
-    .table-section {
-      margin: 20px 0;
-      overflow-x: auto;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: 'Noto Sans Lao', sans-serif;
-      font-size: 11px;
-      text-align: left;
-      table-layout: fixed;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    
-/* ✅ ปรับความกว้างของแต่ละคอลัมน์ให้เหมาะกับ A4 แนวนอน */
-/* รวมแล้วจะไม่เกิน ~100% */
-table th:nth-child(1),
-table td:nth-child(1) { width: 4%; min-width: 40px; }
-
-table th:nth-child(2),
-table td:nth-child(2) { width: 8%; min-width: 60px; }
-
-table th:nth-child(3),
-table td:nth-child(3) { width: 7%; min-width: 55px; }
-
-table th:nth-child(4),
-table td:nth-child(4) { width: 22%; min-width: 160px; } /* ✅ ปรับลดลงจาก 28% เพื่อไม่บีบคอลัมน์ท้าย */
-
-table th:nth-child(5),
-table td:nth-child(5) { width: 10%; min-width: 75px; }
-
-table th:nth-child(6),
-table td:nth-child(6) { width: 8%; min-width: 60px; }
-
-table th:nth-child(7),
-table td:nth-child(7) { width: 8%; min-width: 60px; }
-
-table th:nth-child(8),
-table td:nth-child(8) { width: 8%; min-width: 60px; }
-
-table th:nth-child(9),
-table td:nth-child(9) { width: 12%; min-width: 90px; }
-
-table th:nth-child(10),
-table td:nth-child(10) { width: 13%; min-width: 100px; } /* ✅ ปรับจาก 20% → 13% ให้พอดีแนวนอน */
-
-/* ✅ ปรับหัวตารางให้เรียบหรูและพิมพ์ชัด */
-th {
-  background: linear-gradient(90deg, #0f172a, #1e293b);
-  color: white;
-  padding: 8px 6px;
-  font-weight: 600;
-  font-size: 11px;
-  border: 1px solid #334155;
-  text-align: center;
-  white-space: normal;
-  word-break: break-word;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+ * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* ✅ เซลล์ข้อมูล */
-td {
-  padding: 6px 5px;
-  border: 1px solid #e5e7eb;
-  font-size: 7px;
-  white-space: normal;
+body {
+  font-family: 'Noto Sans Lao', sans-serif;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Toolbar */
+.toolbar {
+  background: #374151;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toolbar h2 {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn-print {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Noto Sans Lao', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.btn-print:hover {
+  background: #059669;
+}
+
+/* PDF Content */
+.pdf-content {
+  padding: 25mm 20mm;
+  background: white;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  border-bottom: 3px double #000;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.header-line1 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 5px;
+}
+
+.header-line2 {
+  font-size: 13px;
+  font-weight: 500;
+  color: #000;
+}
+
+/* Company Info */
+.company-info {
+  text-align: left;
+  margin-bottom: 15px;
+  line-height: 1.8;
+}
+
+.company-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #000;
+}
+
+.company-address {
+  font-size: 12px;
+  color: #333;
+}
+
+/* Top Header */
+.topHeader {
+  text-align: center;
+  margin: 20px 0 25px 0;
+}
+
+.topHeader div {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Date Section */
+.date-section {
+  text-align: right;
+  margin-bottom: 15px;
+  font-size: 12px;
+  color: #000;
+}
+
+.date-section input {
+  border: none;
+  border-bottom: 1px dotted #000;
+  padding: 4px 8px;
+  font-family: 'Noto Sans Lao', sans-serif;
+  text-align: center;
+  width: 140px;
+  background: transparent;
+  font-size: 12px;
+}
+
+/* Table */
+.table-section {
+  margin: 20px 0 30px 0;
+  overflow: visible;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Noto Sans Lao', sans-serif;
+  border: 1.5px solid #000;
+}
+
+th, td {
+  border: 1px solid #000;
+  padding: 8px 6px;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  vertical-align: top;
-  line-height: 1.45;
 }
 
-/* ✅ การจัดแนวคอลัมน์เฉพาะ */
-td:nth-child(1),
-td:nth-child(2),
-td:nth-child(3) {
+th {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  font-size: 11px;
   text-align: center;
+  white-space: normal;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+td {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #000;
+  vertical-align: top;
+}
+
+/* จัดแนวตาราง */
+td:nth-child(1), 
+td:nth-child(2), 
+td:nth-child(3),
+td:nth-child(9) {
+  text-align: center;
+  vertical-align: middle;
 }
 
 td:nth-child(4),
-td:nth-child(5),
-td:nth-child(6),
-td:nth-child(7),
-td:nth-child(8),
-td:nth-child(9),
 td:nth-child(10) {
   text-align: left;
   padding-left: 8px;
 }
-    
-    tr:hover td {
-      background: #f7fafc;
-    }
-    
-    .summary-row td {
-      background: #e2e8f0;
-      font-weight: 700;
-      font-size: 11px;
-      padding: 8px;
-      border: 2px solid #1a202c;
-    }
-    
-    /* Signature Section */
-    .signature-section {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 40px;
-      padding-top: 30px;
-      border-top: 2px solid #e5e7eb;
-    }
-    
-    .signature-box {
-      text-align: center;
-      min-width: 220px;
-    }
-    
-    .signature-label {
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #2d3748;
-      font-size: 14px;
-    }
-    
-    .signature-line {
-      margin: 50px 0 10px 0;
-      font-size: 12px;
-      color: #718096;
-    }
-    
-    /* Print Styles */
-    @media print {
-      @page {
-        size: A4 landscape;
-        margin: 10mm;
-      }
-      
-      body {
-        background: white;
-        padding: 0;
-      }
-      
-      .container {
-        box-shadow: none;
-        border-radius: 0;
-        max-width: 100%;
-      }
-      
-      .toolbar {
-        display: none;
-      }
-      
-      .pdf-content {
-        padding: 10mm;
-      }
-      
-      .table-section {
-        overflow: visible;
-      }
-      
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        page-break-inside: auto;
-      }
-      
-      tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-      }
-      
-      th {
-        background: #0f172a !important;
-        color: white !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        border: 1px solid #000 !important;
-        padding: 6px 4px !important;
-        font-size: 10px !important;
-      }
-      
-      td {
-        border: 1px solid #333 !important;
-        padding: 5px 4px !important;
-        font-size: 9.5px !important;
-        line-height: 1.3;
-      }
-      
-      tbody tr:nth-child(even) {
-        background-color: #f8f8f8 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      
-      .summary-row td {
-        background: #d9d9d9 !important;
-        font-weight: bold !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        border: 2px solid #000 !important;
-      }
-      
-      input, textarea {
-        border: none !important;
-        border-bottom: 1px dotted #999 !important;
-      }
-      
-      .header-line1,
-      .header-line2,
-      .header-line3 {
-        font-size: 12px !important;
-      }
-      
-      .company-info {
-        font-size: 10px !important;
-      }
-    }
+
+td:nth-child(5),
+td:nth-child(6),
+td:nth-child(7),
+td:nth-child(8) {
+  text-align: right;
+  padding-right: 8px;
+  font-family: 'Courier New', monospace;
+}
+
+.summary-row td {
+  background: #f3f4f6;
+  font-weight: 700;
+  font-size: 11px;
+  border: 1.5px solid #000;
+}
+
+/* Signature Date */
+.signature-date {
+  text-align: right;
+  font-size: 12px;
+  color: #000;
+  margin: 25px 0 15px 0;
+}
+
+/* Signatures */
+.signatures {
+  background: #fff;
+  border: 1.5px solid #000;
+  padding: 15px;
+  margin-top: 20px;
+  page-break-inside: avoid;
+}
+
+.signature-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 15px;
+  color: #000;
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.signature-cell {
+  text-align: center;
+  border: 1px solid #000;
+  padding: 15px 10px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
+}
+
+.signature-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #000;
+  line-height: 1.4;
+}
+
+.signature-area {
+  margin-top: auto;
+}
+
+.signature-line {
+  border-top: 1px solid #000;
+  width: 70%;
+  margin: 50px auto 0;
+  padding-top: 6px;
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm 10mm;
+  }
+  
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  body {
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .container {
+    box-shadow: none;
+    max-width: 100%;
+    margin: 0;
+  }
+  
+  .toolbar {
+    display: none !important;
+  }
+  
+  .pdf-content {
+    padding: 0;
+  }
+  
+  table {
+    page-break-inside: auto;
+    border: 1.5px solid #000 !important;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  th {
+    background: #ffffff !important;
+    border: 1px solid #000 !important;
+    padding: 6px 5px !important;
+    font-size: 10px !important;
+  }
+  
+  td {
+    border: 1px solid #000 !important;
+    padding: 6px 5px !important;
+    font-size: 9.5px !important;
+  }
+  
+  .summary-row td {
+    background: #e5e7eb !important;
+    border: 1.5px solid #000 !important;
+    font-size: 10px !important;
+  }
+  
+  .signatures {
+    page-break-inside: avoid;
+    border: 1.5px solid #000 !important;
+    padding: 12px;
+  }
+  
+  .signature-grid {
+    gap: 12px;
+  }
+  
+  .signature-cell {
+    border: 1px solid #000 !important;
+    min-height: 110px;
+  }
+  
+  .signature-label {
+    font-size: 10px !important;
+  }
+  
+  .signature-line {
+    margin-top: 40px;
+  }
+  
+  input {
+    border: none !important;
+    border-bottom: 1px dotted #000 !important;
+  }
+}
   </style>
 </head>
 <body>
@@ -1073,59 +1095,51 @@ td:nth-child(10) {
       </div>
       
       <!-- Signature Section -->
-      <div class="signature-section">
-        <div class="signature-box">
-          <div>ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}</div>
-          <div class="signature-label">ຜູ້ສັງລວມ</div>
+      <div class="signature-date">
+        ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
+      </div>
+  <div class="signatures">
+      <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
+      <div class="signature-grid">
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ສັງລວມ<br></span>
+          <div class="signature-area">
+            <div class="signature-line">
           
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ພະແນກບັນຊີສ່ວນກາງ</span>
+          <div class="signature-area">
+            <div class="signature-line">
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ຈັດການ</span>
+          <div class="signature-area">
+            <div class="signature-line">
+
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">CEO & CFO</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name"></div>
+
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
   </div>
 
-  <script>
-    // Mock formatDate function (replace with actual implementation)
-    function formatDate(date) {
-      if (!date) return "-";
-      const d = new Date(date);
-      return \`\${d.getDate().toString().padStart(2, "0")}/\${(d.getMonth() + 1).toString().padStart(2, "0")}/\${d.getFullYear()}\`;
-    }
-
-    // Mock user and selectedTransactions data (replace with actual data source)
-    const user = {
-      companyInfo: {
-        name: "ບໍລິສັດ ຕົວຢ່າງ ຈຳກັດ",
-        address: "ນະຄອນຫຼວງວຽງຈັນ, ປະເທດລາວ"
-      }
-    };
-
-    const selectedTransactions = [
-      {
-        date: "2025-10-01",
-        serial: "INV001",
-        description: "ຊຳລະຄ່າສິນຄ້າໃຫ້ຜູ້ສະໜອງ A ສຳລັບໂຄງການພັດທະນາ",
-        amounts: [
-          { currency: "LAK", amount: 1000000 },
-          { currency: "THB", amount: 0 },
-          { currency: "USD", amount: 0 },
-          { currency: "CNY", amount: 0 }
-        ],
-        note: "ຈ່າຍຜ່ານທະນາຄານ"
-      },
-      {
-        date: "2025-10-02",
-        serial: "INV002",
-        description: "ຄ່າບໍລິການຂົນສົ່ງສິນຄ້າ",
-        amounts: [
-          { currency: "LAK", amount: 500000 },
-          { currency: "THB", amount: 2000 },
-          { currency: "USD", amount: 0 },
-          { currency: "CNY", amount: 0 }
-        ],
-        note: ""
-      }
-    ];
-  </script>
 </body>
 </html>`);
 
@@ -2274,7 +2288,8 @@ td:nth-child(10) {
 
                       <Td>
                         <HStack spacing={1}>
-                          {user?.role === "admin" &&
+                          {(user?.role === "admin" ||
+                            user?.role === "master") &&
                             transaction.type !== "income" && (
                               <HStack spacing={2}>
                                 <Button
@@ -2397,9 +2412,10 @@ td:nth-child(10) {
                               colorScheme="red"
                               rounded="lg"
                               isDisabled={
-                                !(user.role === "admin") &&
-                                (transaction?.status_Ap === "approve" ||
-                                  transaction?.status_Ap === "cancel")
+                                !["admin", "master"].includes(user?.role) &&
+                                ["approve", "cancel"].includes(
+                                  transaction?.status_Ap
+                                )
                               }
                             />
                           </Tooltip>

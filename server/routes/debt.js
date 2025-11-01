@@ -1,9 +1,10 @@
 import express from "express";
 import Debt from "../models/Debt.js";
 import { authenticate } from "../middleware/auth.js";
-
+import Partner from "../models/partner.js";
+import mongoose from "mongoose";
 const router = express.Router();
-
+import employees from "../models/employees.js";
 // Helper function to calculate debt status
 const calculateDebtStatus = (debt) => {
   if (!debt.installments || debt.installments.length === 0) {
@@ -22,7 +23,25 @@ const calculateDebtStatus = (debt) => {
     return "ຊຳລະຄົບ";
   }
 };
-
+// ดึง Partner ทั้งหมด
+router.get("/partners", authenticate, async (req, res) => {
+  try {
+    const partners = await Partner.find();
+    res.json({ success: true, data: partners });
+  } catch (err) {
+    console.log("err", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.get("/employees", authenticate, async (req, res) => {
+  try {
+    const employeesx = await employees.find();
+    res.json({ success: true, data: employeesx });
+  } catch (err) {
+    console.log("err", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // Get all debt records
 router.get("/", authenticate, async (req, res) => {
   try {
@@ -34,7 +53,15 @@ router.get("/", authenticate, async (req, res) => {
       dateFrom,
       dateTo,
     } = req.query;
-    const query = { userId: req.user._id };
+
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
     if (status) query.status = status;
     if (debtType) query.debtType = debtType;
     if (paymentMethod) query.paymentMethod = paymentMethod;
@@ -48,7 +75,8 @@ router.get("/", authenticate, async (req, res) => {
     }
     const debts = await Debt.find(query)
       .sort({ date: -1, createdAt: -1 })
-      .populate("createdBy", "name email");
+      .populate("createdBy", "name email")
+      .populate("partnerId");
 
     const records = debts.map((debt) => {
       const updatedAmounts = debt.amounts.map((amount) => {
@@ -102,7 +130,9 @@ router.get("/:id", authenticate, async (req, res) => {
     const debt = await Debt.findOne({
       _id: req.params.id,
       userId: req.user._id,
-    }).populate("createdBy", "name email");
+    })
+      .populate("createdBy", "name email")
+      .populate("partnerId");
 
     if (!debt) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
@@ -128,6 +158,7 @@ router.post("/", authenticate, async (req, res) => {
       note,
       reason,
       installments,
+      partnerId,
     } = req.body;
     // Validate required fields
     if (
@@ -136,7 +167,8 @@ router.post("/", authenticate, async (req, res) => {
       !debtType ||
       !paymentMethod ||
       !date ||
-      !reason
+      !reason ||
+      !partnerId
     ) {
       return res.status(400).json({
         message: "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน",
@@ -199,6 +231,7 @@ router.post("/", authenticate, async (req, res) => {
       installments: installments || [],
       status: initialStatus,
       createdBy: req.user.userId,
+      partnerId,
     });
 
     await record.save();
@@ -263,6 +296,7 @@ router.put("/:id", authenticate, async (req, res) => {
       note,
       reason,
       installments,
+      partnerId,
     } = req.body;
 
     // Find existing debt
@@ -322,7 +356,7 @@ router.put("/:id", authenticate, async (req, res) => {
     if (note !== undefined) existingDebt.note = note;
     if (reason) existingDebt.reason = reason;
     if (installments !== undefined) existingDebt.installments = installments;
-
+    if (partnerId) existingDebt.partnerId = partnerId;
     // Recalculate status
     existingDebt.status = calculateDebtStatus(existingDebt);
 
@@ -391,5 +425,124 @@ router.get("/stats/summary", authenticate, async (req, res) => {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
   }
 });
+// Validation middleware
+const validateObjectId = (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID format",
+    });
+  }
+  next();
+};
 
+///partner
+router.post("/partners", authenticate, async (req, res) => {
+  try {
+    const partnerData = req.body;
+    const partner = new Partner(partnerData);
+    await partner.save();
+    res.status(201).json({ success: true, data: partner });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ดึง Partner ตาม ID
+router.get(
+  "/partners/:id",
+  authenticate,
+  validateObjectId,
+  async (req, res) => {
+    try {
+      const partner = await Partner.findById(req?.params?.id);
+      if (!partner)
+        return res
+          .status(404)
+          .json({ success: false, message: "Partner not found" });
+      res.json({ success: true, data: partner });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+// อัปเดต Partner ตาม ID
+router.put(
+  "/partners/:id",
+  authenticate,
+  validateObjectId,
+  async (req, res) => {
+    try {
+      const partner = await Partner.findByIdAndUpdate(
+        req?.params?.id,
+        req.body,
+        { new: true, runValidators: true } // return object ใหม่หลัง update
+      );
+      if (!partner)
+        return res
+          .status(404)
+          .json({ success: false, message: "Partner not found" });
+      res.json({ success: true, data: partner });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+// ลบ Partner ตาม ID
+router.delete(
+  "/partners/:id",
+  authenticate,
+  validateObjectId,
+  async (req, res) => {
+    try {
+      const partner = await Partner.findByIdAndDelete(req.params.id);
+      if (!partner)
+        return res
+          .status(404)
+          .json({ success: false, message: "Partner not found" });
+      res.json({ success: true, message: "Partner deleted successfully" });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+router.post("/employees", async (req, res) => {
+  try {
+    const employee = new employees(req.body);
+    await employee.save();
+    res.json({ success: true, data: employee });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.put("/employees/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await employees.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
+    if (!updated)
+      return res
+        .status(404)
+        .json({ success: false, message: "Employee not found" });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+router.delete("/employees/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await employees.findByIdAndDelete(id);
+    if (!deleted)
+      return res
+        .status(404)
+        .json({ success: false, message: "Employee not found" });
+    res.json({ success: true, message: "Deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
 export default router;

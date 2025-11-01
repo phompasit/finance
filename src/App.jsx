@@ -12,6 +12,8 @@ import Layout from "./components/Layout";
 import axios from "axios";
 import { useEffect } from "react";
 import ChartOfAccounts from "./accounting/ChartOfAccounts";
+import PrepaidExpenseDashboard from "./pages/PrepaidExpenseDashboard";
+import Partner from "./pages/Partner";
 
 function App() {
   const refreshToken = async () => {
@@ -59,7 +61,8 @@ function App() {
 
           
           <Route path="users" element={<Users />} />
-          <Route path="chart" element={<ChartOfAccounts />} />
+          <Route path="prepaid" element={<PrepaidExpenseDashboard/>} />
+          <Route path="partner" element={<Partner/>} />
         </Route>
       </Routes>
     </AuthProvider>

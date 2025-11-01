@@ -121,6 +121,7 @@ router.post("/", authenticate, async (req, res) => {
       createdBy: req.user.username, // Fallback to authenticated user's username
       createdAt: new Date(),
       staff: req.user._id,
+      status_Ap: "PENDING",
     });
 
     await record.save();
@@ -192,7 +193,10 @@ router.put("/:id", authenticate, async (req, res) => {
     }
 
     // Prevent editing if already approved (unless admin/staff)
-    if (existingRecord.status === "approved" && req.user.role === "user") {
+    if (
+      existingRecord.status_Ap === "APPROVED" ||
+      existingRecord.status_Ap === "CANCELLED"
+    ) {
       return res.status(403).json({
         message: "ບໍ່ສາມາດແກ້ໄຂ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
       });
@@ -280,9 +284,12 @@ router.delete("/:id", authenticate, async (req, res) => {
     }
 
     // Prevent deletion if already approved (unless admin)
-    if (existingRecord.status === "approved" && req.user.role !== "admin") {
+    if (
+      existingRecord.status_Ap === "APPROVED" ||
+      existingRecord.status_Ap === "CANCELLED"
+    ) {
       return res.status(403).json({
-        message: "ບໍ່ສາມາດລຶບ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
+        message: "ບໍ່ສາມາດແກ້ໄຂ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
       });
     }
 
@@ -304,6 +311,11 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
     const opo = await OPO.findById(id);
     if (!opo) {
       return res.status(404).json({ message: "OPO not found" });
+    }
+    if (opo.status_Ap === "APPROVED" || opo.status_Ap === "CANCELLED") {
+      return res.status(403).json({
+        message: "ບໍ່ສາມາດແກ້ໄຂ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
+      });
     }
 
     // Remove the item from the items array

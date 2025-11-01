@@ -15,14 +15,14 @@ import opoRoutes from "./routes/opo.js";
 import debtRoutes from "./routes/debt.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import reportRoutes from "./routes/report.js";
-
+import advanceRoutes from "./routes/advance.js";
 // Security middleware
 import {
   corsOptions,
   securityHeaders,
   apiLimiter,
   authLimiter,
-} from "./middleware/security";
+} from "./middleware/security.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -146,6 +146,7 @@ app.use("/api/opo", opoRoutes);
 app.use("/api/debt", debtRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/report", reportRoutes);
+app.use("/api/advances", advanceRoutes);
 
 // ============================================
 // 🔒 STATIC FILES & SPA (Last priority)

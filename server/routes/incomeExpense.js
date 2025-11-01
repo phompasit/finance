@@ -4,6 +4,7 @@ import { authenticate, authorize } from "../middleware/auth.js";
 import { body, query, validationResult } from "express-validator";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
+import AdvanceRequests from "../models/advanceRequests.js";
 const router = express.Router();
 // ✅ Rate Limiting - ป้องกัน DDoS และ Brute Force
 const limiter = rateLimit({
@@ -157,6 +158,22 @@ router.get(
 router.post("/bulk", authenticate, async (req, res) => {
   try {
     const { transactions } = req.body;
+
+    const expenses = await IncomeExpense.find();
+    const advances = await AdvanceRequests.find();
+    const allSerials = [
+      ...expenses.map((e) => e.serial),
+      ...advances.map((a) => a.serial),
+    ];
+    const isDuplicate = allSerials.includes(transactions.serial);
+
+    if (isDuplicate) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "❌ ເລກທີນີ້ມີຢູ່ໃນລະບົບແລ້ວ (ອາດຢູ່ຝັ່ງລາຍຈ່າຍຫຼືລາຍຈ່າຍລ່ວງໜ້າ)",
+      });
+    }
     // Insert all records at once
     // 🔒 Input validation
     if (!transactions || typeof transactions !== "object") {
@@ -216,7 +233,28 @@ router.put("/:id", authenticate, async (req, res) => {
     if (!exiting) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
+    // ดึงข้อมูลจากทั้งสอง collection
+    const expenses = await IncomeExpense.find();
+    const advances = await AdvanceRequests.find();
 
+    // รวมทั้งหมด
+    const allDocs = [
+      ...expenses.map((e) => ({ id: e._id.toString(), serial: e.serial })),
+      ...advances.map((a) => ({ id: a._id.toString(), serial: a.serial })),
+    ];
+
+    // ตรวจว่ามี serial ซ้ำ และไม่ใช่ของตัวเอง
+    const isDuplicate = allDocs.some(
+      (d) => d.serial === req.body.serial && d.id !== req.params.id
+    );
+
+    if (isDuplicate) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "❌ ເລກທີນີ້ມີຢູ່ໃນລະບົບແລ້ວ (ອາດຢູ່ຝັ່ງລາຍຈ່າຍຫຼືລາຍຈ່າຍລ່ວງໜ້າ)",
+      });
+    }
     // ถ้าไม่ใช่ admin และ status เป็น approve → block
     if (req.user.role !== "admin" && exiting.status_Ap === "approve") {
       return res.status(403).json({

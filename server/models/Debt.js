@@ -1,7 +1,6 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 const installmentSchema = new mongoose.Schema({
-
   dueDate: {
     type: Date,
     required: true,
@@ -23,12 +22,12 @@ const installmentSchema = new mongoose.Schema({
   paidDate: {
     type: Date,
   },
-})
+});
 
 const debtSchema = new mongoose.Schema(
   {
-    userId:{
- type: mongoose.Schema.Types.ObjectId,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
@@ -84,10 +83,14 @@ const debtSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    partnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Partner",
+    },
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
-export default mongoose.model("Debt", debtSchema)
+export default mongoose.model("Debt", debtSchema);

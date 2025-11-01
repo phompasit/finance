@@ -299,246 +299,287 @@ const Report = () => {
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
   <title  font-family: 'Noto Sans Lao', sans-serif;>-</title>
 <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans Lao', sans-serif;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+.container {
+  max-width: 297mm;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.toolbar {
+  background: #374151;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toolbar h2 {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn-print {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Noto Sans Lao', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.btn-print:hover {
+  background: #059669;
+}
+
+.pdf-content {
+  padding: 20mm 15mm;
+  min-height: 210mm;
+  background: white;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  border-bottom: 3px double #000;
+  padding-bottom: 12px;
+  margin-bottom: 15px;
+}
+
+.header-line1 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 5px;
+}
+
+.header-line2 {
+  font-size: 13px;
+  font-weight: 500;
+  color: #000;
+}
+
+.company-info {
+  text-align: left;
+  font-size: 12px;
+  color: #333;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.company-name {
+  font-weight: 700;
+  color: #000;
+}
+
+.date-section {
+  text-align: right;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #000;
+  font-weight: 500;
+}
+
+.report-title {
+  text-align: center;
+  margin: 15px 0 20px 0;
+}
+
+.report-title h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Table */
+.table-section {
+  margin: 15px 0 25px 0;
+  overflow: visible;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 11px;
+  table-layout: auto;
+  border: 1.5px solid #000;
+}
+
+th {
+  background: #fff;
+  color: #000;
+  padding: 8px 6px;
+  text-align: center;
+  font-weight: 700;
+  border: 1px solid #000;
+  line-height: 1.4;
+  font-size: 11px;
+}
+
+td {
+  padding: 6px;
+  border: 1px solid #000;
+  font-size: 10px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+  vertical-align: top;
+  color: #000;
+}
+
+tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.summary-row td {
+  background: #e5e7eb !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  padding: 8px 6px !important;
+  border: 1.5px solid #000 !important;
+}
+
+.summary-label {
+  text-align: center !important;
+  font-weight: 700 !important;
+}
+
+/* Signature */
+.signature-section {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  margin-top: 30px;
+  padding-top: 20px;
+  page-break-inside: avoid;
+}
+
+.signature-box {
+  text-align: right;
+}
+
+.signature-label {
+  font-weight: 600;
+  margin-bottom: 50px;
+  color: #000;
+  font-size: 13px;
+}
+
+.signature-line {
+  border-top: 1px solid #000;
+  margin: 0 10px;
+  padding-top: 5px;
+  font-size: 10px;
+  color: #666;
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm 10mm;
+  }
+
   * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   body {
-    font-family: 'Noto Sans Lao', sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    padding: 20px;
-  }
-
-  .container {
-    max-width: 297mm;
-    margin: 0 auto;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    overflow: hidden;
+    background: white !important;
+    padding: 0;
+    margin: 0;
   }
 
   .toolbar {
-    background: #2d3748;
-    padding: 15px 30px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: none !important;
   }
 
-  .toolbar h2 {
-    color: white;
-    font-size: 18px;
-  }
-
-  .btn-print {
-    background: #48bb78;
-    color: white;
-    border: none;
-    padding: 10px 25px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: 'Noto Sans Lao', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s;
-  }
-
-  .btn-print:hover {
-    background: #38a169;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+  .container {
+    box-shadow: none;
+    width: 100%;
+    max-width: 297mm;
+    margin: 0;
   }
 
   .pdf-content {
-    padding: 15mm 12mm;
-    min-height: 210mm;
+    padding: 0;
   }
 
-  /* ===== Header ===== */
-  .header {
-    text-align: center;
-    border-bottom: 2px solid #1a202c;
-    padding-bottom: 12px;
-    margin-bottom: 15px;
-  }
-
-  .header-line1 {
-    font-size: 14px;
-    font-weight: 700;
-    color: #1a202c;
-    margin-bottom: 3px;
-    letter-spacing: 0.3px;
-  }
-
-  .header-line2 {
-    font-size: 11px;
-    font-weight: 500;
-    color: #4a5568;
-    margin-bottom: 8px;
-  }
-
-  .date-section {
-    text-align: right;
-    margin-bottom: 12px;
-    font-size: 11px;
-    color: #2d3748;
-    font-weight: 500;
-  }
-
-  .document-title {
-    text-align: left;
-    margin-bottom: 12px;
-    font-size: 14px;
-    color: #2d3748;
-    font-weight: 600;
-  }
-
-  .report-title {
-    text-align: center;
-    margin: 12px 0 15px 0;
-  }
-
-  .report-title h2 {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1a202c;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-
-  /* ===== Table ===== */
-  .table-section {
-    margin: 15px 0;
-    overflow-x: auto;
+  .header, .date-section, .report-title {
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-    font-size: 11px;
-    table-layout: auto; /* ✅ ปรับจาก fixed → auto */
-    word-wrap: break-word;
+    page-break-inside: auto;
+    border: 1.5px solid #000 !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
   }
 
   th {
-    background: #1a202c;
-    color: white;
-    padding: 8px 6px;
-    text-align: center;
-    font-weight: 600;
-    border: 1px solid #000;
-    line-height: 1.4;
+    background: #ffffff !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+    padding: 6px 5px !important;
+    font-size: 10px !important;
   }
 
   td {
-    padding: 6px;
-    border: 1px solid #2d3748;
-    font-size: 15px;
-    line-height: 1.5;
-    word-wrap: break-word;
+    border: 1px solid #000 !important;
+    padding: 5px 4px !important;
+    font-size: 9.5px !important;
     white-space: normal;
+    word-wrap: break-word;
     overflow-wrap: break-word;
-    vertical-align: top;
   }
 
   tbody tr:nth-child(even) {
-    background: #f7fafc;
+    background: #f5f5f5 !important;
   }
 
   .summary-row td {
-    background: #e2e8f0 !important;
+    background: #d1d5db !important;
     font-weight: 700 !important;
-    font-size: 12px !important;
-    padding: 8px 6px !important;
-    border: 2px solid #1a202c !important;
+    border: 1.5px solid #000 !important;
   }
 
-  .summary-label {
-    text-align: center !important;
+  .signature-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
-
-  /* ===== Signatures ===== */
-.signature-section { display: grid; grid-template-columns: repeat(1, 1fr); gap: 30px; margin-top: 30px; padding-top: 20px; page-break-inside: avoid; } .signature-box { text-align: right; } .signature-label { font-weight: 600; margin-bottom: 5px; color: #1a202c; font-size: 16px; } .signature-line { border-top: 1px solid #1a202c; margin: 45px 10px 5px; padding-top: 5px; font-size: 9px; color: #4a5568; }
-
-  /* ===== Print ===== */
-  @media print {
-    @page {
-      size: A4 landscape;
-      margin: 10mm;
-    }
-
-    body {
-      background: white !important;
-      padding: 0;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    .toolbar {
-      display: none;
-    }
-
-    .container {
-      box-shadow: none;
-      border-radius: 0;
-      width: 100%;
-      max-width: 297mm;
-    }
-
-    .pdf-content {
-      padding: 10mm 12mm;
-    }
-
-    /* หัวไม่แยกหน้า */
-    .header, .date-section, .document-title, .report-title {
-      page-break-after: avoid;
-      break-after: avoid;
-    }
-
-    /* คงสีไว้ตอนพิมพ์ */
-    th {
-      background: #1a202c !important;
-      color: white !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    tbody tr:nth-child(even) {
-      background: #f7fafc !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    .summary-row td {
-      background: #e2e8f0 !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    /* ป้องกันตัดแถว */
-    tr, .signature-section {
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-
-    thead {
-      display: table-header-group;
-    }
-
-    td {
-      white-space: normal;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
-  }
+}
 </style>
 
 </head>

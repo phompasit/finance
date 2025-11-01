@@ -286,8 +286,8 @@ export default function Users() {
           </Thead>
           <Tbody>
             {Object.entries(
-              users.reduce((groups, user) => {
-                const companyName = user.companyInfo?.name || "ບໍ່ມີຊື່ບໍລິສັດ";
+              users?.reduce((groups, user) => {
+                const companyName = user?.companyInfo?.name || "ບໍ່ມີຊື່ບໍລິສັດ";
                 if (!groups[companyName]) groups[companyName] = [];
                 groups[companyName].push(user);
                 return groups;
@@ -327,6 +327,7 @@ export default function Users() {
                         <option value="user">User</option>
                         <option value="staff">Staff</option>
                         <option value="admin">Admin</option>
+                        <option value="master">master</option>
                       </Select>
                     </Td>
                     <Td
@@ -419,6 +420,7 @@ export default function Users() {
                   <option value="user">User</option>
                   <option value="staff">Staff</option>
                   <option value="admin">Admin</option>
+                  <option value="master">master</option>
                 </Select>
               </FormControl>
             </VStack>
@@ -593,9 +595,9 @@ export default function Users() {
                     setEditUser({ ...editUser, role: e.target.value })
                   }
                 >
-                  <option value="user">User</option>
                   <option value="staff">Staff</option>
                   <option value="admin">Admin</option>
+                  <option value="master">master</option>
                 </Select>
               </FormControl>
             </VStack>

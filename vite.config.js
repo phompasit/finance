@@ -20,7 +20,8 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "dist",
+      outDir: "dist",
     sourcemap: false,
+    base: "./",  // ✅ เพิ่มบรรทัดนี้
   },
 });

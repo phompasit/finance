@@ -36,7 +36,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
     //       "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
     //   });
     // }
-    const allowedRoles = ["user", "admin", "staff"];
+    const allowedRoles = ["user", "admin", "staff","master"];
     const userRole = role || "user";
     if (!allowedRoles.includes(userRole)) {
       return res.status(400).json({
@@ -554,7 +554,7 @@ router.post("/logout", authenticate, async (req, res) => {
       sessionId,
       ipAddress: req.ip,
       timestamp: new Date(),
-    });
+    });users
 
     res.json({ message: "ออกจากระบบสำเร็จ" });
   } catch (error) {
@@ -575,9 +575,7 @@ router.get("/me", authenticate, async (req, res) => {
 // Get all users (admin only)
 router.get("/users", authenticate, async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึง" });
-    }
+  
 
     const users = await User.find().select("-password");
     res.json(users);

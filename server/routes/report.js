@@ -23,6 +23,13 @@ router.get("/", authenticate, async (req, res) => {
 
     // สร้าง date filter ที่ใช้ร่วมกัน
     const dateFilter = {};
+       if (req.user.role === "admin") {
+      dateFilter.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      dateFilter.userId = req.user.companyId;
+    }
     if (startDate || endDate) {
       dateFilter.date = {};
       if (startDate) {
@@ -40,8 +47,14 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "OPO") {
       try {
-        let opoQuery = { ...dateFilter, userId: req.user._id };
-
+        let opoQuery = { ...dateFilter};
+    if (req.user.role === "admin") {
+       opoQuery.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+       opoQuery.userId = req.user.companyId;
+    }
         // Filter by status
         if (status) {
           opoQuery.status = status.toUpperCase();
@@ -100,9 +113,14 @@ router.get("/", authenticate, async (req, res) => {
       try {
         let transQuery = {
           ...dateFilter,
-          userId: req.user._id,
         };
-
+    if (req.user.role === "admin") {
+       transQuery.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+       transQuery.userId = req.user.companyId;
+    }
         // Filter by type
         if (type === "income" || type === "expense") {
           transQuery.type = type;
@@ -158,8 +176,14 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "receivable" || type === "payable") {
       try {
-        let debtQuery = { ...dateFilter, userId: req.user._id };
-
+        let debtQuery = { ...dateFilter };
+    if (req.user.role === "admin") {
+       debtQuery.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+       debtQuery.userId = req.user.companyId;
+    }
         // Filter by debtType
         if (type === "receivable") {
           debtQuery.debtType = "receivable";
