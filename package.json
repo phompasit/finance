@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Financial Management System with Income/Expense, OPO, and Debt tracking",
   "type": "module",
-  "main": "index.js",
+  "main": "server/index.js",
   "scripts": {
     "build": "vite build",
     "client": "vite",
