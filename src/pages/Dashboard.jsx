@@ -268,7 +268,7 @@ const ReportsPage = () => {
   };
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
-
+console.log("totalPerCurrency",totalPerCurrency)
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={6} align="stretch">
@@ -541,9 +541,9 @@ const ReportsPage = () => {
                       ໜີ້ຕ້ອງສົ່ງ:{" "}
                       {formatAmount(totalPerCurrency[currency].payable, "")}
                     </Text>
-                    <Text fontFamily="Noto Sans Lao, sans-serif">
+                    {/* <Text fontFamily="Noto Sans Lao, sans-serif">
                       OPO: {formatAmount(totalPerCurrency[currency].opo, "")}
-                    </Text>
+                    </Text> */}
                   </VStack>
                 </Stat>
               </CardBody>

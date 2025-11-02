@@ -1195,9 +1195,8 @@ const OPOSystem = () => {
             user?.companyInfo?.name || "Company Name"
           }</div>
           <div class="contact-section">
-            <p>ທີ່ຢູ່: ບ້ານໂພນໄຊ, ນະຄອນຫຼວງ</p>
-            <p>ໂທ: 020 5555 1234</p>
-            <p>ອີເມວ: info@company.la</p>
+              <div>${user?.companyInfo?.address || ""}</div>
+      <div>${user?.companyInfo?.phone || ""}</div>
           </div>
         </div>
       </div>
@@ -1217,8 +1216,8 @@ const OPOSystem = () => {
     </div>
 
     <!-- Title -->
-    <div class="document-title">ໃບສັ່ງຊື້</div>
-    <div class="document-subtitle">PURCHASE ORDER (PO)</div>
+    <div class="document-title">ໃບສັ່ງຈ່າຍ</div>
+    <div class="document-subtitle">Office Payment Order(OPO)</div>
 
     <!-- Document Info -->
     <div class="doc-info">

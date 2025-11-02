@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 // สร้าง Schema สำหรับ Partner
 const PartnerSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     name: { type: String, required: true },
     taxId: { type: String, trim: true },
     phone: { type: String, trim: true },

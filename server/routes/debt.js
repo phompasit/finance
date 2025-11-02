@@ -26,7 +26,15 @@ const calculateDebtStatus = (debt) => {
 // ดึง Partner ทั้งหมด
 router.get("/partners", authenticate, async (req, res) => {
   try {
-    const partners = await Partner.find();
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
+    const partners = await Partner.find(query);
     res.json({ success: true, data: partners });
   } catch (err) {
     console.log("err", err);
@@ -35,7 +43,15 @@ router.get("/partners", authenticate, async (req, res) => {
 });
 router.get("/employees", authenticate, async (req, res) => {
   try {
-    const employeesx = await employees.find();
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
+    const employeesx = await employees.find(query);
     res.json({ success: true, data: employeesx });
   } catch (err) {
     console.log("err", err);
@@ -439,8 +455,19 @@ const validateObjectId = (req, res, next) => {
 ///partner
 router.post("/partners", authenticate, async (req, res) => {
   try {
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
     const partnerData = req.body;
-    const partner = new Partner(partnerData);
+    const partner = new Partner({
+      ...partnerData,
+      userId: query.userId,
+    });
     await partner.save();
     res.status(201).json({ success: true, data: partner });
   } catch (err) {
@@ -507,9 +534,20 @@ router.delete(
     }
   }
 );
-router.post("/employees", async (req, res) => {
+router.post("/employees",authenticate, async (req, res) => {
   try {
-    const employee = new employees(req.body);
+    const query = {};
+    if (req.user.role === "admin") {
+      query.userId = req.user._id;
+    }
+    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
+    else {
+      query.userId = req.user.companyId;
+    }
+    const employee = new employees({
+      ...req.body,
+      userId: query.userId,
+    });
     await employee.save();
     res.json({ success: true, data: employee });
   } catch (err) {

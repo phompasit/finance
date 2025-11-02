@@ -666,7 +666,6 @@ const DebtManagementSystem = () => {
     reason: "",
     partnerId: null,
   });
-  console.log("selectedDebt", selectedDebts);
   const [errors, setErrors] = useState({});
   const [suppliers, setSuppliers] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -851,6 +850,8 @@ const DebtManagementSystem = () => {
         await fetchDebts();
         setIsOpen(false);
         resetForm();
+        setSelectedDebt([]);
+        setSelectedDebts([]);
         toast({
           title: editingDebt ? "ການແກ້ໄຂສຳເລັດ" : "ເພີ່ມລາຍການສຳເລັດ",
           status: "success",

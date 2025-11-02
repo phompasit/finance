@@ -162,6 +162,7 @@ export const updateAdvance = async (req, res) => {
       advance.amount_requested = validatedAmounts;
     }
     // Update other fields
+    console.log("req.body.employee_id",req.body)
     if (req.body.purpose) advance.purpose = req.body.purpose;
     if (req.body.request_date) advance.request_date = req.body.request_date;
     if (req.body.serial) advance.serial = req.body.serial;
@@ -169,6 +170,7 @@ export const updateAdvance = async (req, res) => {
     if (req.body.status_payment)
       advance.status_payment = req.body.status_payment;
     if (req.body.status_Ap) advance.status_Ap = req.body.status_Ap;
+    if (req.body.employee_id) advance.employee_id = req.body.employee_id;
     await advance.save();
     await advance.populate("employee_id", "full_name department position");
 

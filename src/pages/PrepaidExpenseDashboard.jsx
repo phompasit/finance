@@ -473,6 +473,7 @@ export default function PrepaidExpenseDashboard() {
         purpose: data.purpose,
         serial: data.serial,
         status_payment: data.status_payment,
+        employee_id: data.employee_id,
       };
 
       const res = await fetch(`${API_BASE}/api/advances/${id}`, {
@@ -495,6 +496,7 @@ export default function PrepaidExpenseDashboard() {
 
       onEditClose();
       await fetchAdvances();
+      setSelected([]);
     } catch (err) {
       console.error("Update advance error:", err);
       toast({
@@ -589,6 +591,7 @@ export default function PrepaidExpenseDashboard() {
       setTransForm(INITIAL_TRANS_FORM);
       onTransClose();
       await fetchAdvances();
+      setSelected([]);
     } catch (err) {
       console.error("Add transaction error:", err);
       toast({
@@ -861,475 +864,462 @@ export default function PrepaidExpenseDashboard() {
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: 'Noto Sans Lao', sans-serif;
-      background: #e5e7eb;
-      padding: 20px;
+      background: #fff;
+      color: #000;
+      line-height: 1.5;
+      padding: 15mm 12mm;
     }
-    
+
     .container {
-      max-width: 1200px;
+      max-width: 100%;
       margin: 0 auto;
-      background: white;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    
-    /* Toolbar - ซ่อนตอนพิมพ์ */
-    .toolbar {
-      background: #374151;
-      padding: 15px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .toolbar h2 {
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
-    }
-    
-    .btn-print {
-      background: #10b981;
-      color: white;
-      border: none;
-      padding: 10px 24px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: 'Noto Sans Lao', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: background 0.3s;
-    }
-    
-    .btn-print:hover {
-      background: #059669;
-    }
-    
-    /* เนื้อหาเอกสาร */
-    .pdf-content {
-      padding: 25mm 20mm;
-      background: white;
-    }
-    
-    /* Header - ส่วนหัวราชการ */
-    .header {
+
+    /* === ส่วนหัวราชการ === */
+    .gov-header {
       text-align: center;
       border-bottom: 3px double #000;
-      padding-bottom: 12px;
-      margin-bottom: 20px;
+      padding-bottom: 10px;
+      margin-bottom: 18px;
     }
-    
-    .header-line1 {
-      font-size: 15px;
-      font-weight: 700;
-      color: #000;
-      margin-bottom: 5px;
-    }
-    
-    .header-line2 {
-      font-size: 13px;
-      font-weight: 500;
-      color: #000;
-    }
-    
-    /* ข้อมูลบริษัท */
-    .company-info {
-      text-align: left;
-      margin-bottom: 15px;
-      line-height: 1.8;
-    }
-    
-    .company-name {
-      font-size: 13px;
-      font-weight: 700;
-      color: #000;
-    }
-    
-    .company-address,
-    .company-phone {
-      font-size: 12px;
-      color: #333;
-    }
-    
-    /* หัวเรื่อง */
-    .topHeader {
-      text-align: center;
-      margin: 20px 0 25px 0;
-    }
-    
-    .topHeader div {
+    .gov-header .line1 {
       font-size: 16px;
       font-weight: 700;
-      color: #000;
+      letter-spacing: 0.5px;
+    }
+    .gov-header .line2 {
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    /* === ข้อมูลบริษัท === */
+    .company-info {
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .company-name {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    /* === หัวเรื่องหลัก === */
+    .main-title {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
       text-decoration: underline;
-      text-underline-offset: 4px;
+      text-underline-offset: 5px;
+      margin: 20px 0 16px;
     }
-    
-    /* วันที่ */
-    .date-section {
+
+    /* === วันที่ === */
+    .date-print {
       text-align: right;
-      margin-bottom: 15px;
-      font-size: 12px;
-      color: #000;
+      font-size: 13px;
+      margin-bottom: 20px;
     }
-    
-    .date-section input {
+    .date-print input {
       border: none;
       border-bottom: 1px dotted #000;
-      padding: 4px 8px;
-      font-family: 'Noto Sans Lao', sans-serif;
+      width: 130px;
       text-align: center;
-      width: 140px;
+      font-family: inherit;
+      font-size: 13px;
       background: transparent;
-      font-size: 12px;
     }
-    
-    /* ตาราง - รองรับการขยายอัตโนมัติ */
-    .table-section {
-      margin: 20px 0 30px 0;
-      overflow: visible;
+
+    /* === ตารางรายการ === */
+    .table-container {
+      margin: 20px 0;
+      page-break-inside: avoid;
     }
-    
+
     table {
       width: 100%;
       border-collapse: collapse;
-      font-family: 'Noto Sans Lao', sans-serif;
-      border: 1.5px solid #000;
-    }
-    
-    /* ให้ตารางยืดหยุ่นตามเนื้อหา */
-    th, td {
-      border: 1px solid #000;
-      padding: 8px 6px;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
-    
-    th {
-      background: #fff;
-      color: #000;
-      font-weight: 700;
       font-size: 11px;
-      text-align: center;
-      white-space: normal;
-      line-height: 1.4;
-      vertical-align: middle;
+      border: 1.8px solid #000;
     }
-    
+
+    th {
+      background: #f1f3f5 !important;
+      font-weight: 700;
+      text-align: center;
+      padding: 9px 6px;
+      border: 1px solid #000;
+      font-size: 11.5px;
+      white-space: nowrap;
+    }
+
     td {
-      font-size: 10px;
-      line-height: 1.5;
-      color: #000;
+      border: 1px solid #000;
+      padding: 7px 6px;
       vertical-align: top;
+      font-size: 10.5px;
     }
-    
-    /* จัดแนวข้อมูลในตาราง */
-    td:nth-child(1), 
-    td:nth-child(2), 
-    td:nth-child(3) {
-      text-align: center;
-      vertical-align: middle;
-    }
-    
-    td:nth-child(4),
-    td:nth-child(5),
-    td:nth-child(11) {
-      text-align: left;
-      padding-left: 8px;
-    }
-    
-    td:nth-child(6),
-    td:nth-child(7),
-    td:nth-child(8),
-    td:nth-child(9),
-    td:nth-child(10) {
-      text-align: right;
-      padding-right: 8px;
+
+    /* จัดแนวคอลัมน์ */
+    td:nth-child(1), td:nth-child(2), td:nth-child(3) { text-align: center; }
+    td:nth-child(4), td:nth-child(5), td:nth-child(11) { text-align: left; padding-left: 8px; }
+    td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { 
+      text-align: right; 
+      padding-right: 8px; 
       font-family: 'Courier New', monospace;
     }
-    
-    /* แถวสรุปยอด */
-    .summary-row td {
-      background: #f3f4f6;
-      font-weight: 700;
-      font-size: 11px;
-      border: 1.5px solid #000;
-    }
-    
-    /* วันที่ลงนาม */
-    .signature-date {
-      text-align: right;
-      font-size: 12px;
-      color: #000;
-      margin: 25px 0;
-    }
-    
-    /* ส่วนลายเซ็น - 4 ช่อง */
-    .signature-section {
+
+    /* สรุปยอดในแต่ละแถว (หลายสกุลเงิน) */
+    .currency-summary {
       display: flex;
-      justify-content: space-between;
-      gap: 15px;
-      margin-top: 40px;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    .currency-block {
+      background: #f8f9fa;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .currency-label {
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 2px;
+    }
+
+    /* === ตารางสรุปยอดรวม === */
+    .summary-table {
+      margin-top: 25px;
       page-break-inside: avoid;
     }
-    
-    .signature-box {
-      flex: 1;
-      min-width: 0;
+    .summary-table table {
+      font-size: 12px;
+    }
+    .summary-table th {
+      background: #e5e7eb !important;
+      font-weight: 700;
+      width: 25%;
+    }
+    .summary-table td {
+      text-align: right;
+      padding-right: 12px;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* === ลายเซ็น === */
+    .signature-date {
+      text-align: right;
+      font-size: 13px;
+      margin: 35px 0 50px;
+    }
+
+    .signature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      page-break-inside: avoid;
+      margin-top: 30px;
+    }
+    .sig-box {
       text-align: center;
     }
-    
-    .signature-label {
+    .sig-label {
       font-weight: 600;
-      font-size: 12px;
-      color: #000;
-      margin-bottom: 50px;
+      font-size: 13px;
+      margin-bottom: 55px;
     }
-    
-    .signature-line {
+    .sig-line {
       border-top: 1px solid #000;
-      width: 70%;
+      width: 75%;
       margin: 0 auto;
       padding-top: 6px;
       font-size: 11px;
-      color: #666;
+      color: #555;
     }
-    
-    /* Print Styles - สำคัญมาก! */
+
+    /* === พิมพ์ === */
     @media print {
       @page {
         size: A4 landscape;
-        margin: 15mm 12mm;
+        margin: 12mm 10mm;
       }
-      
+
+      body {
+        padding: 0;
+        background: white;
+      }
+
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      
-      body {
-        background: white;
-        padding: 0;
-        margin: 0;
+
+      table, th, td {
+        border-color: #000 !important;
       }
-      
-      .container {
-        box-shadow: none;
-        max-width: 100%;
-        margin: 0;
-      }
-      
-      .toolbar {
-        display: none !important;
-      }
-      
-      .pdf-content {
-        padding: 0;
-      }
-      
-      /* ตารางในโหมดพิมพ์ */
-      table {
-        page-break-inside: auto;
-        border: 1.5px solid #000 !important;
-      }
-      
-      tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-      }
-      
-      thead {
-        display: table-header-group;
-      }
-      
+
       th {
-        background: #ffffff !important;
-        border: 1px solid #000 !important;
-        padding: 6px 5px !important;
-        font-size: 10px !important;
+        background: #f1f3f5 !important;
+        font-size: 10.5px !important;
+        padding: 7px 5px !important;
       }
-      
+
       td {
-        border: 1px solid #000 !important;
+        font-size: 10px !important;
         padding: 6px 5px !important;
-        font-size: 9.5px !important;
       }
-      
-      .summary-row td {
+
+      .currency-block {
+        background: #f8f9fa !important;
+      }
+
+      .summary-table th {
         background: #e5e7eb !important;
-        border: 1.5px solid #000 !important;
       }
-      
-      /* ส่วนลายเซ็นในโหมดพิมพ์ */
-      .signature-section {
-        page-break-inside: avoid;
-        margin-top: 30px;
-        gap: 20px;
-      }
-      
-      .signature-box {
-        border: none;
-        padding: 0;
-      }
-      
-      .signature-line {
-        border-top: 1px solid #000 !important;
-      }
-      
-      /* ซ่อน input border */
+
       input {
         border: none !important;
         border-bottom: 1px dotted #000 !important;
       }
+
+      .toolbar { display: none !important; }
+    }
+
+    /* Toolbar (ซ่อนตอนพิมพ์) */
+    .toolbar {
+      background: #1f2937;
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 15px;
+      position: running(toolbar);
+    }
+    .btn-print {
+      background: #059669;
+      color: white;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .btn-print:hover {
+      background: #047857;
     }
   </style>
 </head>
 <body>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div>📑 ລາຍງານການເງິນ - ພິມອອກເປັນເອກະສານ</div>
+    <button class="btn-print" onclick="window.print()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+        <rect x="6" y="14" width="12" height="8"></rect>
+      </svg>
+      ພິມລາຍງານ
+    </button>
+  </div>
+
   <div class="container">
-    <div class="toolbar">
-      <h2>📄 ແບບລາຍງານການເງິນ</h2>
-      <button class="btn-print" onclick="window.print()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 6 2 18 2 18 9"></polyline>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-          <rect x="6" y="14" width="12" height="8"></rect>
-        </svg>
-        ພິມລາຍງານ
-      </button>
-    </div>
-    
-    <div class="pdf-content">
-      <!-- Header ราชการ -->
-      <div class="header">
-        <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
-        <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
-      </div>
-      
-      <!-- ข้อมูลบริษัท -->
-      <div class="company-info">
-        <div class="company-name">ບໍລິສັດ ຕົວຢ່າງ ຈຳກັດ</div>
-        <div class="company-address">ທີ່ຢູ່: ບ້ານ ໜົງບົວ, ເມືອງ ສີສັດຕະນາກ, ນະຄອນຫຼວງວຽງຈັນ</div>
-        <div class="company-phone">ໂທລະສັບ: +856 20 1234 5678</div>
-      </div>
-      
-      <!-- หัวเรื่อง -->
-      <div class="topHeader">
-        <div>ລາຍງານການເງິນ</div>
-      </div>
-      
-      <!-- วันที่ -->
-      <div class="date-section">
-        ວັນທີ: <input type="text" value="01/11/2025" readonly>
-      </div>
-      
-      <!-- ตาราง -->
-      <div class="table-section">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 4%;">ລຳດັບ</th>
-              <th style="width: 8%;">ວັນທີ</th>
-              <th style="width: 7%;">ເລກທີ່</th>
-              <th style="width: 10%;">ຜູ້ເບີກ</th>
-              <th style="width: 18%;">ເນື່ອໃນລາຍການ</th>
-              <th style="width: 10%;">ຍອດຂໍເບີກ</th>
-              <th style="width: 10%;">ຍອດໃຊ້ຈິງ</th>
-              <th style="width: 10%;">ຍອດຄືນບໍລິສັດ</th>
-              <th style="width: 10%;">ຍອດຄືນພະນັກງານ</th>
-              <th style="width: 10%;">ຍອດຈ່າຍຈິງ</th>
-              <th style="width: 8%;">ໝາຍເຫດ</th>
-            </tr>
-          </thead>
-          <tbody>
-        ${
-          selected
-            ?.map((item, index) => {
-              // รวมข้อมูลจำนวนเงินที่ขอ (ทุกสกุล)
-              const requestedAmounts =
-                item.amount_requested
-                  ?.map(
-                    (req) => `${req.amount.toLocaleString()} ${req.currency}`
-                  )
-                  .join(", ") || "0";
 
-              // สร้างข้อมูล summary แยกตามสกุลเงิน
-              const summaryByCurrency = item.summary
-                ? Object.entries(item.summary)
-                    .map(([currency, data]) => {
-                      const spent = data.total_spent || 0;
-                      const returnAmt = data.total_return_to_company || 0;
-                      const refund = data.total_refund_to_employee || 0;
-                      const paid = spent - returnAmt + refund;
-                      return `
-                  <div class="currency-block">
-                    <div class="currency-label">${currency}</div>
-                    ໃຊ້ຈ່າຍຈິງ: ${spent.toLocaleString()}<br/>
-                    ຄືນບໍລິສັດ: ${returnAmt.toLocaleString()}<br/>
-                    ຄືນພະນັກງານ: ${refund.toLocaleString()}<br/>
-                    <strong>ຈ່າຍຈິງທັງໝົດ: ${paid.toLocaleString()}</strong>
-                  </div>
-                `;
-                    })
-                    .join("")
-                : "<div>-</div>";
+    <!-- ส่วนหัวราชการ -->
+    <div class="gov-header">
+      <div class="line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
+      <div class="line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
+    </div>
 
-              return `
-            <tr>
-              <td style="text-align:center;">${index + 1}</td>
-              <td style="text-align:center;">${formatDate(
-                item.request_date
-              )}</td>
-              <td style="text-align:center;">${item.serial}</td>
-              <td>${item.employee_id?.full_name || "-"}</td>
-              <td>${item.purpose || "-"}</td>
-              <td style="text-align:right;">${requestedAmounts}</td>
-              <td colspan="4">${summaryByCurrency}</td>
-              <td>${item.meta?.note || ""}</td>
-            </tr>
-          `;
-            })
-            .join("") || ""
-        }
-          </tbody>
-        </table>
+    <!-- ข้อมูลบริษัท -->
+    <div class="company-info">
+      <div class="company-name">${
+        user?.companyInfo?.name || "ບໍລິສັດ ຈຳກັດ"
+      }</div>
+      <div>ທີ່ຢູ່: ${user?.companyInfo?.address || "-"}</div>
+      <div>ໂທລະສັບ: ${user?.companyInfo?.phone || "-"}</div>
+    </div>
+
+    <!-- หัวเรื่อง -->
+    <div class="main-title">ລາຍງານການເງິນ</div>
+
+    <!-- วันที่ -->
+    <div class="date-print">
+      ວັນທີ: <input type="text" value="01/11/2025" readonly>
+    </div>
+
+    <!-- ตารางรายการ -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ລຳດັບ</th>
+            <th>ວັນທີ</th>
+            <th>ເລກທີ່</th>
+            <th>ຜູ້ເບີກ</th>
+            <th>ເນື່ອໃນ</th>
+            <th>ຂໍເບີກ</th>
+            <th colspan="4">ສະຫຼຸບຍອດ (ແຕ່ລະສະກຸນ)</th>
+            <th>ໝາຍເຫດ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            selected
+              ?.map((item, index) => {
+                const requested =
+                  item.amount_requested
+                    ?.map((r) => `${r.amount.toLocaleString()} ${r.currency}`)
+                    .join(", ") || "0";
+
+                const summaryHTML = item.summary
+                  ? Object.entries(item.summary)
+                      .map(([cur, data]) => {
+                        const spent = data.total_spent || 0;
+                        const retCo = data.total_return_to_company || 0;
+                        const refEm = data.total_refund_to_employee || 0;
+                        const net = spent - retCo + refEm;
+                        return `
+                      <div style="font-family:Noto Sans Lao, sans-serif " class="currency-block">
+                        <div class="currency-label">${cur}</div>
+                        ໃຊ້ຈ່າຍຈິງ: ${spent.toLocaleString()} | ຄືນບໍລິສັດ: ${retCo.toLocaleString()}<br>
+                        ຄືນພະນັກງານ: ${refEm.toLocaleString()} | <strong>ຈ່າຍສຸດທິ: ${net.toLocaleString()}</strong>
+                      </div>`;
+                      })
+                      .join("")
+                  : '<div class="currency-block">-</div>';
+
+                return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${formatDate(item.request_date)}</td>
+                <td>${item.serial}</td>
+                <td>${item.employee_id?.full_name || "-"}</td>
+                <td>${item.purpose || "-"}</td>
+                <td>${requested}</td>
+                <td colspan="4">
+                  <div class="currency-summary">${summaryHTML}</div>
+                </td>
+                <td>${item.meta?.note || ""}</td>
+              </tr>`;
+              })
+              .join("") || ""
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ตารางสรุปยอดรวม (ทุกสกุลเงิน) -->
+    <div class="summary-table">
+      <table>
+        <thead>
+          <tr>
+            <th>ສະກຸນເງິນ</th>
+            <th>ຂໍເບີກທັງໝົດ</th>
+            <th>ໃຊ້ຈ່າຍຈິງ</th>
+            <th>ຄືນບໍລິສັດ</th>
+            <th>ຄືນພະນັກງານ</th>
+            <th>ຈ່າຍສຸດທິ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(() => {
+            const totalByCurrency = {};
+            selected?.forEach((item) => {
+              (item.amount_requested || []).forEach((req) => {
+                if (!totalByCurrency[req.currency]) {
+                  totalByCurrency[req.currency] = {
+                    requested: 0,
+                    spent: 0,
+                    returnCo: 0,
+                    refundEm: 0,
+                  };
+                }
+                totalByCurrency[req.currency].requested += req.amount;
+              });
+
+              if (item.summary) {
+                Object.entries(item.summary).forEach(([cur, data]) => {
+                  if (!totalByCurrency[cur])
+                    totalByCurrency[cur] = {
+                      requested: 0,
+                      spent: 0,
+                      returnCo: 0,
+                      refundEm: 0,
+                    };
+                  totalByCurrency[cur].spent += data.total_spent || 0;
+                  totalByCurrency[cur].returnCo +=
+                    data.total_return_to_company || 0;
+                  totalByCurrency[cur].refundEm +=
+                    data.total_refund_to_employee || 0;
+                });
+              }
+            });
+
+            return (
+              Object.entries(totalByCurrency)
+                .map(([cur, t]) => {
+                  const net = t.spent - t.returnCo + t.refundEm;
+                  return `
+                  <tr style="background:#f9fafb; font-weight:600;">
+                    <td style="text-align:center;">${cur}</td>
+                    <td>${t.requested.toLocaleString()}</td>
+                    <td>${t.spent.toLocaleString()}</td>
+                    <td>${t.returnCo.toLocaleString()}</td>
+                    <td>${t.refundEm.toLocaleString()}</td>
+                    <td><strong>${net.toLocaleString()}</strong></td>
+                  </tr>`;
+                })
+                .join("") ||
+              "<tr><td colspan='6' style='text-align:center;'>ບໍ່ມີຂໍ້ມູນ</td></tr>"
+            );
+          })()}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- วันที่ลงนาม -->
+    <div class="signature-date">
+      ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ 01/11/2025
+    </div>
+
+    <!-- ลายเซ็น 4 ช่อง -->
+    <div class="signature-grid">
+      <div class="sig-box">
+        <div class="sig-label">ປະທານ</div>
+        <div class="sig-line">(..................................)</div>
       </div>
-      
-      <!-- วันที่ลงนาม -->
-      <div class="signature-date">
-        ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ 01/11/2025
+      <div class="sig-box">
+        <div class="sig-label">ຜູ້ຈັດການ</div>
+        <div class="sig-line">(..................................)</div>
       </div>
-      
-      <!-- ส่วนลายเซ็น 4 ช่อง -->
-      <div class="signature-section">
-        <div class="signature-box">
-          <div class="signature-label">ປະທານ</div>
-          <div class="signature-line">(ລົງນາມ)</div>
-        </div>
-        
-        <div class="signature-box">
-          <div class="signature-label">ຜູ້ຈັດການ</div>
-          <div class="signature-line">(ລົງນາມ)</div>
-        </div>
-        
-        <div class="signature-box">
-          <div class="signature-label">ບັນຊີ - ການເງິນ</div>
-          <div class="signature-line">(ລົງນາມ)</div>
-        </div>
-        
-        <div class="signature-box">
-          <div class="signature-label">ຜູ້ສັງລວມ</div>
-          <div class="signature-line">(ລົງນາມ)</div>
-        </div>
+      <div class="sig-box">
+        <div class="sig-label">ບັນຊີ - ການເງິນ</div>
+        <div class="sig-line">(..................................)</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-label">ຜູ້ສັງລວມ</div>
+        <div class="sig-line">(..................................)</div>
       </div>
     </div>
+
   </div>
 </body>
-</html>`);
+</html>
+`);
     printWindow.document.close();
 
     printWindow.onload = function () {
@@ -1709,69 +1699,64 @@ export default function PrepaidExpenseDashboard() {
                           )}
                           {idx === 0 && (
                             <Td rowSpan={rowData.length}>
-                              {(user?.role === "admin" || user?.role === "master") && (
-                                  <HStack>
-                                    <Button
-                                      fontSize={"20"}
-                                      size="sm"
-                                      rounded="lg"
-                                      fontFamily="Noto Sans Lao, sans-serif"
-                                      colorScheme={
-                                        status_Ap === "pending"
-                                          ? "yellow"
-                                          : "gray"
-                                      }
-                                      variant={
-                                        status_Ap === "pending"
-                                          ? "solid"
-                                          : "outline"
-                                      }
-                                      onClick={() =>
-                                        handleStatus(id, "pending")
-                                      }
-                                    >
-                                      ລໍຖ້າ
-                                    </Button>
-                                    <Button
-                                      fontSize={"20"}
-                                      size="sm"
-                                      rounded="lg"
-                                      fontFamily="Noto Sans Lao, sans-serif"
-                                      colorScheme={
-                                        status_Ap === "approve"
-                                          ? "green"
-                                          : "gray"
-                                      }
-                                      variant={
-                                        status_Ap === "approve"
-                                          ? "solid"
-                                          : "outline"
-                                      }
-                                      onClick={() =>
-                                        handleStatus(id, "approve")
-                                      }
-                                    >
-                                      ອະນຸມັດ
-                                    </Button>
-                                    <Button
-                                      fontSize={"20"}
-                                      size="sm"
-                                      rounded="lg"
-                                      fontFamily="Noto Sans Lao, sans-serif"
-                                      colorScheme={
-                                        status_Ap === "cancel" ? "red" : "gray"
-                                      }
-                                      variant={
-                                        status_Ap === "cancel"
-                                          ? "solid"
-                                          : "outline"
-                                      }
-                                      onClick={() => handleStatus(id, "cancel")}
-                                    >
-                                      ຍົກເລີກ
-                                    </Button>
-                                  </HStack>
-                                )}
+                              {(user?.role === "admin" ||
+                                user?.role === "master") && (
+                                <HStack>
+                                  <Button
+                                    fontSize={"20"}
+                                    size="sm"
+                                    rounded="lg"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                                    colorScheme={
+                                      status_Ap === "pending"
+                                        ? "yellow"
+                                        : "gray"
+                                    }
+                                    variant={
+                                      status_Ap === "pending"
+                                        ? "solid"
+                                        : "outline"
+                                    }
+                                    onClick={() => handleStatus(id, "pending")}
+                                  >
+                                    ລໍຖ້າ
+                                  </Button>
+                                  <Button
+                                    fontSize={"20"}
+                                    size="sm"
+                                    rounded="lg"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                                    colorScheme={
+                                      status_Ap === "approve" ? "green" : "gray"
+                                    }
+                                    variant={
+                                      status_Ap === "approve"
+                                        ? "solid"
+                                        : "outline"
+                                    }
+                                    onClick={() => handleStatus(id, "approve")}
+                                  >
+                                    ອະນຸມັດ
+                                  </Button>
+                                  <Button
+                                    fontSize={"20"}
+                                    size="sm"
+                                    rounded="lg"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                                    colorScheme={
+                                      status_Ap === "cancel" ? "red" : "gray"
+                                    }
+                                    variant={
+                                      status_Ap === "cancel"
+                                        ? "solid"
+                                        : "outline"
+                                    }
+                                    onClick={() => handleStatus(id, "cancel")}
+                                  >
+                                    ຍົກເລີກ
+                                  </Button>
+                                </HStack>
+                              )}
                             </Td>
                           )}
                           {/* ✅ เมนู */}

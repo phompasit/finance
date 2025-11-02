@@ -324,7 +324,6 @@ export default function Users() {
                         size="sm"
                         bg="gray.50"
                       >
-                        <option value="user">User</option>
                         <option value="staff">Staff</option>
                         <option value="admin">Admin</option>
                         <option value="master">master</option>

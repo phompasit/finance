@@ -113,7 +113,7 @@ export default function Layout() {
       name: "ຜູ້ໃຊ້ງານ",
       path: "/users",
       icon: FiUsers,
-      show: user?.role === "admin" || user.role == "master",
+      show: user?.role === "admin" 
     },
   ];
 

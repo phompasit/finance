@@ -360,6 +360,44 @@ export default function IncomeExpense() {
     if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
   };
+const validateForm = () => {
+  const newErrors = {};
+
+  if (!formData.serial) {
+    newErrors.serial = "ກະລຸນາເລືອກລູກໜີ້/ຜູ້ສະໜອງ";
+  }
+
+  if (!formData.description) {
+    newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
+  }
+
+  if (!formData.type) {
+    newErrors.type = "ກະລຸນາເລືອກປະເພດ";
+  }
+
+  if (!formData.paymentMethod) {
+    newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີຈ່າຍ";
+  }
+
+  if (!formData.date) {
+    newErrors.date = "ກະລຸນາເລືອກວັນທີ";
+  }
+
+  if (!formData.note) {
+    newErrors.note = "ກະລຸນາປ້ອນໝາຍເຫດ";
+  }
+
+  const hasValidAmount = (formData.amounts || []).some(
+    (item) => parseFloat(item.amount) > 0
+  );
+
+  if (!hasValidAmount) {
+    newErrors.amounts = "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
+  }
+
+  return newErrors;
+};
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -370,24 +408,18 @@ export default function IncomeExpense() {
       );
 
       // ตรวจว่าข้อมูลจำเป็นครบไหม
-      if (
-        !hasValidAmount ||
-        !formData.serial ||
-        !formData.description ||
-        !formData.type ||
-        !formData.paymentMethod ||
-        !formData.date ||
-        !formData.note
-      ) {
-        toast({
-          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-          description: "ກະລຸນາປ້ອນຂໍ້ມູນທຸກຊ່ອງໃຫ້ຄົບຖ້ວນ",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
+    const errors = validateForm();
+  if (Object.keys(errors).length > 0) {
+    toast({
+      title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+      description: Object.values(errors).join(" , "),
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+    });
+    return;
+  }
+
       const endpoint = `${
         import.meta.env.VITE_API_URL
       }/api/income-expense/bulk`;
@@ -425,6 +457,7 @@ export default function IncomeExpense() {
           isClosable: true,
         });
         onClose();
+         setSelectedTransactions([])
       } else {
         const data = await response.json();
         toast({
@@ -488,6 +521,7 @@ export default function IncomeExpense() {
       if (response.ok) {
         setShowForm(false);
         fetchTransactions();
+        
         toast({
           title: "ສຳເລັດ",
           description: "ແກ້ໄຂລາຍການສຳເລັດ",
@@ -496,6 +530,7 @@ export default function IncomeExpense() {
           isClosable: true,
         });
         onEditClose();
+           setSelectedTransactions([])
       } else {
         const data = await response.json();
         toast({

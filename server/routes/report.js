@@ -344,7 +344,7 @@ router.get("/", authenticate, async (req, res) => {
             summary.byCurrency[cur].receivable += amount;
           } else if (item.type === "payable") {
             summary.byCurrency[cur].payable += amount;
-          } else if (item.type === "OPO" && item.status === "APPROVED") {
+          } else if (item.type === "OPO" && item.status_Ap === "APPROVED") {
             summary.byCurrency[cur].opo += amount;
           }
 
