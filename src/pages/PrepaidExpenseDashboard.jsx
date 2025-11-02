@@ -162,6 +162,7 @@ export default function PrepaidExpenseDashboard() {
         a.meta?.company,
         a.employee_id?.full_name,
         a.requester,
+        a.serial,
       ].filter(Boolean);
 
       if (
