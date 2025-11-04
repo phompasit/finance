@@ -1,0 +1,8 @@
+# //เพื่อกันไม่ให้ Railway เห็นโค้ด React แล้วเอาไป deploy เป็น static
+dist
+client
+frontend
+build
+node_modules
+.vscode
+.git
