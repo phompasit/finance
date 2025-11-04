@@ -37,9 +37,13 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "./.env") });
 
 const app = express();
-// ✅ Allow preflight (OPTIONS) requests for all routes
-app.options("*", cors(corsOptions), (req, res) => {
-  res.sendStatus(204);
+
+app.options("*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  res.header("Access-Control-Allow-Credentials", "true");
+  return res.sendStatus(204);
 });
 // ============================================
 // 🔒 SECURITY MIDDLEWARE (Order matters!)
