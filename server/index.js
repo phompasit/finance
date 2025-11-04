@@ -244,7 +244,7 @@ process.on("unhandledRejection", (reason, promise) => {
 const PORT = process.env.PORT || 5001
 app.listen(PORT, () => {
   console.log("=".repeat(50));
-  console.log(`🚀 Server runng on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`🌍 CORS enabled for configured origins`);
   console.log(`🔒 Security middleware active`);
