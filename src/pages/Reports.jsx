@@ -367,38 +367,78 @@ body {
 }
 
 .header-line1 {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   color: #000;
   margin-bottom: 5px;
 }
 
 .header-line2 {
-  font-size: 13px;
-  font-weight: 500;
-  color: #000;
-}
-
-.company-info {
-  text-align: left;
-  font-size: 12px;
-  color: #333;
-  margin-bottom: 12px;
-  line-height: 1.6;
-}
-
-.company-name {
+  font-size: 18px;
   font-weight: 700;
   color: #000;
 }
 
+/* Company Info */
+.company-info {
+ display: flex;
+    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
+    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
+    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
+  text-align: left;
+  margin-bottom: 15px;
+  line-height: 1.8;
+    font-weight: 700;
+}
+ .company-info div {
+    white-space: nowrap;     /* ไม่ให้ขึ้นบรรทัดใหม่ */
+  }
+.company-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #000;
+}
+
+.company-address {
+  font-size: 12px;
+  color: #333;
+  font-weight: 700;
+}
+
+/* Top Header */
+.topHeader {
+  font-weight: 700;
+}
+
+.topHeader div {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Date Section */
 .date-section {
   text-align: right;
-  margin-bottom: 12px;
+  margin-bottom: 15px;
   font-size: 12px;
   color: #000;
-  font-weight: 500;
+   font-weight: 700;
 }
+
+.date-section input {
+  border: none;
+  border-bottom: 1px dotted #000;
+  padding: 4px 8px;
+  font-family: 'Noto Sans Lao', sans-serif;
+  text-align: center;
+  width: 140px;
+  background: transparent;
+  font-size: 12px;
+   font-weight: 700;
+}
+
 
 .report-title {
   text-align: center;
@@ -442,7 +482,7 @@ th {
 td {
   padding: 6px;
   border: 1px solid #000;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   word-wrap: break-word;
   white-space: normal;
@@ -458,7 +498,7 @@ tbody tr:nth-child(even) {
 .summary-row td {
   background: #e5e7eb !important;
   font-weight: 700 !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   padding: 8px 6px !important;
   border: 1.5px solid #000 !important;
 }
@@ -469,33 +509,64 @@ tbody tr:nth-child(even) {
 }
 
 /* Signature */
-.signature-section {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  margin-top: 30px;
-  padding-top: 20px;
+
+/* Signatures */
+.signatures {
+  background: #fff;
+  border: 1.5px solid #000;
+  padding: 15px;
+  margin-top: 20px;
   page-break-inside: avoid;
 }
 
-.signature-box {
-  text-align: right;
+.signature-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 15px;
+  color: #000;
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.signature-cell {
+  text-align: center;
+  border: 1px solid #000;
+  padding: 15px 10px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
 }
 
 .signature-label {
+  font-size: 11px;
   font-weight: 600;
-  margin-bottom: 50px;
   color: #000;
-  font-size: 13px;
+  line-height: 1.4;
+}
+
+.signature-area {
+  margin-top: auto;
 }
 
 .signature-line {
   border-top: 1px solid #000;
-  margin: 0 10px;
-  padding-top: 5px;
-  font-size: 10px;
-  color: #666;
+  width: 70%;
+  margin: 50px auto 0;
+  padding-top: 6px;
 }
-
+.signature-date {
+  text-align: right;
+  font-size: 12px;
+  color: #000;
+  margin: 25px 0 15px 0;
+}
 /* Print Styles */
 @media print {
   @page {
@@ -559,7 +630,7 @@ tbody tr:nth-child(even) {
   td {
     border: 1px solid #000 !important;
     padding: 5px 4px !important;
-    font-size: 9.5px !important;
+    font-size: 12px !important;
     white-space: normal;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -574,10 +645,43 @@ tbody tr:nth-child(even) {
     font-weight: 700 !important;
     border: 1.5px solid #000 !important;
   }
-
-  .signature-section {
+ .summary-row td {
+    background: #e5e7eb !important;
+    border: 1.5px solid #000 !important;
+    font-size: 10px !important;
+  }
+  .signature-date {
+  text-align: right;
+  font-size: 12px;
+  color: #000;
+  margin: 25px 0 15px 0;
+}
+  .signatures {
     page-break-inside: avoid;
-    break-inside: avoid;
+    border: 1.5px solid #000 !important;
+    padding: 12px;
+  }
+  
+  .signature-grid {
+    gap: 12px;
+  }
+  
+  .signature-cell {
+    border: 1px solid #000 !important;
+    min-height: 110px;
+  }
+  
+  .signature-label {
+    font-size: 10px !important;
+  }
+  
+  .signature-line {
+    margin-top: 40px;
+  }
+  
+  input {
+    border: none !important;
+    border-bottom: 1px dotted #000 !important;
   }
 }
 </style>
@@ -604,41 +708,35 @@ tbody tr:nth-child(even) {
         <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</div>
       </div>
       
-      <div class="company-info" style="text-align: left; font-size: 12px; color: #555;">
-        <div class="company-name" style="font-weight: normal;">${
-          user?.companyInfo?.name
-        }</div>
-        <div class="company-address" style="margin-top: 2px;">${
-          user?.companyInfo?.address
-        }</div>
-        <div class="company-address">${user?.companyInfo?.phone || ""}</div>
+ <div class="company-info">
+      <div>
+        <div class="company-name">${user?.companyInfo?.name || ""}</div>
+        <div class="company-address">${user?.companyInfo?.address || ""}</div>
+          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
       </div>
-      
-      <!-- ວັນທີ -->
-      <div class="date-section">
-        ວັນທີ: ${formatDate(new Date()) || "N/A"}
+          <div class="topHeader">ລາຍງານການເງິນ</div>
+          <!-- Date Section -->
+          <div class="date-section">
+            ວັນທີ: <input type="text" value="${formatDate(
+              new Date()
+            )}" readonly>
+          </div>
       </div>
-      
-      <!-- ຫົວຂໍ້ລາຍງານ -->
-      <div class="report-title">
-        <h2>ລາຍງານການເງິນ</h2>
-      </div>
-      
       <!-- ຕາຕະລາງຂໍ້ມູນ -->
       <div class="table-section">
         <table>
           <thead>
             <tr>
-              <th style="width: 35px;">ລຳດັບ</th>
-              <th style="width: 70px;">ວັນ/ເດືອນ/ປີ</th>
-              <th style="width: 60px;">ເລກທີ</th>
-              <th style="width: 200px;">ເນື້ອໃນລາຍການ</th>
-              <th style="width: 90px;">ຈຳນວນ<br/>(ກີບ)</th>
-              <th style="width: 90px;">ຈຳນວນ<br/>(ບາດ)</th>
-              <th style="width: 90px;">ຈຳນວນ<br/>(ໂດລາ)</th>
-              <th style="width: 90px;">ຈຳນວນ<br/>(ຢວນ)</th>
-              <th style="width: 100px;">ປະເພດ<br/></th>
-              <th style="width: 120px;">ໝາຍເຫດ</th>
+              <th style=" font-size:12px;  width: 35px;">ລຳດັບ</th>
+              <th style=" font-size:12px;  width: 70px;">ວັນ/ເດືອນ/ປີ</th>
+              <th style=" font-size:12px;  width: 60px;">ເລກທີ</th>
+              <th style=" font-size:12px;  width: 200px;">ເນື້ອໃນລາຍການ</th>
+              <th style=" font-size:12px;  width: 90px;">ຈຳນວນ<br/>(ກີບ)</th>
+              <th style=" font-size:12px;  width: 90px;">ຈຳນວນ<br/>(ບາດ)</th>
+              <th style=" font-size:12px;  width: 90px;">ຈຳນວນ<br/>(ໂດລາ)</th>
+              <th style=" font-size:12px;  width: 90px;">ຈຳນວນ<br/>(ຢວນ)</th>
+              <th style=" font-size:12px;  width: 100px;">ປະເພດ<br/></th>
+              <th style=" font-size:12px;  width: 120px;">ໝາຍເຫດ</th>
             </tr>
           </thead>
           <tbody>
@@ -654,32 +752,34 @@ tbody tr:nth-child(even) {
 
                       return `
                       <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td style="text-align: center;">${formatDate(
+                        <td style="font-size:12px; text-align: center;">${
+                          index + 1
+                        }</td>
+                        <td style=" font-size:12px;  text-align: center;">${formatDate(
                           item.date
                         )}</td>
-                        <td style="text-align: center;">${
+                        <td style=" font-size:12px;  text-align: center;">${
                           item.serial || "-"
                         }</td>
-                        <td style="text-align: left; padding-left: 6px;">${
+                        <td style=" font-size:12px;  text-align: left; padding-left: 6px;">${
                           amt.description || item.description || "-"
                         }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
+                        <td style=" font-size:12px;  text-align:left ; padding-right: 6px;">${
                           kipAmount > 0 ? kipAmount.toLocaleString() : "-"
                         }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
+                        <td style=" font-size:12px;  text-align:left ; padding-right: 6px;">${
                           thbAmount > 0 ? thbAmount.toLocaleString() : "-"
                         }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
+                        <td style=" font-size:12px;  text-align:left ; padding-right: 6px;">${
                           usdAmount > 0 ? usdAmount.toLocaleString() : "-"
                         }</td>
-                        <td style="text-align: right; padding-right: 6px;">${
+                        <td style=" font-size:12px;  text-align:left ; padding-right: 6px;">${
                           cnyAmount > 0 ? cnyAmount.toLocaleString() : "-"
                         }</td>
-                        <td style="font-size:10px; text-align: left; padding-left: 6px;">${getTypeBadgePrint(
+                        <td style="font-size:12px; text-align: left; padding-left: 6px;">${getTypeBadgePrint(
                           amt.type || item.type || "-"
                         )}</td>
-                        <td style="text-align: left; padding-left: 6px;">${
+                        <td style=" font-size:12px;  text-align: left; padding-left: 6px;">${
                           amt.notes || item.notes || "-"
                         }</td>
                       </tr>
@@ -759,11 +859,50 @@ tbody tr:nth-child(even) {
         </table>
       </div>
 
-      <div class="signature-section">
-        <div class="signature-box">
-          <div class="signature-label">ຜູ້ສ້າງລາຍງານ</div>
+    <!-- Signature Section -->
+      <div class="signature-date">
+        ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
+      </div>
+  <div class="signatures">
+      <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
+      <div class="signature-grid">
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ສັງລວມ<br></span>
+          <div class="signature-area">
+            <div class="signature-line">
+          
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</span>
+          <div class="signature-area">
+            <div class="signature-line">
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ຈັດການ</span>
+          <div class="signature-area">
+            <div class="signature-line">
+
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">CEO & CFO</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name"></div>
+
+            </div>
+          </div>
         </div>
       </div>
+    </div>
+
     </div>
   </div>
 </body>

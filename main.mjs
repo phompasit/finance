@@ -1,65 +1,80 @@
-// import { app, BrowserWindow } from "electron";
-// import path from "path";
-// import { fileURLToPath } from "url";
-// import { spawn } from "child_process";
-// import { existsSync } from "fs";
+import { app, BrowserWindow } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
+import { spawn } from "child_process";
+import { log } from "console";
 
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// let mainWindow;
-// let serverProcess;
+let mainWindow;
+let backendProcess;
 
-// const isDev = process.env.NODE_ENV === "development";
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false, // ✅ ปิด web security เพื่อให้โหลด file:// ได้
+    },
+  });
 
-// function createWindow() {
-//   mainWindow = new BrowserWindow({
-//     width: 1200,
-//     height: 800,
-//     webPreferences: {
-//       nodeIntegration: true,
-//       contextIsolation: false,
-//     },
-//   });
+  // โหลด React app ที่ build แล้ว
+  const indexPath = path.join(__dirname, "dist", "index.html");
+  console.log("Loading index from:", indexPath);
+  mainWindow.loadFile(indexPath);
+}
 
-//   if (isDev) {
-//     mainWindow.loadURL("http://localhost:5173"); // Dev mode
-//   } else {
-//     const indexPath = path.join(__dirname, "./dist/index.html"); // Production build
-//     if (existsSync(indexPath)) {
-//       mainWindow.loadFile(indexPath);
-//     } else {
-//       console.error("❌ Dist folder not found:", indexPath);
-//     }
-//   }
+function startBackend() {
+  const isDev = !app.isPackaged;
 
-//   mainWindow.on("closed", () => {
-//     mainWindow = null;
-//   });
-// }
-// mainWindow.webContents.openDevTools();
-// function startServer() {
-//   const serverPath = path.join(__dirname, "server", "index.js");
-//   serverProcess = spawn("node", [serverPath], {
-//     stdio: "inherit",
-//     shell: true,
-//   });
-// }
-// console.log("🧭 isDev:", isDev);
-// console.log("📂 Current directory:", __dirname);
-// console.log(
-//   "📄 Loading file from:",
-//   isDev ? "http://localhost:5173" : path.join(__dirname, "dist", "index.html")
-// );
-// app.whenReady().then(() => {
-//   startServer();
-//   createWindow();
-// });
+  try {
+    if (isDev) {
+      const serverPath = path.join(__dirname, "server", "index.js");
+      backendProcess = spawn("node", [serverPath], {
+        stdio: "inherit",
+        shell: true,
+      });
+    } else {
+      const serverPath = path.join(
+        process.resourcesPath,
+        "app",
+        "server",
+        "index.js"
+      );
+      backendProcess = spawn(process.execPath, [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        shell: true,
+      });
+      log.info("Backend started (PRODUCTION mode):", serverPath);
+    }
 
-// app.on("window-all-closed", () => {
-//   if (serverProcess) {
-//     console.log("🛑 Stopping server...");
-//     serverProcess.kill();
-//   }
-//   if (process.platform !== "darwin") app.quit();
-// });
+    backendProcess.on("error", (err) => {
+      console.error("Failed to start backend:", err);
+    });
+
+    console.log("Backend started successfully");
+  } catch (error) {
+    console.error("Error starting backend:", error);
+  }
+}
+app.whenReady().then(() => {
+  // 🔹 รัน backend server
+  startBackend();
+  createWindow();
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+  if (backendProcess) backendProcess.kill();
+});
+// // "main": "server/index.js",
+    // "build:exe": "vite build && electron-builder",
+    // "start": "electron ."

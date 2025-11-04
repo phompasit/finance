@@ -882,11 +882,7 @@ const DebtManagementSystem = () => {
       );
       if (response.ok) {
         await fetchDebts();
-        setSelectedDebts((prev) => {
-          const newSet = prev;
-          newSet.delete(id);
-          return newSet;
-        });
+       
         toast({
           title: "ລົບສຳເລັດ",
           status: "success",
@@ -1224,30 +1220,37 @@ body {
   border-bottom: 3px double #000;
   padding-bottom: 12px;
   margin-bottom: 15px;
+     font-weight: 700;
+     font-size:18px,
 }
 
 .report-header .gov {
   font-weight: 700;
-  font-size: 15px;
   color: #000;
   margin-bottom: 5px;
+   font-size:18px,
 }
 
 .report-header .motto { 
-  font-size: 13px; 
+ font-size:18px,
   color: #000;
 }
-
-.company-info {  
-  font-size: 12px; 
-  color: #333; 
-  margin-bottom: 12px;
+.company-address{
+      font-weight: 700;
+}
+.company-info {
+ display: flex;
+    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
+    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
+    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
+  text-align: left;
+      font-weight: 700;
   line-height: 1.8;
+  font-size:12px;
 }
 
 .report-title {    
   text-align: center; 
-  font-size: 16px; 
   font-weight: 700; 
   color: #000;
   margin: 15px 0; 
@@ -1266,7 +1269,9 @@ body {
   text-align: right;
   font-size: 12px;
   color: #000;
+   font-weight: 700;
   margin-bottom: 15px;
+      font-weight: 700;
 }
 
 .date-section input {
@@ -1275,7 +1280,9 @@ body {
   width: 150px;
   text-align: center;
   font-family: inherit;
+   font-weight: 700;
   font-size: 12px;
+      font-weight: 700;
   background: transparent;
 }
 
@@ -1304,7 +1311,7 @@ body {
 
 .info-row {
   display: flex;
-  justify-content: space-between;
+
   padding: 8px 0;
   border-bottom: 1px solid #e5e7eb;
 }
@@ -1316,14 +1323,24 @@ body {
   min-width: 150px;
 }
 
-.info-value {
-  text-align: right;
-  color: #333;
-  font-size: 11px;
-  max-width: 70%;
-  word-wrap: break-word;
-}
+  .info-value {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start; /* หรือ flex-end ตาม layout */
+    gap: 10px; /* 👈 ระยะห่างระหว่างกล่อง */
+    font-family: "Noto Sans Lao", sans-serif;
+  }
 
+  .info-value span {
+    background: #fef2f2;       /* พื้นหลังแดงอ่อน */
+    color: #b91c1c;            /* ตัวอักษรแดงเข้ม */
+    border: 1px solid #fecaca; /* เส้นขอบอ่อน */
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+  }
 .badge {
   background: #f3f4f6;
   padding: 4px 8px;
@@ -1335,10 +1352,20 @@ body {
 .info-grid {
   margin-top: 10px;
 }
+  .info-item.info-row {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    font-family: "Noto Sans Lao", sans-serif;
+  }
 
-.info-item {
-  margin-bottom: 8px;
-}
+  .info-label {
+    font-weight: 600;
+    color: #374151;                   /* สีเทาเข้ม */
+    font-size: 16px;
+  }
+
+
 
 /* --------------------------------------------------------------
    Table
@@ -1372,7 +1399,7 @@ td {
   padding: 6px 8px;
   border: 1px solid #000;
   vertical-align: top;
-  font-size: 10px;
+  font-size: 12px;
   color: #000;
   line-height: 1.5;
 }
@@ -1393,13 +1420,14 @@ td {
 .installments td { 
   padding: 6px 8px;
   border: 1px solid #000;
+   font-size:12px,
 }
 
 /* Summary row */
 .summary-row td {
   background: #e5e7eb;
   font-weight: 700;
-  font-size: 11px;
+ font-size:12px,
   border: 1.5px solid #000;
 }
 
@@ -1407,6 +1435,7 @@ td {
 .grand-total td {
   background: #d1d5db;
   font-weight: 700;
+   font-size:12px,
   font-size: 11px;
   border: 1.5px solid #000;
 }
@@ -1496,8 +1525,9 @@ td {
   td {
     border: 1px solid #000 !important;
     padding: 5px 6px !important;
-    font-size: 9.5px !important;
+    font-size: 12px !important;
     line-height: 1.4;
+
   }
 
   .summary-row td,
@@ -1505,6 +1535,7 @@ td {
     background: #d1d5db !important;
     font-weight: 700 !important;
     border: 1.5px solid #000 !important;
+     font-size:12px,
   }
 
   .signature-section {
@@ -1518,7 +1549,7 @@ td {
   }
 
   .info-row {
-    border-bottom: 1px solid #d1d5db !important;
+  border-bottom: 1px dotted #d1d5db !important; /* เส้นจุดๆ */
   }
 }
 
@@ -1551,18 +1582,20 @@ td {
       <div class="motto">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
     </div>
 
-    <div class="company-info">
-      <div>${user?.companyInfo?.name || ""}</div>
-      <div>${user?.companyInfo?.address || ""}</div>
-      <div>${user?.companyInfo?.phone || ""}</div>
-    </div>
-
-    <div class="report-title">ລາຍງານການເງິນ</div>
-
-    <div class="date-section">
-      ວັນທີ: <input type="text" value="${formatDate(new Date())}" readonly>
-    </div>
-
+      <div class="company-info">
+      <div>
+        <div class="">${user?.companyInfo?.name || ""}</div>
+        <div class="">${user?.companyInfo?.address || ""}</div>
+          <div class="">${user?.companyInfo?.phone || ""}</div>
+      </div>
+          <div class="topHeader">ລາຍງານການເງິນ</div>
+          <!-- Date Section -->
+          <div class="date-section">
+            ວັນທີ: <input type="text" value="${formatDate(
+              new Date()
+            )}" readonly>
+          </div>
+      </div>
     <div class="table-wrapper">
    ${
      selectedDebts.length === 0
@@ -1638,12 +1671,17 @@ td {
       </div>
  <div class="info-item info-row">
         <div class="info-label">ຍອດເຫຼືອທີ່ຍັງບໍ່ຊຳລະ</div>
-        <div class="info-value">${remaining?.map(
-          (info, index) =>
-            `  <span style='color:red' key=${index}>${info.remaining.toLocaleString()} ${
-              info.currency
-            }`
-        )}</span></div>
+      <div className="info-value">
+  ${remaining?.map(
+    (info, index) =>
+      `<span key=${index} style="  color:#ff0000 ">
+      <span style="color:#ff0000">
+        ●
+      </span>
+      ${info.remaining.toLocaleString()} ${info.currency}
+    </span>`
+  )}
+</div>
       </div>
 
       
@@ -1669,7 +1707,7 @@ td {
   <td style="border:1px solid #93c5fd;text-align:center;">${formatDate(
     inst?.dueDate
   )}</td>
-  <td style="border:1px solid #93c5fd;text-align:right;">${inst?.amount?.toLocaleString(
+  <td style="border:1px solid #93c5fd;text-align:left;">${inst?.amount?.toLocaleString(
     "lo-LA"
   )}</td>
   <td style="border:1px solid #93c5fd;text-align:center;">${inst?.currency}</td>
@@ -1691,7 +1729,7 @@ td {
     <tr style="background:#363636;">
       <th>ງວດທີ່</th>
       <th>ວັນກຳນົດ</th>
-      <th style="text-align:right;">ຈຳນວນ</th>
+      <th>ຈຳນວນ</th>
       <th>ສະກຸນ</th>
       <th>ສະຖານະ</th>
       <th>ວັນທີ່ຊຳລະ</th>
@@ -1700,8 +1738,8 @@ td {
   <tbody>
     ${rows}
     <tr style="font-weight:bold">
-      <td colspan="2" style="text-align:right;">ລວມງວດທັງໝົດ:</td>
-      <td style="text-align:right;">${total.toLocaleString("lo-LA")}</td>
+      <td colspan="2" style="text-align:right;">ລວມຍອດທັງໝົດ:</td>
+      <td style="text-align:left;">${total.toLocaleString("lo-LA")}</td>
       <td style="text-align:center;">${currency}</td>
       <td colspan="2" style="text-align:center;">ຊຳລະແລ້ວ: ${paidCount}/${
                      list.length

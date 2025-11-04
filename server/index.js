@@ -115,7 +115,6 @@ mongoose.connection.on("disconnected", () => {
 // ============================================
 // 🔒 HEALTH CHECK (Before rate limiting)
 // ============================================
-
 app.get("/health", (req, res) => {
   const healthCheck = {
     status: "OK",
@@ -239,8 +238,7 @@ process.on("unhandledRejection", (reason, promise) => {
 // 🚀 START SERVER
 // ============================================
 
-const PORT = process.env.PORT || 5000;
-
+const PORT = process.env.PORT || 5001
 app.listen(PORT, () => {
   console.log("=".repeat(50));
   console.log(`🚀 Server running on port ${PORT}`);

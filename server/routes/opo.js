@@ -9,22 +9,32 @@ router.get("/", authenticate, async (req, res) => {
   try {
     const { status, startDate, endDate } = req.query;
     const query = {};
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const page = parseInt(req.query.page) || 30;
+    const skip = (page - 1) * limit;
+    /////
     if (req.user.role === "admin") {
       query.userId = req.user._id;
     } else {
       query.userId = req.user.companyId;
     }
+    /////
     if (status) query.status = status;
+    /////
     if (startDate || endDate) {
       query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
+      if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate))
+        return res.status(400).json({ message: "Invalid startDate format" });
+      if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))
+        return res.status(400).json({ message: "Invalid endDate format" });
     }
-
+    /////
     const records = await OPO.find(query)
       .populate("userId", "username email role companyInfo")
       .populate("staff", "username email role")
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
     res.json(records);
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });

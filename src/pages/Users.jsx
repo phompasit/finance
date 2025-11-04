@@ -28,6 +28,7 @@ import {
   useDisclosure,
   VStack,
   IconButton,
+  Text,
 } from "@chakra-ui/react";
 import { EditIcon } from "@chakra-ui/icons";
 
@@ -252,21 +253,51 @@ export default function Users() {
       >
         ຈັດການຜູ້ໃຊ້ງານ
       </Heading>
-      <p
-        style={{
-          color: "#b71c1c", // สีแดงเข้ม
-          backgroundColor: "#ffebee", // สีพื้นอ่อน
-          padding: "12px 16px",
-          borderRadius: "8px",
-          fontWeight: "bold",
-          border: "1px solid #f44336",
-          fontFamily: "Noto Sans Lao, sans-serif",
-        }}
+          <Box fontFamily="'Noto Sans Lao', sans-serif" lineHeight="1.8">
+      {/* กล่องแจ้งเตือนสีแดง */}
+      <Box
+      fontFamily="Noto Sans Lao, sans-serif"
+        color="#b71c1c"
+        bg="#ffebee"
+        p="12px 16px"
+        borderRadius="8px"
+        fontWeight="bold"
+        border="1px solid #f44336"
+        fontSize="14px"
+        mb="16px"
       >
         ⚠️ ຫ້າມລົບບັນຊີຜູ້ໃຊ້ເດັດຂາດ!
-        ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້ ແລະ
-        ບໍ່ສາມາດກູ້ຄືນໄດ້
-      </p>
+        <br />
+        ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້
+        ແລະບໍ່ສາມາດກູ້ຄືນໄດ້
+      </Box>
+
+      {/* กล่องอธิบายกติกา */}
+      <Box
+        bg="#f9f9f9"
+        borderLeft="4px solid #2196f3"
+        p="12px 16px"
+        borderRadius="6px"
+        fontSize="13.5px"
+      >
+        <Text fontFamily="Noto Sans Lao, sans-serif" mb="8px">
+          • <strong>account</strong> ທີ່ມີບົດບາດເປັນ <strong>admin</strong> =
+          1 ບໍລິສັດ
+        </Text>
+        <Text fontFamily="Noto Sans Lao, sans-serif" mb="8px">
+          • <strong>account</strong> ໃດທີ່ສ້າງບັນຊີ <strong>staff</strong> ຫຼື{" "}
+          <strong>master</strong> — account ນັ້ນສາມາດເບີງຂໍ້ມູນຂອງບໍລິສັດນັ້ນໄດ້ເທົ່ານັ້ນ
+        </Text>
+        <Text fontFamily="Noto Sans Lao, sans-serif">
+          • ບົດບາດ <strong>admin</strong> ສາມາດມີໄດ້ພຽງແຕ່{" "}
+          <strong>account ດຽວ</strong> — ຖ້າຕ້ອງການສ້າງ{" "}
+          <strong>staff / master</strong> ໃຫ້ລ໋ອກອິນເຂົ້າ admin ຂອງadminນັ້ນ 
+        </Text>
+      </Box>
+    </Box>
+
+
+
       <Button colorScheme="green" mb={4} onClick={onOpen}>
         ເພີ່ມສະມາຊິກໃໝ່
       </Button>
@@ -287,7 +318,8 @@ export default function Users() {
           <Tbody>
             {Object.entries(
               users?.reduce((groups, user) => {
-                const companyName = user?.companyInfo?.name || "ບໍ່ມີຊື່ບໍລິສັດ";
+                const companyName =
+                  user?.companyInfo?.name || "ບໍ່ມີຊື່ບໍລິສັດ";
                 if (!groups[companyName]) groups[companyName] = [];
                 groups[companyName].push(user);
                 return groups;

@@ -360,43 +360,43 @@ export default function IncomeExpense() {
     if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
   };
-const validateForm = () => {
-  const newErrors = {};
+  const validateForm = () => {
+    const newErrors = {};
 
-  if (!formData.serial) {
-    newErrors.serial = "ກະລຸນາເລືອກລູກໜີ້/ຜູ້ສະໜອງ";
-  }
+    if (!formData.serial) {
+      newErrors.serial = "ກະລຸນາເລືອກລູກໜີ້/ຜູ້ສະໜອງ";
+    }
 
-  if (!formData.description) {
-    newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
-  }
+    if (!formData.description) {
+      newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
+    }
 
-  if (!formData.type) {
-    newErrors.type = "ກະລຸນາເລືອກປະເພດ";
-  }
+    if (!formData.type) {
+      newErrors.type = "ກະລຸນາເລືອກປະເພດ";
+    }
 
-  if (!formData.paymentMethod) {
-    newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີຈ່າຍ";
-  }
+    if (!formData.paymentMethod) {
+      newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີຈ່າຍ";
+    }
 
-  if (!formData.date) {
-    newErrors.date = "ກະລຸນາເລືອກວັນທີ";
-  }
+    if (!formData.date) {
+      newErrors.date = "ກະລຸນາເລືອກວັນທີ";
+    }
 
-  if (!formData.note) {
-    newErrors.note = "ກະລຸນາປ້ອນໝາຍເຫດ";
-  }
+    if (!formData.note) {
+      newErrors.note = "ກະລຸນາປ້ອນໝາຍເຫດ";
+    }
 
-  const hasValidAmount = (formData.amounts || []).some(
-    (item) => parseFloat(item.amount) > 0
-  );
+    const hasValidAmount = (formData.amounts || []).some(
+      (item) => parseFloat(item.amount) > 0
+    );
 
-  if (!hasValidAmount) {
-    newErrors.amounts = "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
-  }
+    if (!hasValidAmount) {
+      newErrors.amounts = "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
+    }
 
-  return newErrors;
-};
+    return newErrors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -408,17 +408,17 @@ const validateForm = () => {
       );
 
       // ตรวจว่าข้อมูลจำเป็นครบไหม
-    const errors = validateForm();
-  if (Object.keys(errors).length > 0) {
-    toast({
-      title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-      description: Object.values(errors).join(" , "),
-      status: "error",
-      duration: 3000,
-      isClosable: true,
-    });
-    return;
-  }
+      const errors = validateForm();
+      if (Object.keys(errors).length > 0) {
+        toast({
+          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+          description: Object.values(errors).join(" , "),
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
 
       const endpoint = `${
         import.meta.env.VITE_API_URL
@@ -457,7 +457,7 @@ const validateForm = () => {
           isClosable: true,
         });
         onClose();
-         setSelectedTransactions([])
+        setSelectedTransactions([]);
       } else {
         const data = await response.json();
         toast({
@@ -521,7 +521,7 @@ const validateForm = () => {
       if (response.ok) {
         setShowForm(false);
         fetchTransactions();
-        
+
         toast({
           title: "ສຳເລັດ",
           description: "ແກ້ໄຂລາຍການສຳເລັດ",
@@ -530,7 +530,7 @@ const validateForm = () => {
           isClosable: true,
         });
         onEditClose();
-           setSelectedTransactions([])
+        setSelectedTransactions([]);
       } else {
         const data = await response.json();
         toast({
@@ -714,25 +714,34 @@ body {
 }
 
 .header-line1 {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   color: #000;
+    font-weight: 700;
   margin-bottom: 5px;
 }
 
 .header-line2 {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 18px;
+   font-weight: 700;
+   
   color: #000;
 }
 
 /* Company Info */
 .company-info {
+ display: flex;
+    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
+    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
+    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
   text-align: left;
   margin-bottom: 15px;
   line-height: 1.8;
+    font-weight: 700;
 }
-
+ .company-info div {
+    white-space: nowrap;     /* ไม่ให้ขึ้นบรรทัดใหม่ */
+  }
 .company-name {
   font-size: 13px;
   font-weight: 700;
@@ -742,12 +751,12 @@ body {
 .company-address {
   font-size: 12px;
   color: #333;
+  font-weight: 700;
 }
 
 /* Top Header */
 .topHeader {
-  text-align: center;
-  margin: 20px 0 25px 0;
+  font-weight: 700;
 }
 
 .topHeader div {
@@ -764,6 +773,7 @@ body {
   margin-bottom: 15px;
   font-size: 12px;
   color: #000;
+   font-weight: 700;
 }
 
 .date-section input {
@@ -775,6 +785,7 @@ body {
   width: 140px;
   background: transparent;
   font-size: 12px;
+   font-weight: 700;
 }
 
 /* Table */
@@ -809,7 +820,7 @@ th {
 }
 
 td {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   color: #000;
   vertical-align: top;
@@ -1025,17 +1036,20 @@ td:nth-child(8) {
       </div>
            <!-- Company Info -->
       <div class="company-info">
+      <div>
         <div class="company-name">${user?.companyInfo?.name || ""}</div>
         <div class="company-address">${user?.companyInfo?.address || ""}</div>
           <div class="company-address">${user?.companyInfo?.phone || ""}</div>
       </div>
-  <div class="topHeader">
-  <div class="">ລາຍງານການເງິນ</div>
-  </div>
-      <!-- Date Section -->
-      <div class="date-section">
-        ວັນທີ: <input type="text" value="${formatDate(new Date())}" readonly>
+          <div class="topHeader">ລາຍງານການເງິນ</div>
+          <!-- Date Section -->
+          <div class="date-section">
+            ວັນທີ: <input type="text" value="${formatDate(
+              new Date()
+            )}" readonly>
+          </div>
       </div>
+
       
       <!-- Table Section -->
       <div class="table-section">
@@ -1145,7 +1159,7 @@ td:nth-child(8) {
           </div>
         </div>
         <div class="signature-cell">
-          <span class="signature-label">ພະແນກບັນຊີສ່ວນກາງ</span>
+          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</span>
           <div class="signature-area">
             <div class="signature-line">
 

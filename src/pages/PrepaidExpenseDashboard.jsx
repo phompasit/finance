@@ -60,6 +60,8 @@ import {
   RefreshCw,
   Printer,
   Plus,
+  ChevronRightIcon,
+  ChevronLeftIcon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -189,7 +191,14 @@ export default function PrepaidExpenseDashboard() {
 
     return true;
   });
-
+  const pageSize = 30;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(filteredAdvances.length / pageSize);
+  const offset = (page - 1) * pageSize;
+  const pageData = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filteredAdvances.slice(s, s + pageSize);
+  }, [filteredAdvances, page]);
   // 🔹 สรุปยอดรวมทุกสกุลเงิน
   const summary = useMemo(() => {
     if (!Array.isArray(filteredAdvances)) return [];
@@ -887,26 +896,50 @@ export default function PrepaidExpenseDashboard() {
       margin-bottom: 18px;
     }
     .gov-header .line1 {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: 0.5px;
     }
     .gov-header .line2 {
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 18px;
+      font-weight: 700;
       margin-top: 4px;
     }
 
     /* === ข้อมูลบริษัท === */
-    .company-info {
-      margin-bottom: 16px;
-      font-size: 13px;
-      line-height: 1.7;
-    }
-    .company-name {
-      font-weight: 700;
-      font-size: 14px;
-    }
+    .date-section {
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 12px;
+  color: #000;
+   font-weight: 700;
+
+}
+   .date-section input {
+  border: none;
+  border-bottom: 1px dotted #000;
+  padding: 4px 8px;
+  font-family: 'Noto Sans Lao', sans-serif;
+  text-align: center;
+  width: 140px;
+  background: transparent;
+  font-size: 12px;
+   font-weight: 700;
+}
+.company-info {
+ display: flex;
+    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
+    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
+    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
+  text-align: left;
+  margin-bottom: 15px;
+  line-height: 1.8;
+  font-size:12px;
+    font-weight: 700;
+}
+ .company-info div {
+    white-space: nowrap;     /* ไม่ให้ขึ้นบรรทัดใหม่ */
+  }
 
     /* === หัวเรื่องหลัก === */
     .main-title {
@@ -957,19 +990,22 @@ export default function PrepaidExpenseDashboard() {
       white-space: nowrap;
     }
 
-    td {
-      border: 1px solid #000;
-      padding: 7px 6px;
-      vertical-align: top;
-      font-size: 10.5px;
-    }
+td {
+  border: 1px solid #000;
+  padding: 7px 6px;
+  vertical-align: top;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  text-align: left; /* 👈 ให้ข้อความอยู่ชิดซ้าย */
+}
 
     /* จัดแนวคอลัมน์ */
-    td:nth-child(1), td:nth-child(2), td:nth-child(3) { text-align: center; }
-    td:nth-child(4), td:nth-child(5), td:nth-child(11) { text-align: left; padding-left: 8px; }
+    td:nth-child(1), td:nth-child(2), td:nth-child(3) {   font-size: 12px; text-align: left;  center; }
+    td:nth-child(4), td:nth-child(5), td:nth-child(11) {  font-size: 12px; text-align: left; padding-left: 8px; }
     td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { 
-      text-align: right; 
+      text-align: left; 
       padding-right: 8px; 
+       font-size: 12px;
       font-family: 'Courier New', monospace;
     }
 
@@ -1146,82 +1182,131 @@ export default function PrepaidExpenseDashboard() {
     </div>
 
     <!-- ข้อมูลบริษัท -->
-    <div class="company-info">
-      <div class="company-name">${
-        user?.companyInfo?.name || "ບໍລິສັດ ຈຳກັດ"
-      }</div>
-      <div>ທີ່ຢູ່: ${user?.companyInfo?.address || "-"}</div>
-      <div>ໂທລະສັບ: ${user?.companyInfo?.phone || "-"}</div>
-    </div>
-
-    <!-- หัวเรื่อง -->
-    <div class="main-title">ລາຍງານການເງິນ</div>
-
-    <!-- วันที่ -->
-    <div class="date-print">
-      ວັນທີ: <input type="text" value="01/11/2025" readonly>
-    </div>
+      <div class="company-info">
+      <div>
+        <div class="company-name">${user?.companyInfo?.name || ""}</div>
+        <div class="company-address">${user?.companyInfo?.address || ""}</div>
+          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
+      </div>
+          <div class="topHeader">ລາຍງານການເງິນ</div>
+          <!-- Date Section -->
+          <div class="date-section">
+            ວັນທີ: <input type="text" value="${formatDate(
+              new Date()
+            )}" readonly>
+          </div>
+      </div>
 
     <!-- ตารางรายการ -->
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>ລຳດັບ</th>
-            <th>ວັນທີ</th>
-            <th>ເລກທີ່</th>
-            <th>ຜູ້ເບີກ</th>
-            <th>ເນື່ອໃນ</th>
-            <th>ຂໍເບີກ</th>
-            <th colspan="4">ສະຫຼຸບຍອດ (ແຕ່ລະສະກຸນ)</th>
-            <th>ໝາຍເຫດ</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${
-            selected
-              ?.map((item, index) => {
-                const requested =
-                  item.amount_requested
-                    ?.map((r) => `${r.amount.toLocaleString()} ${r.currency}`)
-                    .join(", ") || "0";
+<div class="table-container">
+  <table border="1" style="border-collapse: collapse; width: 100%; text-align: center; font-family: 'Noto Sans Lao', sans-serif;">
+    <thead style="background-color: #f3f4f6;">
+      <tr>
+        <th>ລຳດັບ</th>
+        <th>ວັນທີ</th>
+        <th>ເລກທີ່</th>
+        <th>ຜູ້ເບີກ</th>
+        <th>ເນື່ອໃນ</th>
+        <th>ຂໍເບີກ</th>
+        <th>ຍອດໃຊ້ຈິງ</th>
+        <th>ຍອດຄືນພະນັກງານ</th>
+        <th>ຍອດຄືນບໍລິສັດ</th>
+        <th>ຍອດຈ່າຍສຸດທິ</th>
+        <th>ໝາຍເຫດ</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${
+        selected
+          ?.map((item, index) => {
+            // ใน template string ของคุณ ให้แทนที่ส่วนคำนวณด้วยโค้ดนี้
+            const requests = item.amount_requested || [];
+            const summaries = item.summary || {};
 
-                const summaryHTML = item.summary
-                  ? Object.entries(item.summary)
-                      .map(([cur, data]) => {
-                        const spent = data.total_spent || 0;
-                        const retCo = data.total_return_to_company || 0;
-                        const refEm = data.total_refund_to_employee || 0;
-                        const net = spent - retCo + refEm;
-                        return `
-                      <div style="font-family:Noto Sans Lao, sans-serif " class="currency-block">
-                        <div class="currency-label">${cur}</div>
-                        ໃຊ້ຈ່າຍຈິງ: ${spent.toLocaleString()} | ຄືນບໍລິສັດ: ${retCo.toLocaleString()}<br>
-                        ຄືນພະນັກງານ: ${refEm.toLocaleString()} | <strong>ຈ່າຍສຸດທິ: ${net.toLocaleString()}</strong>
-                      </div>`;
-                      })
-                      .join("")
-                  : '<div class="currency-block">-</div>';
+            // รวมทุกสกุลที่มีใน requested หรือ summary
+            const currencies = [
+              ...new Set([
+                ...requests.map((r) => r.currency),
+                ...Object.keys(summaries),
+              ]),
+            ];
 
-                return `
-              <tr>
-                <td>${index + 1}</td>
-                <td>${formatDate(item.request_date)}</td>
-                <td>${item.serial}</td>
-                <td>${item.employee_id?.full_name || "-"}</td>
-                <td>${item.purpose || "-"}</td>
-                <td>${requested}</td>
-                <td colspan="4">
-                  <div class="currency-summary">${summaryHTML}</div>
-                </td>
-                <td>${item.meta?.note || ""}</td>
-              </tr>`;
+            return currencies
+              .map((cur, i) => {
+                const req = requests.find((r) => r.currency === cur);
+                const sum = summaries[cur] || {};
+
+                const spent = sum.total_spent || 0;
+                const retEmp = sum.total_refund_to_employee || 0;
+                const retCom = sum.total_return_to_company || 0;
+                const requestedAmount = req ? req.amount : 0;
+
+                // เลือกสูตรที่ถูกต้อง:
+                // ถ้ามี total_spent ให้ใช้มันเป็นหลัก (สมมติว่า spent = จำนวนที่ใช้จริง)
+                // ถ้าไม่มี spent ให้ใช้ requested - return_to_company + refund_to_employee
+                const netPaid =
+                  spent > 0
+                    ? spent + (retEmp || 0) // ถ้ามี refund_to_employee ให้บวกเข้า
+                    : requestedAmount - (retCom || 0) + (retEmp || 0);
+
+                // ฟอร์แมตเพื่อแสดงผล (ถ้าอยากให้เป็น '-' เมื่อไม่มีข้อมูล ให้ปรับได้)
+                const displayRequested = requestedAmount
+                  ? requestedAmount.toLocaleString() + " " + cur
+                  : "-";
+                const displaySpent = spent
+                  ? spent.toLocaleString() + " " + cur
+                  : "-";
+                const displayRetEmp = retEmp
+                  ? retEmp.toLocaleString() + " " + cur
+                  : "-";
+                const displayRetCom = retCom
+                  ? retCom.toLocaleString() + " " + cur
+                  : "-";
+                const displayNet = netPaid
+                  ? netPaid.toLocaleString() + " " + cur
+                  : "-";
+
+                if (i === 0) {
+                  return `
+        <tr>
+          <td rowspan="${currencies.length}">${index + 1}</td>
+          <td rowspan="${currencies.length}">${formatDate(
+                    item.request_date
+                  )}</td>
+          <td rowspan="${currencies.length}">${item.serial}</td>
+          <td rowspan="${currencies.length}">${
+                    item.employee_id?.full_name || "-"
+                  }</td>
+          <td style="  font-family: 'Noto Sans Lao', sans-serif" rowspan="${
+            currencies.length
+          }">${item.purpose || "-"}</td>
+          <td>${displayRequested}</td>
+          <td>${displaySpent}</td>
+          <td>${displayRetEmp}</td>
+          <td>${displayRetCom}</td>
+          <td><strong>${displayNet}</strong></td>
+          <td rowspan="${currencies.length}">${item.meta?.note || ""}</td>
+        </tr>`;
+                } else {
+                  return `
+        <tr>
+          <td>${displayRequested}</td>
+          <td>${displaySpent}</td>
+          <td>${displayRetEmp}</td>
+          <td>${displayRetCom}</td>
+          <td><strong>${displayNet}</strong></td>
+        </tr>`;
+                }
               })
-              .join("") || ""
-          }
-        </tbody>
-      </table>
-    </div>
+              .join("");
+          })
+          .join("") || ""
+      }
+    </tbody>
+  </table>
+</div>
+
+
 
     <!-- ตารางสรุปยอดรวม (ทุกสกุลเงิน) -->
     <div class="summary-table">
@@ -1237,70 +1322,80 @@ export default function PrepaidExpenseDashboard() {
           </tr>
         </thead>
         <tbody>
-          ${(() => {
-            const totalByCurrency = {};
-            selected?.forEach((item) => {
-              (item.amount_requested || []).forEach((req) => {
-                if (!totalByCurrency[req.currency]) {
-                  totalByCurrency[req.currency] = {
-                    requested: 0,
-                    spent: 0,
-                    returnCo: 0,
-                    refundEm: 0,
-                  };
-                }
-                totalByCurrency[req.currency].requested += req.amount;
-              });
+         ${(() => {
+           const totalByCurrency = {};
 
-              if (item.summary) {
-                Object.entries(item.summary).forEach(([cur, data]) => {
-                  if (!totalByCurrency[cur])
-                    totalByCurrency[cur] = {
-                      requested: 0,
-                      spent: 0,
-                      returnCo: 0,
-                      refundEm: 0,
-                    };
-                  totalByCurrency[cur].spent += data.total_spent || 0;
-                  totalByCurrency[cur].returnCo +=
-                    data.total_return_to_company || 0;
-                  totalByCurrency[cur].refundEm +=
-                    data.total_refund_to_employee || 0;
-                });
-              }
-            });
+           selected?.forEach((item) => {
+             // รวมยอดเบิกตามสกุล
+             (item.amount_requested || []).forEach((req) => {
+               if (!totalByCurrency[req.currency]) {
+                 totalByCurrency[req.currency] = {
+                   requested: 0,
+                   spent: 0,
+                   returnCo: 0,
+                   refundEm: 0,
+                 };
+               }
+               totalByCurrency[req.currency].requested += req.amount;
+             });
 
-            return (
-              Object.entries(totalByCurrency)
-                .map(([cur, t]) => {
-                  const net = t.spent - t.returnCo + t.refundEm;
-                  return `
-                  <tr style="background:#f9fafb; font-weight:600;">
-                    <td style="text-align:center;">${cur}</td>
-                    <td>${t.requested.toLocaleString()}</td>
-                    <td>${t.spent.toLocaleString()}</td>
-                    <td>${t.returnCo.toLocaleString()}</td>
-                    <td>${t.refundEm.toLocaleString()}</td>
-                    <td><strong>${net.toLocaleString()}</strong></td>
-                  </tr>`;
-                })
-                .join("") ||
-              "<tr><td colspan='6' style='text-align:center;'>ບໍ່ມີຂໍ້ມູນ</td></tr>"
-            );
-          })()}
+             // รวมยอดสรุป (ใช้จริง / คืน / refund)
+             if (item.summary) {
+               Object.entries(item.summary).forEach(([cur, data]) => {
+                 if (!totalByCurrency[cur])
+                   totalByCurrency[cur] = {
+                     requested: 0,
+                     spent: 0,
+                     returnCo: 0,
+                     refundEm: 0,
+                   };
+                 totalByCurrency[cur].spent += data.total_spent || 0;
+                 totalByCurrency[cur].returnCo +=
+                   data.total_return_to_company || 0;
+                 totalByCurrency[cur].refundEm +=
+                   data.total_refund_to_employee || 0;
+               });
+             }
+           });
+
+           // สร้าง HTML ตารางสรุป
+           return (
+             Object.entries(totalByCurrency)
+               .map(([cur, t]) => {
+                 // ใช้สูตรที่ถูกต้อง
+                 const net =
+                   t.spent > 0
+                     ? t.spent + (t.refundEm || 0) // ถ้ามี refund ให้บวกเข้า
+                     : t.requested - (t.returnCo || 0) + (t.refundEm || 0);
+
+                 return `
+          <tr style="background:#f9fafb; font-weight:600;">
+            <td style="text-align:center;">${cur}</td>
+            <td style="text-align:right;">${t.requested.toLocaleString()}</td>
+            <td style="text-align:right;">${t.spent.toLocaleString()}</td>
+            <td style="text-align:right;">${t.returnCo.toLocaleString()}</td>
+            <td style="text-align:right;">${t.refundEm.toLocaleString()}</td>
+            <td style="text-align:right;"><strong>${net.toLocaleString()}</strong></td>
+          </tr>`;
+               })
+               .join("") ||
+             "<tr><td colspan='6' style='text-align:center;'>ບໍ່ມີຂໍ້ມູນ</td></tr>"
+           );
+         })()}
+
         </tbody>
       </table>
     </div>
 
     <!-- วันที่ลงนาม -->
     <div class="signature-date">
-      ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ 01/11/2025
+      ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
     </div>
 
     <!-- ลายเซ็น 4 ช่อง -->
     <div class="signature-grid">
       <div class="sig-box">
-        <div class="sig-label">ປະທານ</div>
+        <div class="sig-label">CEO & CFO</div>
         <div class="sig-line">(..................................)</div>
       </div>
       <div class="sig-box">
@@ -1308,7 +1403,7 @@ export default function PrepaidExpenseDashboard() {
         <div class="sig-line">(..................................)</div>
       </div>
       <div class="sig-box">
-        <div class="sig-label">ບັນຊີ - ການເງິນ</div>
+        <div class="sig-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</div>
         <div class="sig-line">(..................................)</div>
       </div>
       <div class="sig-box">
@@ -1572,7 +1667,7 @@ export default function PrepaidExpenseDashboard() {
               </Tr>
             </Thead>
             <Tbody>
-              {filteredAdvances?.map((advance) => {
+              {pageData?.map((advance) => {
                 // 🔹 รวมสกุลเงินจาก summary และ amount_requested ทั้งหมด
                 const currencies = new Set([
                   ...(advance.amount_requested?.map((a) => a.currency) || []),
@@ -1841,6 +1936,43 @@ export default function PrepaidExpenseDashboard() {
             </Tbody>
           </Table>
         )}
+        <HStack paddingTop={"40px"} spacing={2} justify="center">
+          <IconButton
+            icon={<ChevronLeftIcon />}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            isDisabled={page === 1}
+            colorScheme="purple"
+            variant="outline"
+            borderRadius="full"
+            aria-label="Previous page"
+            _hover={{
+              transform: "scale(1.1)",
+            }}
+          />
+
+          <Badge
+            colorScheme="purple"
+            fontSize="md"
+            px={4}
+            py={2}
+            borderRadius="full"
+          >
+            {page} / {totalPages}
+          </Badge>
+
+          <IconButton
+            icon={<ChevronRightIcon />}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            isDisabled={page === totalPages}
+            colorScheme="purple"
+            variant="outline"
+            borderRadius="full"
+            aria-label="Next page"
+            _hover={{
+              transform: "scale(1.1)",
+            }}
+          />
+        </HStack>
       </Box>
 
       {/* Add Modal */}

@@ -9,8 +9,7 @@
     "client": "vite",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "preview": "vite preview",
-    "server": "nodemon server/index.js",
-    "start": "node server/index.js"
+    "server": "nodemon server/index.js"
   },
   "build": {
     "appId": "com.financial.app",
@@ -24,7 +23,7 @@
       "server/**/*",
       "package.json"
     ],
-    "asar": true,
+    "asar": false,
     "win": {
       "target": [
         "nsis"

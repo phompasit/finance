@@ -496,6 +496,12 @@ const OPOSystem = () => {
   const toast = useToast();
   const pageSize = 30;
   const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(filteredOpos.length / pageSize);
+  const pageData = useMemo(() => {
+    const s = (page - 1) * pageSize;
+    return filteredOpos.slice(s, s + pageSize);
+  }, [filteredOpos, page]);
+
   const shortDesc = (desc) => {
     if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
     return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
@@ -813,61 +819,6 @@ const OPOSystem = () => {
       }),
     [opos, searchTerm, filterStatus, filterDateFrom, filterDateTo]
   );
-  const totalPages = Math.ceil(filteredOpos.length / pageSize);
-  const pageData = useMemo(() => {
-    const s = (page - 1) * pageSize;
-    return filteredOpos.slice(s, s + pageSize);
-  }, [filteredOpos, page]);
-  const exportToCSV = () => {
-    const csvData = [
-      [
-        "ເລກທີ",
-        "ວັນທີ",
-        "ສະຖານະ",
-        "ລາຍລະອຽດ",
-        "ວິທີຊຳລະ",
-        "ສະກຸນເງິນ",
-        "ຈຳນວນເງິນ",
-        "ສາເຫດ",
-        "ໝາຍເຫດ",
-        "ຜູ້ຮ້ອງຂໍ",
-        "ຜູ້ຈັດການ",
-        "ຜູ້ສ້າງ",
-      ],
-      ...filteredOpos.flatMap((opo) =>
-        (opo.items || []).map((item) => [
-          opo.serial || opo.number,
-          opo.date,
-          STATUS_TEXTS[opo.status_Ap] || opo.status_Ap,
-          item.description,
-          PAYMENT_METHODS[item.paymentMethod],
-          item.currency,
-          item.amount,
-          item.reason || "",
-          item.notes || "",
-          opo.requester || "",
-          opo.manager || "",
-          opo.createdBy || "",
-        ])
-      ),
-    ];
-
-    const csvContent = csvData
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\ufeff" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `OPO_Export_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    toast({
-      title: "ສົ່ງອອກສຳເລັດ",
-      status: "success",
-      duration: 2000,
-    });
-  };
 
   const exportPDF = (opo) => {
     setSelectedOpo(opo);
@@ -965,9 +916,19 @@ const OPOSystem = () => {
       align-items: flex-start;
       padding-bottom: 6px;
       margin-bottom: 8px;
+      padding-left:20px;
       border-bottom: 2px solid #1a202c;
     }
-
+      .company-info {
+ display: flex;
+    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
+    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
+    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
+  text-align: left;
+  margin-bottom: 15px;
+  line-height: 1.8;
+    font-weight: 700;
+}
     .company-section {
       flex: 1;
       display: flex;
@@ -994,7 +955,7 @@ const OPOSystem = () => {
     }
 
     .company-name {
-      font-size: 13pt;
+      font-size: 12px
       font-weight: 700;
       color: #1a202c;
       margin-bottom: 3px;
@@ -1010,12 +971,15 @@ const OPOSystem = () => {
       flex: 1.2;
       text-align: center;
       padding: 0 10px;
+      font-weight:700;
+      font-size:18px;
     }
 
     .doc-reference {
       flex: 1;
       text-align: right;
       font-size: 7pt;
+      padding-right:10px;
       color: #4a5568;
     }
 
@@ -1106,24 +1070,84 @@ const OPOSystem = () => {
       margin-bottom: 6px;
       page-break-inside: avoid;
     }
+/* Toolbar */
+.toolbar {
+  padding: 15px 30px;
+  display: flex;
+  position: absolute;             /* 👈 แก้จาก comma เป็น semicolon */
+  justify-content: space-between; /* จัดระยะซ้าย-ขวา */
+  align-items: center;            /* จัดกึ่งกลางแนวตั้ง */
+  width: 100%;                    /* ให้ toolbar กว้างเต็มหน้าจอ */
+  top: 0;                         /* อยู่ติดขอบบน */
+  left: 0;                        /* อยู่ชิดซ้าย */
+  color: white;                   /* สีตัวอักษร */
+  z-index: 1000;                  /* ซ้อนอยู่บนสุด */
+}
 
-    .total-item {
-      padding: 6px 12px;
-      background: #1a202c;
-      color: white;
-      border-radius: 3px;
-      min-width: 150px;
-    }
+.toolbar h2 {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn-print {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Noto Sans Lao', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.btn-print:hover {
+  background: #059669;
+}
+  .date-section {
+  text-align: right;
+  margin-bottom: 15px;
+  font-size: 12px;
+  color: #000;
+   font-weight: 700;
+}
+
+.date-section input {
+  border: none;
+  border-bottom: 1px dotted #000;
+  padding: 4px 8px;
+  font-family: 'Noto Sans Lao', sans-serif;
+  text-align: center;
+  width: 140px;
+  background: transparent;
+  font-size: 12px;
+   font-weight: 700;
+}
+
+ .total-item {
+  padding: 6px 12px;
+  border-radius: 3px;
+  min-width: 150px;
+  border: 1px solid #1a202c; /* 👈 ขอบสีเทาอ่อนแบบ Tailwind gray-300 */
+}
 
     .signatures {
       background: #f7fafc;
       border: 2px solid #1a202c;
       border-radius: 4px;
       padding: 8px;
+      text-align: center;
       margin-top: 6px;
       page-break-before: auto;
       page-break-inside: avoid;
+      font-weight:700
     }
+
 
     .signature-grid {
       display: grid;
@@ -1154,7 +1178,9 @@ const OPOSystem = () => {
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
-
+  .toolbar {
+    display: none !important;
+  }
       thead {
         display: table-header-group;
       }
@@ -1183,23 +1209,21 @@ const OPOSystem = () => {
   </style>
 </head>
 <body>
+ <div class="toolbar">
+      <button class="btn-print" onclick="window.print()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        ພິມລາຍງານ
+      </button>
+    </div>
   <div class="document">
     <div class="header-band"></div>
     
     <!-- Header -->
     <div class="document-header">
-      <div class="company-section">
-        <div class="company-logo">C</div>
-        <div class="company-details">
-          <div class="company-name">${
-            user?.companyInfo?.name || "Company Name"
-          }</div>
-          <div class="contact-section">
-              <div>${user?.companyInfo?.address || ""}</div>
-      <div>${user?.companyInfo?.phone || ""}</div>
-          </div>
-        </div>
-      </div>
 
       <div class="national-header">
         <div class="header-line1">
@@ -1209,15 +1233,39 @@ const OPOSystem = () => {
           ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ
         </div>
       </div>
-
-      <div class="doc-reference">
- <div class="signature-date">ວັນທີ / Date:<br>${formatDate(new Date())}</div>
-      </div>
     </div>
 
     <!-- Title -->
+    <div class="company-info">
+         <div class="company-section">
+       <!-- <div class="company-logo">C</div> -->
+        <div class="company-details">
+        <div class="contact-section">
+        <div class="company-name">${
+          user?.companyInfo?.name || "Company Name"
+        }</div>
+        <div>${user?.companyInfo?.address || ""}</div>
+         <div>${user?.companyInfo?.phone || ""}</div>
+          </div>
+        </div>
+      </div>
+          <div>
     <div class="document-title">ໃບສັ່ງຈ່າຍ</div>
     <div class="document-subtitle">Office Payment Order(OPO)</div>
+    
+    </div>
+
+
+      <div class="doc-reference">
+      <div class="date-section">
+            ວັນທີ: <input type="text" value="${formatDate(
+              new Date()
+            )}" readonly>
+          </div>
+      </div>
+    
+    </div>
+
 
     <!-- Document Info -->
     <div class="doc-info">
@@ -1237,7 +1285,7 @@ const OPOSystem = () => {
           <div class="info-value">${formatDate(selectedOpo.date)}</div>
         </div>
         <div class="info-row">
-          <div class="info-label">ພະແນກບັນຊີສ່ວນກາງ:</div>
+          <div class="info-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ:</div>
           <div class="info-value">${selectedOpo.manager || "-"}</div>
         </div>
         <div class="info-row">
@@ -1320,7 +1368,7 @@ const OPOSystem = () => {
           </div>
         </div>
         <div class="signature-cell">
-          <span class="signature-label">ພະແນກບັນຊີສ່ວນກາງ<br>A&F Dept.</span>
+          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ<br>A&F Dept.</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name">${selectedOpo.manager || ""}</div>
