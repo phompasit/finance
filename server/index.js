@@ -31,7 +31,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "./.env") });
 
 const app = express();
-
+// ✅ Allow preflight (OPTIONS) requests for all routes
+app.options("*", cors(corsOptions), (req, res) => {
+  res.sendStatus(204);
+});
 // ============================================
 // 🔒 SECURITY MIDDLEWARE (Order matters!)
 // ============================================
