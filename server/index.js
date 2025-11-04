@@ -23,13 +23,7 @@ import {
   apiLimiter,
   authLimiter,
 } from "./middleware/security.js";
-app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-  res.header("Access-Control-Allow-Credentials", "true");
-  return res.sendStatus(204);
-});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -38,13 +32,6 @@ dotenv.config({ path: path.join(__dirname, "./.env") });
 
 const app = express();
 
-app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-  res.header("Access-Control-Allow-Credentials", "true");
-  return res.sendStatus(204);
-});
 // ============================================
 // 🔒 SECURITY MIDDLEWARE (Order matters!)
 // ============================================
@@ -251,7 +238,7 @@ process.on("unhandledRejection", (reason, promise) => {
 // 🚀 START SERVER
 // ============================================
 
-const PORT = process.env.PORT || 5001
+const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
   console.log("=".repeat(50));
   console.log(`🚀 Server running on port ${PORT}`);
