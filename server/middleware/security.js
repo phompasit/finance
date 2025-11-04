@@ -8,55 +8,34 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 // 🔒 Environment-based allowed origins
 const getAllowedOrigins = () => {
-  const origins = [
-    "http://localhost:5173",
-    "https://finance-1oi.pages.dev",
-    "http://127.0.0.1:5173",
-  ];
+  const origins = ["http://localhost:5173", "https://finance-1oi.pages.dev"];
+
+  // ถ้ามี .env กำหนดไว้ เช่น FRONTEND_URL
+  if (process.env.PRODUCTION_URL) {
+    origins.push(process.env.PRODUCTION_URL);
+  }
+
   return origins;
 };
 // 🔒 CORS configuration with security
 const corsOptions = {
-  origin: function (origin, callback) {
+  origin: (origin, callback) => {
     const allowedOrigins = getAllowedOrigins();
-
-    // Allow requests with no origin (mobile apps, Postman, curl)
-    if (!origin) {
-      return callback(null, true);
-    }
-    // Check if origin is in whitelist
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) callback(null, true);
+    else {
       console.warn(`🚫 Blocked CORS request from: ${origin}`);
       callback(new Error("Not allowed by CORS policy"));
     }
   },
-
-  credentials: true, // Allow cookies and auth headers
-
-  // 🔒 Allowed HTTP methods
+  credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-
-  // 🔒 Allowed headers
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "X-CSRF-Token",
-  ],
-
-  // 🔒 Exposed headers (client can access)
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   exposedHeaders: ["X-Total-Count", "X-Page-Count"],
-
-  // 🔒 Preflight cache duration (seconds)
-  maxAge: 600, // 10 minutes
-
-  // 🔒 Handle preflight OPTIONS requests
+  maxAge: 600,
   preflightContinue: false,
   optionsSuccessStatus: 204,
 };
-
 // 🔒 Security headers middleware
 const securityHeaders = (req, res, next) => {
   // Prevent clickjacking
