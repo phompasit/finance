@@ -11,25 +11,6 @@
     "preview": "vite preview",
     "server": "nodemon server/index.js"
   },
-  "build": {
-    "appId": "com.financial.app",
-    "productName": "Financial Management",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "main.mjs",
-      "dist/**/*",
-      "server/**/*",
-      "package.json"
-    ],
-    "asar": false,
-    "win": {
-      "target": [
-        "nsis"
-      ]
-    }
-  },
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",
     "@chakra-ui/react": "^2.10.9",
