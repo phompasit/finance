@@ -12,7 +12,6 @@ const getAllowedOrigins = () => {
     "http://localhost:5173",
     "https://finance-1oi.pages.dev",
     "http://127.0.0.1:5173",
-    "https://finance-production-bd54.up.railway.app",
   ];
   return origins;
 };
@@ -80,7 +79,7 @@ const securityHeaders = (req, res, next) => {
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
-      "connect-src 'self' https://finance-1oi.pages.dev; " +
+      "connect-src 'self' https://finance-1oi.pages.dev https://finance-production-bd54.up.railway.app; " +
       "frame-ancestors 'none';"
   );
 
