@@ -12,6 +12,7 @@ const getAllowedOrigins = () => {
     "http://localhost:5173",
     "https://finance-1oi.pages.dev",
     "http://127.0.0.1:5173",
+    "https://finance-production-bd54.up.railway.app",
   ];
   return origins;
 };
@@ -104,7 +105,7 @@ const securityHeaders = (req, res, next) => {
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 100, // Limit each IP to 100 requests per windowMs`
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
