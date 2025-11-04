@@ -155,19 +155,19 @@ app.use("/api/advances", advanceRoutes);
 // ============================================
 
 // Only serve static files in production
-if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "../dist");
+// if (process.env.NODE_ENV === "production") {
+//   const distPath = path.join(__dirname, "../dist");
 
-  // Serve static files
-  app.use(
-    express.static(distPath, {
-      maxAge: "1y", // Cache static assets
-      etag: true,
-    })
-  );
+//   // Serve static files
+//   app.use(
+//     express.static(distPath, {
+//       maxAge: "1y", // Cache static assets
+//       etag: true,
+//     })
+//   );
 
-  // Catch-all route for SPA (must be last!)
-}
+//   // Catch-all route for SPA (must be last!)
+// }
 // ============================================
 // 🔒 ERROR HANDLING
 // ============================================
