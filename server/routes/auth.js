@@ -17,7 +17,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
         message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
       });
     }
-    const isSuperAdmin = req.user.toObject();
+    const isSuperAdmin = req.user?.toObject();
     if (
       role === "admin" &&
       req.user.role === "admin" &&
@@ -241,7 +241,7 @@ router.post(
       const user = await User.findOne({ email: sanitizedEmail }).select(
         "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret +isSuperAdmin"
       );
-      const plainUser = user.toObject();
+      const plainUser = user?.toObject();
       // 4. Timing-safe user check
       const userExists = !!user;
 
