@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "staff", "user","master"],
+      enum: ["admin", "staff", "user", "master"],
       default: "user",
     },
     fullName: {
@@ -61,7 +61,9 @@ const userSchema = new mongoose.Schema(
         type: String,
         default: "",
       },
-
+      isSuperAdmin: {
+        type: Boolean,
+      },
       /////
       loginAttempts: { type: Number, default: 0 },
       lastFailedLogin: { type: Date },

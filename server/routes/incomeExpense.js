@@ -290,6 +290,10 @@ router.put("/:id", authenticate, async (req, res) => {
 // Delete income/expense record
 router.delete("/:id", authenticate, async (req, res) => {
   try {
+     const exiting = await IncomeExpense.findById(req.params.id).lean();
+    if (!exiting) {
+      return res.status(404).json({ message: "ไม่พบข้อมูล" });
+    }
     const query = {};
     if (req.user.role === "admin") {
       query.userId = req.user._id;
@@ -297,6 +301,11 @@ router.delete("/:id", authenticate, async (req, res) => {
     // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
     else {
       query.userId = req.user.companyId;
+    }
+    if (req.user.role !== "admin" && exiting.status_Ap === "approve") {
+      return res.status(403).json({
+        message: "ໄດ້ຮັບການອະນຸມັດແລ້ວບໍ່ສາມາດປ່ຽນແປງໄດ້",
+      });
     }
     const record = await IncomeExpense.findOneAndDelete({
       _id: req.params.id,

@@ -10,7 +10,7 @@ const errorLogSchema = new mongoose.Schema({
 errorLogSchema.add({
   expireAt: {
     type: Date,
-    default: () => new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 วัน
+    default: () => new Date(Date.now() + 3* 24 * 60 * 60 * 1000), // 10 วัน
     index: { expires: 0 }, // TTL ลบเมื่อครบเวลา
   },
 })

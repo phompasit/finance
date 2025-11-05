@@ -938,7 +938,6 @@ const DebtManagementSystem = () => {
   };
 
   const handleViews = (debt) => {
-    console.log(debt);
     setSelectedDebt(debt);
     onDetailsOpen();
   };
@@ -1009,7 +1008,7 @@ const DebtManagementSystem = () => {
       ...currentInstallments,
       newInstallment,
     ];
-    console.log(" newAmounts", newAmounts);
+   
     setFormData({ ...formData, amounts: newAmounts });
   };
   ///ຄິດໄລ່ຍອດເຫູືອຍິງບໍ່ຊຳລະ
@@ -1628,7 +1627,7 @@ td {
                  0,
                  Math.round(totalAmount - totalPaid)
                );
-               console.log(currency, remaining);
+     
                return {
                  currency,
                  remaining,
@@ -1794,7 +1793,6 @@ td {
       position: "top-right",
     });
   };
-  console.log("filteredDebts", filteredDebts);
   return (
     <Box minH="100vh" bg="gray.50" p={4}>
       <Box maxW="7xl" mx="auto">

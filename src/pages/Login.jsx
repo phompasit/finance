@@ -23,7 +23,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const handleSubmit = async (e) => {
@@ -39,8 +39,11 @@ export default function Login() {
         duration: 2000,
         isClosable: true,
       });
-
-      navigate("/dashboard");
+      if (res?.role === "admin" || res?.role === "master") {
+        navigate("/dashboard");
+      } else {
+        navigate("/opo");
+      }
     } catch (err) {
       const description =
         err?.response?.data?.message || err?.message || "something with wrong";

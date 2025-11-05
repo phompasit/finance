@@ -857,7 +857,7 @@ export default function PrepaidExpenseDashboard() {
       console.log(error);
     }
   };
-  console.log(selected);
+
   const exportToPDF = () => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -1795,8 +1795,7 @@ td {
                           )}
                           {idx === 0 && (
                             <Td rowSpan={rowData.length}>
-                              {(user?.role === "admin" ||
-                                user?.role === "master") && (
+                              {user?.role === "admin" && (
                                 <HStack>
                                   <Button
                                     fontSize={"20"}

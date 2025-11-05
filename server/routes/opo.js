@@ -33,8 +33,7 @@ router.get("/", authenticate, async (req, res) => {
       .populate("userId", "username email role companyInfo")
       .populate("staff", "username email role")
       .sort({ date: -1 })
-      .skip(skip)
-      .limit(limit);
+
     res.json(records);
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });

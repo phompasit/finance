@@ -11,11 +11,19 @@ import crypto from "crypto";
 // Register
 router.post("/register", registerLimiter, authenticate, async (req, res) => {
   try {
-    const { username, email, password, role } = req.body;
-    if (!username || !email || !password) {
+    const { username, email, password, role, companyInfo } = req.body;
+    if (!username || !email || !password || !companyInfo) {
       return res.status(400).json({
         message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
       });
+    }
+    const isSuperAdmin = req.user.toObject();
+    if (
+      role === "admin" &&
+      req.user.role === "admin" &&
+      isSuperAdmin.isSuperAdmin !== true
+    ) {
+      return res.status(403).json({ message: "ບໍ່ມີສິດ ສ້າງ ແອດມຶນໃໝ່" });
     }
     // ตรวจสอบ username (ไม่มีอักขระพิเศษที่เป็นอันตราย)
     if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
@@ -36,7 +44,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
     //       "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
     //   });
     // }
-    const allowedRoles = ["user", "admin", "staff","master"];
+    const allowedRoles = ["user", "admin", "staff", "master"];
     const userRole = role || "user";
     if (!allowedRoles.includes(userRole)) {
       return res.status(400).json({
@@ -58,6 +66,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
       password,
       role: role || "user",
       companyId: req.user._id,
+      companyInfo,
     });
     await user.save();
 
@@ -89,7 +98,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
 // Account lockout tracking (ใช้ Redis หรือ Memory) ປ້ອງກັນການໂຈມຕີແບບ  Ddos
 const loginAttempts = new Map();
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_TIME = 1 * 60 * 1000; // 30 นาที
+const LOCKOUT_TIME = 1 * 60 * 1000; // 1 นาที
 
 // Login
 // ฟังก์ชันตรวจสอบและบันทึกความพยายาม login
@@ -230,9 +239,9 @@ router.post(
 
       // 3. Find user - ใช้ lean() และ select เฉพาะฟิลด์ที่จำเป็น
       const user = await User.findOne({ email: sanitizedEmail }).select(
-        "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret"
+        "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret +isSuperAdmin"
       );
-
+      const plainUser = user.toObject();
       // 4. Timing-safe user check
       const userExists = !!user;
 
@@ -346,6 +355,7 @@ router.post(
           sessionId,
           companyId: user.companyId,
           iat: Math.floor(Date.now() / 1000),
+          isSuperAdmin: plainUser?.isSuperAdmin,
         },
         process.env.JWT_SECRET || "secret",
         {
@@ -355,7 +365,6 @@ router.post(
           audience: "admin",
         }
       );
-
       // 10. Generate refresh token
       const refreshToken = crypto.randomBytes(40).toString("hex");
       const refreshTokenExpiry = new Date(
@@ -554,7 +563,8 @@ router.post("/logout", authenticate, async (req, res) => {
       sessionId,
       ipAddress: req.ip,
       timestamp: new Date(),
-    });users
+    });
+    users;
 
     res.json({ message: "ออกจากระบบสำเร็จ" });
   } catch (error) {
@@ -575,12 +585,27 @@ router.get("/me", authenticate, async (req, res) => {
 // Get all users (admin only)
 router.get("/users", authenticate, async (req, res) => {
   try {
-  
+    let users;
 
-    const users = await User.find().select("-password");
+    if (req.user.role === "admin") {
+      // 🔹 ดึงเฉพาะ user ที่ admin คนนั้นสร้าง
+      users = await User.find({
+        companyId: req.user._id,
+      }).select("-password");
+    } else if (req.user.role === "master") {
+      // 🔹 master เห็นทุกคนได้
+      users = await User.find().select("-password");
+    } else {
+      // 🔹 user ทั่วไปเห็นแค่ตัวเอง
+      users = await User.find({ _id: req.user._id }).select("-password");
+    }
+
     res.json(users);
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    res.status(500).json({
+      message: "เกิดข้อผิดพลาด",
+      error: error.message,
+    });
   }
 });
 
@@ -590,7 +615,9 @@ router.patch("/users/:id/role", authenticate, async (req, res) => {
     if (req.user.role !== "admin") {
       return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึง" });
     }
-
+    if (req.user.role === "admin" && req.user.isSuperAdmin !== true) {
+      return res.status(403).json({ message: "ບໍ່ມີສິດ ສ້າງ ແອດມຶນໃໝ່" });
+    }
     const { role } = req.body;
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -623,6 +650,13 @@ router.patch("/user/:id", authenticate, async (req, res) => {
   try {
     const { username, email, role, companyInfo } = req.body;
     const updateData = { username, email, role, companyInfo };
+    if (
+      role === "admin" &&
+      req.user.role === "admin" &&
+      req.user.isSuperAdmin !== true
+    ) {
+      return res.status(403).json({ message: "ບໍ່ມີສິດ ສ້າງ ແອດມຶນໃໝ່" });
+    }
     const user = await User.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
     }).select("-password");

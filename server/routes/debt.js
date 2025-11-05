@@ -37,7 +37,6 @@ router.get("/partners", authenticate, async (req, res) => {
     const partners = await Partner.find(query);
     res.json({ success: true, data: partners });
   } catch (err) {
-    console.log("err", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -54,7 +53,6 @@ router.get("/employees", authenticate, async (req, res) => {
     const employeesx = await employees.find(query);
     res.json({ success: true, data: employeesx });
   } catch (err) {
-    console.log("err", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

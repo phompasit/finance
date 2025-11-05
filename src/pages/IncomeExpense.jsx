@@ -509,7 +509,6 @@ export default function IncomeExpense() {
         formEditData.id
       }`;
       const body = JSON.stringify(formEditData);
-      console.log(body);
       const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
@@ -570,10 +569,22 @@ export default function IncomeExpense() {
       } else {
         const data = await response.json();
 
-        throw new Error(data.message || "Failed to delete transaction");
+        toast({
+          title: "ເກີດຂໍ້ຜິພາດ",
+          description: data.message,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
-      console.error("Error deleting transaction:", error);
+      toast({
+        title: "ເກີດຂໍ້ຜິພາດ",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
@@ -584,7 +595,6 @@ export default function IncomeExpense() {
 
   const handleStatus = async (data, status) => {
     try {
-      console.log("data", data);
       const endpoint = `${
         import.meta.env.VITE_API_URL
       }/api/income-expense/status/:${data._id}`;
@@ -2337,8 +2347,7 @@ td:nth-child(8) {
 
                       <Td>
                         <HStack spacing={1}>
-                          {(user?.role === "admin" ||
-                            user?.role === "master") &&
+                          {user?.role === "admin" &&
                             transaction.type !== "income" && (
                               <HStack spacing={2}>
                                 <Button
@@ -2461,7 +2470,7 @@ td:nth-child(8) {
                               colorScheme="red"
                               rounded="lg"
                               isDisabled={
-                                !["admin", "master"].includes(user?.role) &&
+                                !["admin"].includes(user?.role) &&
                                 ["approve", "cancel"].includes(
                                   transaction?.status_Ap
                                 )

@@ -31,8 +31,10 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { EditIcon } from "@chakra-ui/icons";
+import { useAuth } from "../context/AuthContext";
 
 export default function Users() {
+  const { user: AuthUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newUser, setNewUser] = useState({
@@ -40,6 +42,7 @@ export default function Users() {
     email: "",
     password: "",
     role: "user",
+    companyInfo: null,
   });
   const [editUser, setEditUser] = useState(null);
   const toast = useToast();
@@ -80,7 +83,7 @@ export default function Users() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      await fetch(
+      const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/auth/users/${userId}/role`,
         {
           method: "PATCH",
@@ -92,12 +95,24 @@ export default function Users() {
         }
       );
       fetchUsers();
-      toast({
-        title: "ອັບເດດສຳເລັດ",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
+      if (res.ok) {
+        toast({
+          title: "ອັບເດດສຳເລັດ",
+          status: "success",
+          duration: 2000,
+          isClosable: true,
+        });
+      } else {
+       const data= await res.json()
+       console.log("data",data)
+        toast({
+          title: "something with wrong",
+          description: data.message || "please try again",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     } catch (error) {
       toast({
         title: "something with wrong",
@@ -110,7 +125,12 @@ export default function Users() {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!confirm("ເຈົ້າແນ່ໃຈບໍ່ທີ່ຈະລົບບັນຊີນີ້?")) return;
+    if (
+      !confirm(
+        "ເຈົ້າແນ່ໃຈບໍ່ທີ່ຈະລົບບັນຊີນີ້? ຄຳເຕືອນ:ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້ ແລະບໍ່ສາມາດກູ້ຄືນໄດ້"
+      )
+    )
+      return;
     try {
       await fetch(`${import.meta.env.VITE_API_URL}/api/auth/users/${userId}`, {
         method: "DELETE",
@@ -253,50 +273,52 @@ export default function Users() {
       >
         ຈັດການຜູ້ໃຊ້ງານ
       </Heading>
-          <Box fontFamily="'Noto Sans Lao', sans-serif" lineHeight="1.8">
-      {/* กล่องแจ้งเตือนสีแดง */}
-      <Box
-      fontFamily="Noto Sans Lao, sans-serif"
-        color="#b71c1c"
-        bg="#ffebee"
-        p="12px 16px"
-        borderRadius="8px"
-        fontWeight="bold"
-        border="1px solid #f44336"
-        fontSize="14px"
-        mb="16px"
-      >
-        ⚠️ ຫ້າມລົບບັນຊີຜູ້ໃຊ້ເດັດຂາດ!
-        <br />
-        ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້
-        ແລະບໍ່ສາມາດກູ້ຄືນໄດ້
+      <Box fontFamily="'Noto Sans Lao', sans-serif" lineHeight="1.8">
+        {/* กล่องแจ้งเตือนสีแดง */}
+        <Box
+          fontFamily="Noto Sans Lao, sans-serif"
+          color="#b71c1c"
+          bg="#ffebee"
+          p="12px 16px"
+          borderRadius="8px"
+          fontWeight="bold"
+          border="1px solid #f44336"
+          fontSize="14px"
+          mb="16px"
+        >
+          ⚠️ ຫ້າມລົບບັນຊີຜູ້ໃຊ້ເດັດຂາດ!
+          <br />
+          ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້
+          ແລະບໍ່ສາມາດກູ້ຄືນໄດ້
+        </Box>
+
+        {/* กล่องอธิบายกติกา */}
+        <Box
+          bg="#f9f9f9"
+          borderLeft="4px solid #2196f3"
+          p="12px 16px"
+          borderRadius="6px"
+          fontSize="13.5px"
+        >
+          <Text fontFamily="Noto Sans Lao, sans-serif" mb="8px">
+            • <strong>account</strong> ທີ່ມີບົດບາດເປັນ <strong>admin</strong> =
+            1 ບໍລິສັດ
+          </Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif" mb="8px">
+            • <strong>account</strong> ໃດທີ່ສ້າງບັນຊີ <strong>staff</strong> ຫຼື{" "}
+            <strong>master</strong> — account
+            ນັ້ນສາມາດເບີງຂໍ້ມູນຂອງບໍລິສັດນັ້ນໄດ້ເທົ່ານັ້ນ
+          </Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif">
+            • ບົດບາດ <strong>admin</strong> ສາມາດມີໄດ້ພຽງແຕ່{" "}
+            <strong>account ດຽວ</strong> — ຖ້າຕ້ອງການສ້າງ{" "}
+            <strong>staff / master</strong> ໃຫ້ລ໋ອກອິນເຂົ້າ admin ຂອງadminນັ້ນ
+          </Text>
+          <Text color={"red"} fontFamily="Noto Sans Lao, sans-serif" mb="8px">
+            ໝາຍເຫດ ຖ້າຢາກສ້າງ account admin ໃຫ້ມາສ້າງໃນບັນຊີບໍລິສັດອັດຕະປືບໍລາວ
+          </Text>
+        </Box>
       </Box>
-
-      {/* กล่องอธิบายกติกา */}
-      <Box
-        bg="#f9f9f9"
-        borderLeft="4px solid #2196f3"
-        p="12px 16px"
-        borderRadius="6px"
-        fontSize="13.5px"
-      >
-        <Text fontFamily="Noto Sans Lao, sans-serif" mb="8px">
-          • <strong>account</strong> ທີ່ມີບົດບາດເປັນ <strong>admin</strong> =
-          1 ບໍລິສັດ
-        </Text>
-        <Text fontFamily="Noto Sans Lao, sans-serif" mb="8px">
-          • <strong>account</strong> ໃດທີ່ສ້າງບັນຊີ <strong>staff</strong> ຫຼື{" "}
-          <strong>master</strong> — account ນັ້ນສາມາດເບີງຂໍ້ມູນຂອງບໍລິສັດນັ້ນໄດ້ເທົ່ານັ້ນ
-        </Text>
-        <Text fontFamily="Noto Sans Lao, sans-serif">
-          • ບົດບາດ <strong>admin</strong> ສາມາດມີໄດ້ພຽງແຕ່{" "}
-          <strong>account ດຽວ</strong> — ຖ້າຕ້ອງການສ້າງ{" "}
-          <strong>staff / master</strong> ໃຫ້ລ໋ອກອິນເຂົ້າ admin ຂອງadminນັ້ນ 
-        </Text>
-      </Box>
-    </Box>
-
-
 
       <Button colorScheme="green" mb={4} onClick={onOpen}>
         ເພີ່ມສະມາຊິກໃໝ່
@@ -347,41 +369,46 @@ export default function Users() {
                     <Td fontFamily="Noto Sans Lao, sans-serif">
                       {user.companyInfo?.name}
                     </Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">
-                      <Select
-                        value={user.role}
-                        onChange={(e) =>
-                          handleRoleChange(user._id, e.target.value)
-                        }
-                        size="sm"
-                        bg="gray.50"
-                      >
-                        <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
-                        <option value="master">master</option>
-                      </Select>
-                    </Td>
-                    <Td
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      textAlign="center"
-                    >
-                      <IconButton
-                        icon={<EditIcon />}
-                        colorScheme="blue"
-                        size="sm"
-                        mr={2}
-                        onClick={() => handleOpenEdit(user)}
-                        aria-label="ແກ້ໄຂ"
-                      />
-                      <Button
+                    {AuthUser?.role === "admin" && (
+                      <Td fontFamily="Noto Sans Lao, sans-serif">
+                        <Select
+                          value={user.role}
+                          onChange={(e) =>
+                            handleRoleChange(user._id, e.target.value)
+                          }
+                          size="sm"
+                          bg="gray.50"
+                        >
+                          <option value="staff">Staff</option>
+                          <option value="admin">Admin</option>
+                          <option value="master">master</option>
+                        </Select>
+                      </Td>
+                    )}
+
+                    {AuthUser?.role === "admin" && (
+                      <Td
                         fontFamily="Noto Sans Lao, sans-serif"
-                        colorScheme="red"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user._id)}
+                        textAlign="center"
                       >
-                        ລົບ
-                      </Button>
-                    </Td>
+                        <IconButton
+                          icon={<EditIcon />}
+                          colorScheme="blue"
+                          size="sm"
+                          mr={2}
+                          onClick={() => handleOpenEdit(user)}
+                          aria-label="ແກ້ໄຂ"
+                        />
+                        <Button
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          colorScheme="red"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user._id)}
+                        >
+                          ລົບ
+                        </Button>
+                      </Td>
+                    )}
                   </Tr>
                 ))}
               </React.Fragment>
@@ -440,6 +467,24 @@ export default function Users() {
               </FormControl>
               <FormControl>
                 <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                  ຊື່ບໍລິສັດ
+                </FormLabel>
+                <Input
+                  value={newUser.companyInfo?.name}
+                  onChange={(e) =>
+                    setNewUser({
+                      ...newUser,
+                      companyInfo: {
+                        ...newUser.companyInfo,
+                        name: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Company Name"
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel fontFamily="Noto Sans Lao, sans-serif">
                   ບົດບາດ
                 </FormLabel>
                 <Select
@@ -448,10 +493,9 @@ export default function Users() {
                     setNewUser({ ...newUser, role: e.target.value })
                   }
                 >
-                  <option value="user">User</option>
-                  <option value="staff">Staff</option>
-                  <option value="admin">Admin</option>
-                  <option value="master">master</option>
+                  <option value="staff">Staff (ພະນັກງານ)</option>
+                  <option value="admin">Admin (ຜູ້ເບີງລະບົບ)</option>
+                  <option value="master">master (ຜູ້ເບີງລະບົບ ລະດັບ2 )</option>
                 </Select>
               </FormControl>
             </VStack>
