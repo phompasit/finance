@@ -20,7 +20,7 @@ export default defineConfig({
       },
     },
   },
-  base: "./", // ✅ สำคัญมากสำหรับ Electron
+   base: '/',
 
   build: {
     outDir: "dist",
