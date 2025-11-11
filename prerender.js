@@ -1,14 +1,8 @@
-import { renderPage } from 'vite-plugin-ssr'
-import fs from 'fs'
+import { renderPage } from 'vite-plugin-ssr/server'
 
-const pages = ['/login', '/dashboard']
-
-async function prerenderAll() {
-  for (const page of pages) {
-    const html = await renderPage(page)
-    fs.writeFileSync(`dist${page}.html`, html)
-    console.log(`Prerendered ${page}`)
-  }
+async function prerender() {
+  const pageContext = await renderPage({ urlOriginal: '/login' })
+  console.log(pageContext.html) // HTML ของ login page
 }
 
-prerenderAll()
+prerender()
