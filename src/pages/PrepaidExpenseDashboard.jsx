@@ -176,9 +176,14 @@ export default function PrepaidExpenseDashboard() {
 
     // 📅 กรองตามวันที่ (request_date)
     if (filters.dateFrom || filters.dateTo) {
-      const requestDate = new Date(a.request_date);
-      const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
-      const to = filters.dateTo ? new Date(filters.dateTo) : null;
+      // 🕒 Normalize: แปลงทุกวันที่เป็น YYYY-MM-DD เพื่อไม่ให้ timezone มีผล
+      const requestDate = new Date(a.request_date).toISOString().split("T")[0];
+      const from = filters.dateFrom
+        ? new Date(filters.dateFrom).toISOString().split("T")[0]
+        : null;
+      const to = filters.dateTo
+        ? new Date(filters.dateTo).toISOString().split("T")[0]
+        : null;
 
       if (from && requestDate < from) return false;
       if (to && requestDate > to) return false;
@@ -191,7 +196,8 @@ export default function PrepaidExpenseDashboard() {
 
     return true;
   });
-  const pageSize = 30;
+
+  const pageSize = 100;
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(filteredAdvances.length / pageSize);
   const offset = (page - 1) * pageSize;

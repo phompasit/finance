@@ -192,7 +192,7 @@ export default function IncomeExpense() {
       setLoading(false);
     }
   };
-  const pageSize = 30;
+  const pageSize = 100
   const [page, setPage] = useState(1);
 
   const paymentMethodLabels = {
@@ -217,16 +217,43 @@ export default function IncomeExpense() {
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   }
+ 
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = filters.search.toLowerCase();
+
     const matchesSearch =
       filters.search === "" ||
       t.description.toLowerCase().includes(searchLower) ||
       t.note?.toLowerCase().includes(searchLower) ||
       t.serial.toLowerCase().includes(searchLower);
+
+    // แปลงทุก date ให้เหลือแค่ yyyy-mm-dd
+    const tDate = new Date(t.date);
+    const tLocal = new Date(
+      tDate.getFullYear(),
+      tDate.getMonth(),
+      tDate.getDate()
+    );
+
+    const startDate = filters.dateStart
+      ? new Date(
+          new Date(filters.dateStart).getFullYear(),
+          new Date(filters.dateStart).getMonth(),
+          new Date(filters.dateStart).getDate()
+        )
+      : null;
+
+    const endDate = filters.dateEnd
+      ? new Date(
+          new Date(filters.dateEnd).getFullYear(),
+          new Date(filters.dateEnd).getMonth(),
+          new Date(filters.dateEnd).getDate()
+        )
+      : null;
+
     const matchesDate =
-      (!filters.dateStart || new Date(t.date) >= new Date(filters.dateStart)) &&
-      (!filters.dateEnd || new Date(t.date) <= new Date(filters.dateEnd));
+      (!startDate || tLocal >= startDate) && (!endDate || tLocal <= endDate);
+
     const matchesType = !filters.type || t.type === filters.type;
     const matchesCurrency =
       !filters.currency ||
@@ -236,6 +263,7 @@ export default function IncomeExpense() {
     const matchesStatus = !filters.status || t.status === filters.status;
     const matchstatus_Ap =
       !filters.status_Ap || t.status_Ap === filters.status_Ap;
+
     return (
       matchesSearch &&
       matchesDate &&
@@ -246,6 +274,7 @@ export default function IncomeExpense() {
       matchstatus_Ap
     );
   });
+console.log( filteredTransactions)
   const totalPages = Math.ceil(filteredTransactions.length / pageSize);
   const offset = (page - 1) * pageSize;
   const pageData = useMemo(() => {

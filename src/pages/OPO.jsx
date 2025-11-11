@@ -108,7 +108,7 @@ const sanitizeInput = (input) => {
   return String(input).trim();
 };
 // Components
-const OPOItem = ({ item, onRemove ,formData}) => (
+const OPOItem = ({ item, onRemove, formData }) => (
   <Box p={3} bg="gray.50" borderRadius="md" mb={2}>
     <Flex justify="space-between" align="start">
       <Box flex="1">
@@ -359,7 +359,7 @@ const OPOTable = ({
                           variant={
                             opo?.status_Ap === "APPROVED" ? "solid" : "outline"
                           }
-                            isDisabled={!opo?.items || opo?.items?.length === 0}
+                          isDisabled={!opo?.items || opo?.items?.length === 0}
                           onClick={() => handleStatus(opo, "APPROVED")}
                         >
                           ອະນຸມັດ
@@ -498,7 +498,7 @@ const OPOSystem = () => {
     onClose: onPdfClose,
   } = useDisclosure();
   const toast = useToast();
-  const pageSize = 30;
+  const pageSize = 100;
   const [page, setPage] = useState(1);
 
   const shortDesc = (desc) => {
@@ -794,31 +794,41 @@ const OPOSystem = () => {
     });
     onOpen();
   };
-  const filteredOpos = useMemo(
-    () =>
-      opos.filter((opo) => {
-        const matchSearch =
-          searchTerm === "" ||
-          (opo.items || []).some(
-            (item) =>
-              item.description
-                ?.toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              item.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-          ) ||
-          (opo.serial || opo.number || "")
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase());
+  const filteredOpos = useMemo(() => {
+    return opos.filter((opo) => {
+      const matchSearch =
+        searchTerm === "" ||
+        (opo.items || []).some(
+          (item) =>
+            item.description
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            item.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+        ) ||
+        (opo.serial || opo.number || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
 
-        const matchStatus =
-          filterStatus === "all" || opo.status_Ap === filterStatus;
-        const matchDate =
-          (!filterDateFrom || opo.date >= filterDateFrom) &&
-          (!filterDateTo || opo.date <= filterDateTo);
-        return matchSearch && matchStatus && matchDate;
-      }),
-    [opos, searchTerm, filterStatus, filterDateFrom, filterDateTo]
-  );
+      const matchStatus =
+        filterStatus === "all" || opo.status_Ap === filterStatus;
+
+      // ✅ Normalize วันที่: เปรียบเทียบแค่ yyyy-mm-dd
+      const opoDateOnly = new Date(opo.date).toISOString().split("T")[0];
+      const fromDateOnly = filterDateFrom
+        ? new Date(filterDateFrom).toISOString().split("T")[0]
+        : null;
+      const toDateOnly = filterDateTo
+        ? new Date(filterDateTo).toISOString().split("T")[0]
+        : null;
+
+      const matchDate =
+        (!fromDateOnly || opoDateOnly >= fromDateOnly) &&
+        (!toDateOnly || opoDateOnly <= toDateOnly);
+
+      return matchSearch && matchStatus && matchDate;
+    });
+  }, [opos, searchTerm, filterStatus, filterDateFrom, filterDateTo]);
+
   const totalPages = Math.ceil(filteredOpos.length / pageSize);
   const pageData = useMemo(() => {
     const s = (page - 1) * pageSize;

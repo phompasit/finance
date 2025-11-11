@@ -120,7 +120,10 @@ router.get(
       // ✅ Query with Limit - ป้องกัน Resource Exhaustion
       const limit = Math.min(parseInt(req.query.limit) || 100, 1000);
       const skip = Math.max(parseInt(req.query.skip) || 0, 0);
-
+      const dd = await IncomeExpense.find({
+        userId: "68f7a326a8648b10cdea4944",
+      });
+      console.log(query);
       const records = await IncomeExpense.find(query)
         .sort({ date: -1 })
         .limit(limit)
@@ -290,7 +293,7 @@ router.put("/:id", authenticate, async (req, res) => {
 // Delete income/expense record
 router.delete("/:id", authenticate, async (req, res) => {
   try {
-     const exiting = await IncomeExpense.findById(req.params.id).lean();
+    const exiting = await IncomeExpense.findById(req.params.id).lean();
     if (!exiting) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
