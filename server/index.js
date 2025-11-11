@@ -44,10 +44,10 @@ app.use(
   })
 );
 
-// 2. Custom security headers
+
 app.use(securityHeaders);
 
-// 3. CORS with validation
+
 app.use(cors(corsOptions));
 
 // 4. Body parsing with size limits
