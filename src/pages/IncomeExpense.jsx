@@ -274,7 +274,6 @@ export default function IncomeExpense() {
       matchstatus_Ap
     );
   });
-console.log( filteredTransactions)
   const totalPages = Math.ceil(filteredTransactions.length / pageSize);
   const offset = (page - 1) * pageSize;
   const pageData = useMemo(() => {

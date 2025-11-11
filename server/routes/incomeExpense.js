@@ -123,7 +123,6 @@ router.get(
       const dd = await IncomeExpense.find({
         userId: "68f7a326a8648b10cdea4944",
       });
-      console.log(query);
       const records = await IncomeExpense.find(query)
         .sort({ date: -1 })
         .limit(limit)
