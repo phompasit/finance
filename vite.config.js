@@ -1,9 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import ssr from 'vite-plugin-ssr/plugin'
 export default defineConfig({
-  plugins: [react(), ssr()],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -20,7 +19,7 @@ export default defineConfig({
       },
     },
   },
-   base: '/',
+  base: "/",
 
   build: {
     outDir: "dist",
