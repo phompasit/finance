@@ -9,7 +9,7 @@ export const authenticate = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret");
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).lean()
 
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "ບໍ່ພົບບັນຊີ" });

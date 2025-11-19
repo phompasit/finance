@@ -564,7 +564,6 @@ router.post("/logout", authenticate, async (req, res) => {
       ipAddress: req.ip,
       timestamp: new Date(),
     });
-    users;
 
     res.json({ message: "ออกจากระบบสำเร็จ" });
   } catch (error) {
@@ -649,21 +648,75 @@ router.delete("/users/:id", authenticate, async (req, res) => {
 router.patch("/user/:id", authenticate, async (req, res) => {
   try {
     const { username, email, role, companyInfo } = req.body;
-    const updateData = { username, email, role, companyInfo };
-    if (
-      role === "admin" &&
-      req.user.role === "admin" &&
-      req.user.isSuperAdmin !== true
-    ) {
-      return res.status(403).json({ message: "ບໍ່ມີສິດ ສ້າງ ແອດມຶນໃໝ່" });
+    const updater = req.user; // ผู้ที่กำลังแก้ไข
+    const targetUser = await User.findById(req.params.id);
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    // เตรียม data สำหรับอัปเดต
+    const updateData = { username, email, companyInfo };
+
+    // --------------------------------------------------------
+    // 1) ถ้าไม่ใช้ SuperAdmin → ห้ามแก้ไข role ของ admin
+    // --------------------------------------------------------
+    console.log(updater)
+    console.log(updater.isSuperAdmin)
+    if (updater.isSuperAdmin !== true) {
+      // admin ธรรมดา, master, staff → ห้ามแก้ไข super-level
+      if (targetUser.role === "admin") {
+        return res.status(403).json({ 
+          message: "ທ່ານບໍ່ມີສິດແກ້ໄຂ admin" 
+        });
+      }
+
+      // admin ธรรมดา ห้ามสร้าง admin
+      if (role === "admin") {
+        return res.status(403).json({ 
+          message: "ທ່ານບໍ່ມີສິດສ້າງ ຫຼື ປ່ຽນ role ເປັນ admin" 
+        });
+      }
+    }
+
+    // --------------------------------------------------------
+    // 2) ถ้าเป็น user (master/staff) → ห้ามแก้ไข role ใด ๆ
+    // --------------------------------------------------------
+    if (updater.role !== "admin" && updater.isSuperAdmin !== true) {
+      if (role) {
+        return res.status(403).json({ 
+          message: "ທ່ານບໍ່ມີສິດປ່ຽນ Role ຂອງຜູ້ໃຊ້" 
+        });
+      }
+    }
+
+    // --------------------------------------------------------
+    // 3) เฉพาะ SuperAdmin เท่านั้นที่แก้ role ได้ทุกระดับ
+    // --------------------------------------------------------
+
+    if (updater.isSuperAdmin === true) {
+      updateData.role = role;
+    } else {
+      // admin ธรรมดาแก้ role ได้เฉพาะ master / staff
+      if (role && (role === "master" || role === "staff")) {
+        updateData.role = role;
+      }
+    }
+
+    // --------------------------------------------------------
+    // อัปเดตข้อมูล
+    // --------------------------------------------------------
+
     const user = await User.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
     }).select("-password");
 
     res.json(user);
+
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
 export default router;

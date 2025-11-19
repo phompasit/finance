@@ -239,7 +239,7 @@ process.on("unhandledRejection", (reason, promise) => {
 // ============================================
 
 const PORT = process.env.PORT || 5000
-app.listen(PORT,"0.0.0.0",  () => {
+app.listen(PORT,  () => {
   console.log("=".repeat(50));
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
