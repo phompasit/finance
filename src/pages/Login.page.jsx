@@ -17,6 +17,8 @@ import {
   Center,
   useToast,
 } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
+import { ChevronRightIcon } from "@chakra-ui/icons";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -170,6 +172,20 @@ export default function Login() {
               </Button>
             </VStack>
           </form>
+          <Button
+            as={RouterLink}
+            to="/register"
+            rightIcon={<ChevronRightIcon />}
+            colorScheme="teal"
+            size="md"
+            borderRadius="xl"
+            px={6}
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            fontWeight="bold"
+            variant="solid"
+          >
+            ລົງທະບຽນ
+          </Button>
         </VStack>
       </Box>
     </Center>

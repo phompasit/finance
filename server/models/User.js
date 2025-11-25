@@ -40,6 +40,9 @@ const userSchema = new mongoose.Schema(
     companyId: {
       type: String,
     },
+    isSuperAdmin: {
+      type: Boolean,
+    },
     companyInfo: {
       name: {
         type: String,
@@ -60,9 +63,6 @@ const userSchema = new mongoose.Schema(
       logo: {
         type: String,
         default: "",
-      },
-      isSuperAdmin: {
-        type: Boolean,
       },
       /////
       loginAttempts: { type: Number, default: 0 },
@@ -96,6 +96,7 @@ userSchema.pre("save", async function (next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  console.log("Comparing password:", await bcrypt.compare(candidatePassword, this.password));
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

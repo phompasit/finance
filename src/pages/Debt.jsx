@@ -37,13 +37,25 @@ import {
   InputGroup,
   InputLeftElement,
   Icon,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
 } from "@chakra-ui/react";
-import { SearchIcon, AddIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import {
+  SearchIcon,
+  AddIcon,
+  DeleteIcon,
+  EditIcon,
+  AlertDialogOverlay,
+} from "@chakra-ui/icons";
 import { FaFileCsv, FaFilePdf } from "react-icons/fa";
 import { DownloadIcon, FilterXIcon, ViewIcon } from "lucide-react";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
+import { useRef } from "react";
 
 // Reusable component for the Details Modal
 const DebtDetailsModal = ({ isOpen, onClose, documentData }) => {
@@ -820,6 +832,7 @@ const DebtManagementSystem = () => {
           currency: amt.currency,
           isPaid: inst.isPaid || false,
           paidDate: inst.paidDate || null,
+          _id: inst._id || undefined,
         }))
       );
 
@@ -845,7 +858,6 @@ const DebtManagementSystem = () => {
         },
         body: JSON.stringify(submitData),
       });
-
       if (response.ok) {
         await fetchDebts();
         setIsOpen(false);
@@ -860,7 +872,14 @@ const DebtManagementSystem = () => {
         });
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || "ບໍ່ສາມາດບັນທຶກຂໍ້ມູນໄດ້");
+        toast({
+          title: "ຂໍ້ຜິດພາດ",
+          description:
+            errorData.message || "ບໍ່ສາມາດບັນທຶກໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       console.log("error");
@@ -868,10 +887,8 @@ const DebtManagementSystem = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("ທ່ານແນ່ໃຈບໍ່ວ່າຈະລົບລາຍການນີ້?")) return;
-
     try {
-      const response = await fetch(
+      const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/debt/${id}`,
         {
           method: "DELETE",
@@ -880,9 +897,9 @@ const DebtManagementSystem = () => {
           },
         }
       );
-      if (response.ok) {
+      const err = await res.json();
+      if (res.ok) {
         await fetchDebts();
-       
         toast({
           title: "ລົບສຳເລັດ",
           status: "success",
@@ -890,9 +907,16 @@ const DebtManagementSystem = () => {
           isClosable: true,
         });
       } else {
-        throw new Error("Failed to delete debt");
+        toast({
+          title: "ຂໍ້ຜິດພາດ",
+          description: err.message || "ບໍ່ສາມາດລົບໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
+      console.log(error);
       toast({
         title: "ຂໍ້ຜິດພາດ",
         description: "ບໍ່ສາມາດລົບໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
@@ -902,7 +926,23 @@ const DebtManagementSystem = () => {
       });
     }
   };
+  const {
+    isOpen: isWarningIsOpen,
+    onOpen: onWarningOpen,
+    onClose: onWarningClose,
+  } = useDisclosure();
+  const cancelRef = useRef();
+  const [deleteId, setDeleteId] = useState(null);
 
+  const onDeleteClick = (id) => {
+    setDeleteId(id);
+    onWarningOpen();
+  };
+
+  const confirmDelete = () => {
+    handleDelete(deleteId);
+    onWarningClose();
+  };
   const handleEdit = (debt) => {
     setEditingDebt(debt);
 
@@ -920,6 +960,7 @@ const DebtManagementSystem = () => {
           paidDate: inst.paidDate
             ? new Date(inst.paidDate).toISOString().split("T")[0]
             : null,
+          _id: inst._id || undefined,
         })),
     }));
 
@@ -1002,13 +1043,14 @@ const DebtManagementSystem = () => {
       amount: currentInstallments.length > 0 ? remaining.toFixed(2) : "",
       isPaid: false,
       paidDate: null,
+      _id: undefined,
     };
 
     newAmounts[currencyIndex].installments = [
       ...currentInstallments,
       newInstallment,
     ];
-   
+
     setFormData({ ...formData, amounts: newAmounts });
   };
   ///ຄິດໄລ່ຍອດເຫູືອຍິງບໍ່ຊຳລະ
@@ -1627,7 +1669,7 @@ td {
                  0,
                  Math.round(totalAmount - totalPaid)
                );
-     
+
                return {
                  currency,
                  remaining,
@@ -2213,9 +2255,52 @@ td {
                           icon={<DeleteIcon />}
                           colorScheme="red"
                           variant="ghost"
-                          onClick={() => handleDelete(debt._id)}
+                          onClick={() => onDeleteClick(debt._id)}
                         />
                       </HStack>
+
+                      <AlertDialog
+                        isOpen={isWarningIsOpen}
+                        leastDestructiveRef={cancelRef}
+                        onClose={onWarningClose}
+                      >
+                        <AlertDialogOverlay>
+                          <AlertDialogContent>
+                            <AlertDialogHeader
+                              fontSize="lg"
+                              fontWeight="bold"
+                              fontFamily={"Noto Sans Lao, sans-serif"}
+                            >
+                              ລຶບລາຍການ
+                            </AlertDialogHeader>
+
+                            <AlertDialogBody
+                              fontFamily={"Noto Sans Lao, sans-serif"}
+                            >
+                              ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບລາຍການນີ້?
+                              ການກະທຳນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.
+                            </AlertDialogBody>
+
+                            <AlertDialogFooter>
+                              <Button
+                                fontFamily={"Noto Sans Lao, sans-serif"}
+                                ref={cancelRef}
+                                onClick={onWarningClose}
+                              >
+                                ຍົກເລີກ
+                              </Button>
+                              <Button
+                                fontFamily={"Noto Sans Lao, sans-serif"}
+                                colorScheme="red"
+                                onClick={confirmDelete}
+                                ml={3}
+                              >
+                                ລຶບ
+                              </Button>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialogOverlay>
+                      </AlertDialog>
                     </Td>
                   </Tr>
                 ))}

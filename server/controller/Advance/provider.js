@@ -61,7 +61,12 @@ export const createAdvance = async (req, res) => {
         message: "amounts must be a non-empty array",
       });
     }
-
+    if (req.body.employee_id) {
+      return res.status(400).json({
+        success: false,
+        message: "ກະລຸນາເພີ່ມຊື່ຜູ້ເບີກ",
+      });
+    }
     // Validate each amount entry
     const validatedAmounts = req.body.amounts.map((item) => {
       if (!item.currency || !item.amount) {
@@ -162,7 +167,7 @@ export const updateAdvance = async (req, res) => {
       advance.amount_requested = validatedAmounts;
     }
     // Update other fields
-    console.log("req.body.employee_id",req.body)
+    console.log("req.body.employee_id", req.body);
     if (req.body.purpose) advance.purpose = req.body.purpose;
     if (req.body.request_date) advance.request_date = req.body.request_date;
     if (req.body.serial) advance.serial = req.body.serial;

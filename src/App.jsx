@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import ChartOfAccounts from "./accounting/ChartOfAccounts";
 import PrepaidExpenseDashboard from "./pages/PrepaidExpenseDashboard";
 import Partner from "./pages/Partner";
+import RegisterForm from "./pages/RegisterForSuperAdmin";
 
 function App() {
   const refreshToken = async () => {
@@ -57,13 +58,12 @@ function App() {
           <Route path="income-expense" element={<IncomeExpense />} />
           <Route path="opo" element={<OPO />} />
           <Route path="debt" element={<Debt />} />
-          <Route path="reports" element={<Reports />} />
-
-          
-          <Route path="users" element={<Users />} />
+          <Route path="reports" element={<Reports />} />          
           <Route path="prepaid" element={<PrepaidExpenseDashboard/>} />
           <Route path="partner" element={<Partner/>} />
+          <Route path="users" element={<Users />} />
         </Route>
+             <Route path="register" element={<RegisterForm />} />
       </Routes>
     </AuthProvider>
   );

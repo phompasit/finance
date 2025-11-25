@@ -52,6 +52,12 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from "@chakra-ui/react";
 import {
   AddIcon,
@@ -80,6 +86,7 @@ import {
 } from "lucide-react";
 import { on } from "events";
 import { useAuth } from "../context/AuthContext";
+import { useRef } from "react";
 
 export default function IncomeExpense() {
   const [transactions, setTransactions] = useState([]);
@@ -192,7 +199,7 @@ export default function IncomeExpense() {
       setLoading(false);
     }
   };
-  const pageSize = 100
+  const pageSize = 100;
   const [page, setPage] = useState(1);
 
   const paymentMethodLabels = {
@@ -203,7 +210,7 @@ export default function IncomeExpense() {
   const status_Ap = {
     cancel: "ຍົກເລີກ",
     approve: "ອະນຸມັດ",
-    success_approve: "ອະນູມັດແລ້ວ",
+    success_approve: "ອະນຸມັດແລ້ວ",
     pending: "ລໍຖ້າ",
   };
   const status_income_expense = {
@@ -217,7 +224,7 @@ export default function IncomeExpense() {
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   }
- 
+
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = filters.search.toLowerCase();
 
@@ -615,7 +622,24 @@ export default function IncomeExpense() {
       });
     }
   };
+  // ในคอมโพเนนต์ของคุณ
+  const {
+    isOpen: isWarningIsOpen,
+    onOpen: onWarningOpen,
+    onClose: onWarningClose,
+  } = useDisclosure();
+  const cancelRef = useRef();
+  const [deleteId, setDeleteId] = useState(null);
 
+  const onDeleteClick = (id) => {
+    setDeleteId(id);
+    onWarningOpen();
+  };
+
+  const confirmDelete = () => {
+    handleDelete(deleteId);
+    onWarningClose();
+  };
   const handleViews = (data) => {
     setViews(data);
     onOpenViews();
@@ -2150,7 +2174,7 @@ td:nth-child(8) {
 
         {/* Transactions Table */}
 
-        <Box>
+        <Box overflowX="auto">
           <Table variant="simple">
             <Thead bg={tableHeaderBg}>
               <Tr>
@@ -2454,9 +2478,10 @@ td:nth-child(8) {
                               colorScheme="blue"
                               rounded="lg"
                               isDisabled={
-                                !(user.role === "admin") &&
-                                (transaction?.status_Ap === "approve" ||
-                                  transaction?.status_Ap === "cancel")
+                                (!(user.role === "admin") &&
+                                  (transaction?.status_Ap === "approve" ||
+                                    transaction?.status_Ap === "cancel")) ||
+                                transaction.referance
                               }
                               onClick={() => {
                                 setFormEditData({
@@ -2491,7 +2516,7 @@ td:nth-child(8) {
 
                           <Tooltip label="ລຶບ" placement="top">
                             <IconButton
-                              onClick={() => handleDelete(transaction._id)}
+                              onClick={() => onDeleteClick(transaction._id)}
                               icon={<DeleteIcon />}
                               size="sm"
                               variant="ghost"
@@ -2505,6 +2530,49 @@ td:nth-child(8) {
                               }
                             />
                           </Tooltip>
+
+                          <AlertDialog
+                            isOpen={isWarningIsOpen}
+                            leastDestructiveRef={cancelRef}
+                            onClose={onWarningClose}
+                          >
+                            <AlertDialogOverlay>
+                              <AlertDialogContent>
+                                <AlertDialogHeader
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  fontFamily={"Noto Sans Lao, sans-serif"}
+                                >
+                                  ລຶບລາຍການ
+                                </AlertDialogHeader>
+
+                                <AlertDialogBody
+                                  fontFamily={"Noto Sans Lao, sans-serif"}
+                                >
+                                  ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບລາຍການນີ້?
+                                  ການກະທຳນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.
+                                </AlertDialogBody>
+
+                                <AlertDialogFooter>
+                                  <Button
+                                    fontFamily={"Noto Sans Lao, sans-serif"}
+                                    ref={cancelRef}
+                                    onClick={onWarningClose}
+                                  >
+                                    ຍົກເລີກ
+                                  </Button>
+                                  <Button
+                                    fontFamily={"Noto Sans Lao, sans-serif"}
+                                    colorScheme="red"
+                                    onClick={confirmDelete}
+                                    ml={3}
+                                  >
+                                    ລຶບ
+                                  </Button>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialogOverlay>
+                          </AlertDialog>
                         </HStack>
                       </Td>
                     </Tr>

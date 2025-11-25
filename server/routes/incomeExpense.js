@@ -5,6 +5,7 @@ import { body, query, validationResult } from "express-validator";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import AdvanceRequests from "../models/advanceRequests.js";
+import Debt from "../models/Debt.js";
 const router = express.Router();
 // ✅ Rate Limiting - ป้องกัน DDoS และ Brute Force
 const limiter = rateLimit({
@@ -120,9 +121,6 @@ router.get(
       // ✅ Query with Limit - ป้องกัน Resource Exhaustion
       const limit = Math.min(parseInt(req.query.limit) || 100, 1000);
       const skip = Math.max(parseInt(req.query.skip) || 0, 0);
-      const dd = await IncomeExpense.find({
-        userId: "68f7a326a8648b10cdea4944",
-      });
       const records = await IncomeExpense.find(query)
         .sort({ date: -1 })
         .limit(limit)
@@ -200,6 +198,17 @@ router.post("/bulk", authenticate, async (req, res) => {
         message: "ເລກທີມີແລ້ວກະລຸນາເລືອກໃໝ່",
       });
     }
+    ///ກວດສອບສະກຸນເງິນຕ້ອງມີພຽງສະກຸນເງິນດຽວເທົ່ານັ້ນ
+    for (const i of transactions.amounts) {
+      const countCurrency = transactions.amounts.filter(
+        (inst) => inst.currency === "USD" || "THB" || "LAK" || "EUR" || "CNY"
+      ).length;
+      if (countCurrency > 1) {
+        return res.status(400).json({
+          message: `ສະກຸນເງິນ ${i.currency} ສາມາດມີພຽງໄດ້ 1 ລາຍການເທົ່ານັ້ນ`,
+        });
+      }
+    }
     const savedRecords = await IncomeExpense.insertMany({
       userId: query.userId,
       serial: transactions.serial,
@@ -238,7 +247,23 @@ router.put("/:id", authenticate, async (req, res) => {
     // ดึงข้อมูลจากทั้งสอง collection
     const expenses = await IncomeExpense.find();
     const advances = await AdvanceRequests.find();
-
+    ///ກວດສອບສະກຸນເງິນຕ້ອງມີພຽງສະກຸນເງິນດຽວເທົ່ານັ້ນ
+    for (const i of exiting?.amounts) {
+      const countCurrency = req.body.amounts.filter(
+        (inst) => inst.currency === i.currency
+      ).length;
+      if (countCurrency > 1) {
+        return res.status(400).json({
+          message: `ສະກຸນເງິນ ${i.currency} ສາມາດມີພຽງໄດ້ 1 ລາຍການເທົ່ານັ້ນ`,
+        });
+      }
+    }
+    ///ປ້ອງກິນມາແກ້ໜີ້
+    if (req.body.referance || req.body.installmentId) {
+      return res.status(400).json({
+        message: `ບໍ່ສາມາດແກ້ໄຂໄດ້ເພາະເປັນບັນຊີໜີ້`,
+      });
+    }
     // รวมทั้งหมด
     const allDocs = [
       ...expenses.map((e) => ({ id: e._id.toString(), serial: e.serial })),
@@ -296,26 +321,40 @@ router.delete("/:id", authenticate, async (req, res) => {
     if (!exiting) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
+
     const query = {};
     if (req.user.role === "admin") {
       query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
+    } else {
       query.userId = req.user.companyId;
     }
+
     if (req.user.role !== "admin" && exiting.status_Ap === "approve") {
       return res.status(403).json({
         message: "ໄດ້ຮັບການອະນຸມັດແລ້ວບໍ່ສາມາດປ່ຽນແປງໄດ້",
       });
     }
+
     const record = await IncomeExpense.findOneAndDelete({
       _id: req.params.id,
       ...query,
     });
+
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
+
+    // ✅ อัปเดต installments.isPaid = false ใน Debt
+    await Debt.findOneAndUpdate(
+      {
+        _id: record.referance,
+        "installments._id": record.installmentId,
+      },
+      {
+        $set: { "installments.$.isPaid": false },
+      }
+    );
+
     res.json({ message: "ลบข้อมูลสำเร็จ" });
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });

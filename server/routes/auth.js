@@ -11,13 +11,20 @@ import crypto from "crypto";
 // Register
 router.post("/register", registerLimiter, authenticate, async (req, res) => {
   try {
-    const { username, email, password, role, companyInfo } = req.body;
+    const {
+      username,
+      email,
+      password,
+      role,
+      companyInfo,
+    } = req.body;
     if (!username || !email || !password || !companyInfo) {
       return res.status(400).json({
         message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
       });
     }
-    const isSuperAdmin = req.user?.toObject();
+    console.log(req.user);
+    const isSuperAdmin = req.user
     if (
       role === "admin" &&
       req.user.role === "admin" &&
@@ -89,15 +96,68 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
       },
     });
   } catch (error) {
+    console.log("Error in /register:", error);
     res.status(500).json({
       message: "เกิดข้อผิดพลาดในการสมัครสมาชิก",
       error: error.message,
     });
   }
 });
+
+router.post("/register-superadmin", registerLimiter, async (req, res) => {
+  try {
+    const { username, email, password, companyInfo } = req.body;
+    if (!username || !email || !password || !companyInfo) {
+      return res.status(400).json({
+        message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+      });
+    }
+    // ตรวจสอบ username (ไม่มีอักขระพิเศษที่เป็นอันตราย)
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+      return res.status(400).json({
+        message:
+
+          "ຊື່ຜູ້ໃຊ້ຕ້ອງມີ 3-30 ຕົວອັກສອນ ແລະປະກອບດ້ວຍ a-z, 0-9, _ ເທົ່ານັ້ນ",
+      });
+    }
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({
+        message: "ຮູບແບບອິເມວບໍ່ຖືກຕ້ອງ",
+      });
+    }
+    // Check if user exists
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+      return res.status(400).json({
+
+        message: "ຜູ້ໃຊ້ງານນີ້ມີຢູ່ແລ້ວ ກະລຸນາເລືອກໃຊ້ອິເມວ ແລະ ຊື່ໃໝ່",
+      });
+    }
+    // Create new super admin user
+    const user = new User({
+      username,
+      email,
+      password,
+      role: "admin",
+      companyInfo,
+      isSuperAdmin: true,
+    });
+    await user.save();
+    res.status(201).json({
+      message: "ສ້າງບັນຊີຜູ້ດູແລລະບົບສໍາເລັດ",
+
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "เกิดข้อผิดพลาดในการสมัครสมาชิก",
+      error: error.message,
+    });
+  }
+});
+
 // Account lockout tracking (ใช้ Redis หรือ Memory) ປ້ອງກັນການໂຈມຕີແບບ  Ddos
 const loginAttempts = new Map();
-const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_LOGIN_ATTEMPTS = 100
 const LOCKOUT_TIME = 1 * 60 * 1000; // 1 นาที
 
 // Login
@@ -239,9 +299,9 @@ router.post(
 
       // 3. Find user - ใช้ lean() และ select เฉพาะฟิลด์ที่จำเป็น
       const user = await User.findOne({ email: sanitizedEmail }).select(
-        "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret +isSuperAdmin"
+        "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret"
       );
-      const plainUser = user?.toObject();
+      const plainUser = user
       // 4. Timing-safe user check
       const userExists = !!user;
 
@@ -281,11 +341,13 @@ router.post(
       }
 
       // 6. Check password with timing-safe comparison
+      console.log("Comparing password for user:", user);
+      console.log("Stored hashed password:", password);
       const isMatch = await user.comparePassword(password);
-
+      console.log("Password match result:", isMatch);
       if (!isMatch) {
         const attempts = recordFailedAttempt(identifier);
-
+        console.log("Failed login attempts:", attempts);
         await AuditLog.create({
           action: "LOGIN_FAILED_WRONG_PASSWORD",
           userId: user._id,
@@ -661,20 +723,18 @@ router.patch("/user/:id", authenticate, async (req, res) => {
     // --------------------------------------------------------
     // 1) ถ้าไม่ใช้ SuperAdmin → ห้ามแก้ไข role ของ admin
     // --------------------------------------------------------
-    console.log(updater)
-    console.log(updater.isSuperAdmin)
     if (updater.isSuperAdmin !== true) {
       // admin ธรรมดา, master, staff → ห้ามแก้ไข super-level
       if (targetUser.role === "admin") {
-        return res.status(403).json({ 
-          message: "ທ່ານບໍ່ມີສິດແກ້ໄຂ admin" 
+        return res.status(403).json({
+          message: "ທ່ານບໍ່ມີສິດແກ້ໄຂ admin",
         });
       }
 
       // admin ธรรมดา ห้ามสร้าง admin
       if (role === "admin") {
-        return res.status(403).json({ 
-          message: "ທ່ານບໍ່ມີສິດສ້າງ ຫຼື ປ່ຽນ role ເປັນ admin" 
+        return res.status(403).json({
+          message: "ທ່ານບໍ່ມີສິດສ້າງ ຫຼື ປ່ຽນ role ເປັນ admin",
         });
       }
     }
@@ -684,8 +744,8 @@ router.patch("/user/:id", authenticate, async (req, res) => {
     // --------------------------------------------------------
     if (updater.role !== "admin" && updater.isSuperAdmin !== true) {
       if (role) {
-        return res.status(403).json({ 
-          message: "ທ່ານບໍ່ມີສິດປ່ຽນ Role ຂອງຜູ້ໃຊ້" 
+        return res.status(403).json({
+          message: "ທ່ານບໍ່ມີສິດປ່ຽນ Role ຂອງຜູ້ໃຊ້",
         });
       }
     }
@@ -712,11 +772,9 @@ router.patch("/user/:id", authenticate, async (req, res) => {
     }).select("-password");
 
     res.json(user);
-
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 export default router;

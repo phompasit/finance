@@ -66,6 +66,10 @@ const incomeExpenseSchema = new mongoose.Schema(
     referance: {
       type: mongoose.Schema.Types.ObjectId,
     },
+    installmentId:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Installment",
+    }
   },
   {
     timestamps: true,
