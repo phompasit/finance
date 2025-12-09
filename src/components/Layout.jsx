@@ -113,7 +113,7 @@ export default function Layout() {
       name: "ຜູ້ໃຊ້ງານ",
       path: "/users",
       icon: FiUsers,
-      show: user?.role === "admin" 
+      show: user?.role === "admin",
     },
   ];
 
@@ -132,6 +132,8 @@ export default function Layout() {
 
   const getRoleText = (role) => {
     switch (role) {
+      case "isSuperAdmin":
+        return "ຜູ້ດູແລລະບົບ";
       case "admin":
         return "ຜູ້ດູແລລະບົບ";
       case "staff":
@@ -265,7 +267,7 @@ export default function Layout() {
                       fontFamily={"Noto Sans Lao, sans-serif"}
                       fontWeight="medium"
                     >
-                      {user?.companyInfo?.name}
+                      {user?.companyId?.name}
                     </Text>
                     <Badge
                       fontFamily={"Noto Sans Lao, sans-serif"}
@@ -277,6 +279,71 @@ export default function Layout() {
                   </VStack>
                 </MenuItem>
                 <MenuDivider />
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/chartAccount")}
+                  color="blue"
+                >
+                  ຜັງບັນຊີ
+                </MenuItem>
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/openingBalance")}
+                  color="blue"
+                >
+                  ຍອດຍົກມາ
+                </MenuItem>
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/journal")}
+                  color="blue"
+                >
+                  ປື້ມບັນຊີປະຈຳວັນ
+                </MenuItem>
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/balanceSheet")}
+                  color="blue"
+                >
+                  Balance Sheet
+                </MenuItem>
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/leger")}
+                  color="blue"
+                >
+                  ປື້ມບັນຊີໃຫ່ຍແຍກປະເພດ
+                </MenuItem>
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/statement")}
+                  color="blue"
+                >
+                  ໃບລາຍງານຖານະການເງິນ-ໜີ້ສິນ & ທຶນ
+                </MenuItem>
+                <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/statement-assets")}
+                  color="blue"
+                >
+                  ໃບລາຍງານຖານະການເງິນ-ຊັບສິນ
+                </MenuItem>
+                      <MenuItem
+                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  icon={<FiLogOut />}
+                  onClick={() => navigate("/income-statement")}
+                  color="blue"
+                >
+                  ໃບລາຍງານຜົນດຳເນີນງານ
+                </MenuItem>
+
                 <MenuItem
                   fontFamily={"Noto Sans Lao, sans-serif"}
                   icon={<FiLogOut />}
@@ -340,7 +407,7 @@ export default function Layout() {
                       bg={isActive(item.path) ? activeBg : "transparent"}
                       color={isActive(item.path) ? activeColor : "gray.600"}
                     >
-                      {user?.companyInfo?.name}
+                      {user?.companyId?.name}
                     </Button>
                   )
               )}

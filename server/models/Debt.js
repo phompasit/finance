@@ -31,6 +31,11 @@ const debtSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
     serial: {
       type: String,
       required: true,
@@ -38,6 +43,11 @@ const debtSchema = new mongoose.Schema(
     },
     description: {
       type: String,
+      required: true,
+    },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
       required: true,
     },
     debtType: {
@@ -62,6 +72,9 @@ const debtSchema = new mongoose.Schema(
           type: Number,
           required: true,
           min: 0,
+        },
+        accountId: {
+          type: mongoose.Schema.Types.ObjectId,
         },
       },
     ],

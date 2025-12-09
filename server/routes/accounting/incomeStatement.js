@@ -1,0 +1,356 @@
+// routes/reports/incomeStatement.js
+import express from "express";
+import Account from "../../models/accouting_system_models/Account_document.js";
+import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.js";
+import JournalEntry from "../../models/accouting_system_models/journalEntry_models.js";
+import { authenticate } from "../../middleware/auth.js";
+
+const router = express.Router();
+
+/* ============================================================================
+   1) INCOME STATEMENT MAPPING (ใช้เฉพาะบัญชี category = "ອື່ນໆ")
+============================================================================ */
+const INCOME_MAPPING = [
+  { key: "revenue", label: "Revenue", pattern: "701-709,711-718,719" },
+
+  {
+    key: "cost_of_sales",
+    label: "Cost of sales",
+    pattern: "601-609,611-619,621-629,631-638,641-648,681-688,782-788"
+  },
+
+  { key: "other_income", label: "Other income", pattern: "741,748,751-758" },
+
+  {
+    key: "distribution_costs",
+    label: "Distribution costs",
+    pattern: "601-609,611-619,621-629,631-638,641-648,681-688,782-788"
+  },
+
+  {
+    key: "administrative_expenses",
+    label: "Administrative expenses",
+    pattern: "601-609,611-619,621-629,631-638,641-648,681-688,782-788"
+  },
+
+  { key: "other_expenses", label: "Other expenses", pattern: "651-658" },
+
+  // finance
+  { key: "finance_income", label: "Finance income", pattern: "761-768" },
+  { key: "finance_cost", label: "Finance cost", pattern: "661-668" },
+
+  // tax
+  { key: "current_tax", label: "Current tax", pattern: "691" },
+  { key: "deferred_tax", label: "Deferred tax", pattern: "694,699" },
+
+  // OCI
+  {
+    key: "other_comprehensive_income",
+    label: "Other comprehensive income",
+    pattern: "773,774,775,778"
+  },
+  {
+    key: "other_comprehensive_expenses",
+    label: "Other comprehensive expenses",
+    pattern: "671-678"
+  }
+];
+
+/* ============================================================================
+   2) PATTERN PARSER
+============================================================================ */
+function parsePattern(pattern) {
+  return pattern.split(",").map(p => {
+    p = p.trim();
+    if (!p) return null;
+
+    if (p.includes("-")) {
+      const [s, e] = p.split("-");
+      return { type: "range", start: Number(s), end: Number(e), len: s.length };
+    }
+
+    return { type: "single", value: p, len: p.length };
+  }).filter(Boolean);
+}
+
+function matchCodeWithParsed(code, parsedPatterns) {
+  if (!code) return false;
+  const digits = code.replace(/\D/g, "");
+
+  for (const p of parsedPatterns) {
+    const prefix = digits.slice(0, p.len);
+    if (prefix.length < p.len) continue;
+
+    if (p.type === "single" && prefix === p.value) return true;
+
+    if (p.type === "range") {
+      const num = Number(prefix);
+      if (num >= p.start && num <= p.end) return true;
+    }
+  }
+  return false;
+}
+
+/* ============================================================================
+   3) CATEGORY → INCOME STATEMENT LINE MAPPING
+============================================================================ */
+function categoryToLine(cat) {
+  switch (cat) {
+    case "ຕົ້ນທຸນຂາຍ":
+      return "cost_of_sales";
+    case "ຕົ້ນທຸນຈຳຫນ່າຍ":
+      return "distribution_costs";
+    case "ຕົ້ນທຸນບໍລິຫານ":
+      return "administrative_expenses";
+    default:
+      return null; // fallback → pattern
+  }
+}
+
+/* ============================================================================
+   4) DATE RANGE
+============================================================================ */
+function parseDateRange(query) {
+  const { preset, startDate, endDate } = query;
+  const end = endDate ? new Date(endDate) : new Date();
+  end.setHours(23, 59, 59, 999);
+
+  let start;
+  if (preset) {
+    start = new Date(end.getFullYear(), end.getMonth() - (preset - 1), 1);
+  } else if (startDate) {
+    start = new Date(startDate);
+  } else {
+    start = new Date(end.getFullYear(), 0, 1);
+  }
+
+  start.setHours(0, 0, 0, 0);
+  return { start, end };
+}
+
+/* ============================================================================
+   5) MAIN ROUTE — INCOME STATEMENT
+============================================================================ */
+router.get("/income-statement", authenticate, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+
+    const { start, end } = parseDateRange(req.query);
+
+    /* ------------------------ Load accounts ------------------------ */
+    const accounts = await Account.find({ companyId }).lean();
+    const idToAcc = {};
+    accounts.forEach(acc => { idToAcc[String(acc._id)] = acc; });
+
+    /* ------------------------ Init rows --------------------------- */
+    const rows = {};
+    accounts.forEach(acc => {
+      rows[acc.code] = {
+        accountId: String(acc._id),
+        code: acc.code,
+        name: acc.name,
+        parentCode: acc.parentCode || null,
+        normalSide: acc.normalSide || "Dr",
+        openingDr: 0,
+        openingCr: 0,
+        movementDr: 0,
+        movementCr: 0,
+        endingDr: 0,
+        endingCr: 0
+      };
+    });
+
+    /* --------------------- Opening ------------------------ */
+    const opens = await OpeningBalance.find({
+      companyId,
+      year: start.getFullYear()
+    }).lean();
+
+    opens.forEach(ob => {
+      const acc = idToAcc[String(ob.accountId)];
+      if (!acc) return;
+      const code = acc.code;
+
+      rows[code].openingDr += Number(ob.debit || 0);
+      rows[code].openingCr += Number(ob.credit || 0);
+    });
+
+    /* --------------------- Movements ------------------------ */
+    const journals = await JournalEntry.find({
+      companyId,
+      date: { $gte: start, $lte: end }
+    }).lean();
+
+    journals.forEach(j => {
+      (j.lines || []).forEach(ln => {
+        const acc = idToAcc[String(ln.accountId)];
+        if (!acc) return;
+        const code = acc.code;
+        const amt = Number(ln.amountLAK || 0);
+
+        if (ln.side === "dr") rows[code].movementDr += amt;
+        else rows[code].movementCr += amt;
+      });
+    });
+
+    /* --------------------- Roll-up child → parent ---------------- */
+    const childrenMap = {};
+    Object.values(rows).forEach(r => {
+      if (!r.parentCode) return;
+      if (!childrenMap[r.parentCode]) childrenMap[r.parentCode] = [];
+      childrenMap[r.parentCode].push(r.code);
+    });
+
+    function roll(code) {
+      const childs = childrenMap[code] || [];
+      childs.forEach(c => {
+        roll(c);
+
+        rows[code].openingDr += rows[c].openingDr;
+        rows[code].openingCr += rows[c].openingCr;
+        rows[code].movementDr += rows[c].movementDr;
+        rows[code].movementCr += rows[c].movementCr;
+      });
+    }
+
+    Object.values(rows)
+      .filter(r => !r.parentCode)
+      .forEach(r => roll(r.code));
+
+    /* --------------------- Compute ending ------------------------ */
+    Object.values(rows).forEach(r => {
+      const isDr = r.normalSide === "Dr";
+      const net = (isDr
+        ? (r.openingDr - r.openingCr) + (r.movementDr - r.movementCr)
+        : (r.openingCr - r.openingDr) + (r.movementCr - r.movementDr)
+      );
+
+      r.endingDr = r.endingCr = 0;
+      if (net >= 0) {
+        if (isDr) r.endingDr = net;
+        else r.endingCr = net;
+      } else {
+        if (isDr) r.endingCr = -net;
+        else r.endingDr = -net;
+      }
+    });
+
+    /* ============================================================================
+       6) CALCULATE INCOME STATEMENT — LEAF ONLY!
+    ============================================================================ */
+
+    const leafAccounts = Object.values(rows).filter(r => {
+      return !Object.values(rows).some(x => x.parentCode === r.code);
+    });
+
+    const parsedMap = INCOME_MAPPING.map(m => ({
+      ...m,
+      parsed: parsePattern(m.pattern)
+    }));
+
+    const lines = {};
+    parsedMap.forEach(m => {
+      lines[m.key] = {
+        key: m.key,
+        label: m.label,
+        amount: 0,
+        accounts: []
+      };
+    });
+
+    leafAccounts.forEach(r => {
+      const acc = idToAcc[r.accountId];
+      if (!acc) return;
+
+      const catLine = categoryToLine(acc.category);
+
+      const signed = r.endingDr - r.endingCr;
+
+      if (catLine) {
+        lines[catLine].amount += signed;
+        lines[catLine].accounts.push(r);
+        return;
+      }
+
+      parsedMap.forEach(m => {
+        if (matchCodeWithParsed(r.code, m.parsed)) {
+          lines[m.key].amount += signed;
+          lines[m.key].accounts.push(r);
+        }
+      });
+    });
+
+    /* ============================================================================
+       7) FINANCIAL CALCULATIONS
+    ============================================================================ */
+    const revenue = lines.revenue.amount;
+    const cost = lines.cost_of_sales.amount;
+    const gross = revenue - cost;
+
+    const dist = lines.distribution_costs.amount;
+    const admin = lines.administrative_expenses.amount;
+    const otherIncome = lines.other_income.amount;
+    const otherExp = lines.other_expenses.amount;
+
+    const operating =
+      gross + otherIncome - dist - admin - otherExp;
+
+    const finIncome = lines.finance_income.amount;
+    const finCost = lines.finance_cost.amount;
+
+    const pbt = operating + finIncome - finCost;
+
+    const tax = lines.current_tax.amount;
+    const deferred = lines.deferred_tax.amount;
+
+    const net = pbt - tax - deferred;
+
+    /* ============================================================================
+       8) OUTPUT (ตามฟอร์มจริง)
+    ============================================================================ */
+    return res.json({
+      success: true,
+      data: {
+        period: { start, end },
+
+        lines: [
+          lines.revenue,
+          lines.cost_of_sales,
+          { key: "gross_profit", label: "Gross Profit", amount: gross },
+
+          lines.other_income,
+          lines.distribution_costs,
+          lines.administrative_expenses,
+          lines.other_expenses,
+
+          { key: "operating_profit", label: "Operating Profit", amount: operating },
+
+          lines.finance_income,
+          lines.finance_cost,
+
+          { key: "profit_before_tax", label: "Profit Before Tax", amount: pbt },
+
+          lines.current_tax,
+          lines.deferred_tax,
+
+          { key: "net_profit", label: "Net Profit", amount: net }
+        ],
+
+        totals: {
+          revenue,
+          cost,
+          gross,
+          operating,
+          pbt,
+          net
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error("income-statement error:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+export default router;

@@ -28,27 +28,34 @@ import {
   TabPanel,
   Heading,
   Badge,
+  RadioGroup,
+  Radio,
 } from "@chakra-ui/react";
+
 import { AddIcon, EditIcon } from "@chakra-ui/icons";
 import { DeleteIcon } from "lucide-react";
 
 export default function Partner() {
   const toast = useToast();
 
+  // STATE
   const [suppliers, setSuppliers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   const [editingId, setEditingId] = useState(null);
   const [formType, setFormType] = useState("supplier");
 
+  // form: supplier / customer
   const [formData, setFormData] = useState({
     name: "",
-    taxId: "",
     phone: "",
     address: "",
+    taxId: "",
   });
 
+  // employee
   const [formEmployee, setFormEmployee] = useState({
     emp_code: "",
     full_name: "",
@@ -57,18 +64,21 @@ export default function Partner() {
     phone: "",
   });
 
-  const {
-    isOpen: isPartnerModal,
-    onOpen: onOpenPartner,
-    onClose: onClosePartner,
-  } = useDisclosure();
+  // category
+  const [formCategory, setFormCategory] = useState({
+    name: "",
+    type: "income",
+    description: "",
+  });
 
-  const {
-    isOpen: isEmployeeModal,
-    onOpen: onOpenEmployee,
-    onClose: onCloseEmployee,
-  } = useDisclosure();
+  // Modal control
+  const partnerModal = useDisclosure();
+  const employeeModal = useDisclosure();
+  const categoryModal = useDisclosure();
 
+  // ================================
+  // Fetch Data
+  // ================================
   const fetchPartners = async () => {
     try {
       const res = await fetch(
@@ -80,9 +90,10 @@ export default function Partner() {
         }
       );
       const result = await res.json();
+
       if (result.success) {
-        setSuppliers(result.data.filter((p) => p.type === "supplier"));
-        setCustomers(result.data.filter((p) => p.type === "customer"));
+        setSuppliers(result.data.filter((i) => i.type === "supplier"));
+        setCustomers(result.data.filter((i) => i.type === "customer"));
       }
     } catch (err) {
       toast({ title: "Error fetching partners", status: "error" });
@@ -99,6 +110,7 @@ export default function Partner() {
           },
         }
       );
+
       const result = await res.json();
       if (result.success) setEmployees(result.data);
     } catch (err) {
@@ -106,59 +118,96 @@ export default function Partner() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/category/get-category`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      const result = await res.json();
+      setCategories(result);
+    } catch (err) {
+      toast({ title: "Error fetching categories", status: "error" });
+    }
+  };
+
   useEffect(() => {
     fetchPartners();
+    fetchCategories();
     fetchEmployees();
   }, []);
 
+  // ================================
+  // Open Forms
+  // ================================
   const handleOpenPartner = (type, item = null) => {
     setFormType(type);
-    if (item) {
-      setEditingId(item._id);
-      setFormData(item);
-    } else {
-      setEditingId(null);
-      setFormData({ name: "", taxId: "", phone: "", address: "" });
-    }
-    onOpenPartner();
+    setEditingId(item?._id || null);
+    setFormData(
+      item || {
+        name: "",
+        phone: "",
+        address: "",
+        taxId: "",
+      }
+    );
+    partnerModal.onOpen();
   };
 
   const handleOpenEmployee = (item = null) => {
-    if (item) {
-      setEditingId(item._id);
-      setFormEmployee(item);
-    } else {
-      setEditingId(null);
-      setFormEmployee({
+    setEditingId(item?._id || null);
+    setFormEmployee(
+      item || {
         emp_code: "",
         full_name: "",
         department: "",
         position: "",
         phone: "",
-      });
-    }
-    onOpenEmployee();
+      }
+    );
+    employeeModal.onOpen();
   };
 
+  const handleOpenCategory = (item = null) => {
+    setEditingId(item?._id || null);
+    setFormCategory(
+      item || {
+        name: "",
+        type: "income",
+        description: "",
+      }
+    );
+    categoryModal.onOpen();
+  };
+
+  // ================================
+  // Submit Section
+  // ================================
   const handleSubmitPartner = async () => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/debt/partners${
-          editingId ? `/${editingId}` : ""
-        }`,
-        {
-          method: editingId ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ ...formData, type: formType }),
-        }
-      );
+      const url = `${import.meta.env.VITE_API_URL}/api/debt/partners${
+        editingId ? `/${editingId}` : ""
+      }`;
+
+      const res = await fetch(url, {
+        method: editingId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ ...formData, type: formType }),
+      });
+
       const result = await res.json();
+
       if (result.success) {
         toast({ title: "Saved successfully", status: "success" });
-        onClosePartner();
+        partnerModal.onClose();
         fetchPartners();
       }
     } catch {
@@ -168,56 +217,80 @@ export default function Partner() {
 
   const handleSubmitEmployee = async () => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/debt/employees${
-          editingId ? `/${editingId}` : ""
-        }`,
-        {
-          method: editingId ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify(formEmployee),
-        }
-      );
+      const url = `${import.meta.env.VITE_API_URL}/api/debt/employees${
+        editingId ? `/${editingId}` : ""
+      }`;
+
+      const res = await fetch(url, {
+        method: editingId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(formEmployee),
+      });
+
       const result = await res.json();
+
       if (result.success) {
-        toast({ title: "Employee saved", status: "success" });
-        onCloseEmployee();
+        toast({ title: "Employee saved!", status: "success" });
+        employeeModal.onClose();
         fetchEmployees();
       }
     } catch {
       toast({ title: "Save failed", status: "error" });
     }
   };
-  const handleDeleteEmployee = async (id) => {
 
+  const handleSubmitCategory = async () => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/debt/employees/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const url = `${import.meta.env.VITE_API_URL}/api/category/${
+        editingId ? `update-category/${editingId}` : "create-category"
+      }`;
+
+      const res = await fetch(url, {
+        method: editingId ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(formCategory),
+      });
 
       const result = await res.json();
 
+      // 🟢 ถ้าสำเร็จ
       if (result.success) {
-        alert("ลบข้อมูลสำเร็จ!");
-        fetchEmployees(); // รีเฟรชข้อมูลหลังลบ
-      } else {
-        alert(result.message || "เกิดข้อผิดพลาดขณะลบข้อมูล");
+        toast({
+          title: result.message || "Category saved",
+          status: "success",
+        });
+
+        categoryModal.onClose();
+        fetchCategories();
+        return;
       }
-    } catch (error) {
-      console.error("❌ Error deleting employee:", error);
+
+      // 🔴 ถ้า backend ส่ง error message
+      toast({
+        title: result.message || "Failed to save category",
+        status: "error",
+      });
+    } catch (err) {
+      // 🔴 error จาก network หรือ server ลง
+      toast({
+        title: "Error saving category",
+        description: err.message,
+        status: "error",
+      });
     }
   };
+
+  // ================================
+  // Delete Section
+  // ================================
   const handleDeletePartner = async (id) => {
+    if (!confirm("ຢືນຢັນການລົບ?")) return;
 
     try {
       const res = await fetch(
@@ -225,7 +298,6 @@ export default function Partner() {
         {
           method: "DELETE",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
@@ -234,28 +306,86 @@ export default function Partner() {
       const result = await res.json();
 
       if (result.success) {
-        alert("ลบข้อมูลสำเร็จ!");
-        fetchPartners(); // ดึงข้อมูลใหม่
-      } else {
-        alert(result.message || "เกิดข้อผิดพลาดขณะลบข้อมูล");
+        toast({ title: "Deleted!", status: "success" });
+        fetchPartners();
       }
-    } catch (error) {
-      console.error("❌ Error deleting partner:", error);
+    } catch {
+      toast({ title: "Error deleting partner", status: "error" });
     }
   };
 
-  return (
-    <Box p={6}>
-      <Heading
-        fontFamily="Noto Sans Lao, sans-serif"
-        size="lg"
-        color="teal.600"
-        mb={4}
-      >
-        ຈັດການຜູ້ສະໜອງ / ລູກໜີ້ / ພະນັກງານ
-      </Heading>
+  const handleDeleteEmployee = async (id) => {
+    if (!confirm("ຢືນຢັນການລົບ?")) return;
 
-      <Tabs variant="enclosed">
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/debt/employees/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const result = await res.json();
+
+      if (result.success) {
+        toast({ title: "Deleted!", status: "success" });
+        fetchEmployees();
+      }
+    } catch {
+      toast({ title: "Error deleting employee", status: "error" });
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!confirm("ຢືນຢັນການລົບ?")) return;
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/category/delete-category/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const result = await res.json();
+
+      if (result.success) {
+        toast({ title: "Category deleted!", status: "success" });
+        fetchCategories();
+      }
+    } catch {
+      toast({ title: "Error deleting category", status: "error" });
+    }
+  };
+  console.log(categories);
+  // ==================================================================
+  // RENDER UI
+  // ==================================================================
+  return (
+  <Box p={6} bg="gray.50" minH="100vh">
+    <Heading
+      fontFamily="Noto Sans Lao, sans-serif"
+      size="lg"
+      color="teal.700"
+      mb={6}
+      textAlign="center"
+    >
+      ຈັດການຜູ້ສະໜອງ / ລູກໜີ້ / ພະນັກງານ / ໝວດໝູ່
+    </Heading>
+
+    <Box
+      bg="white"
+      p={6}
+      rounded="xl"
+      shadow="md"
+      border="1px solid"
+      borderColor="gray.100"
+    >
+      <Tabs variant="soft-rounded" colorScheme="teal">
         <TabList>
           <Tab fontFamily="Noto Sans Lao, sans-serif">
             ຜູ້ສະໜອງ <Badge ml={2}>{suppliers.length}</Badge>
@@ -266,22 +396,29 @@ export default function Partner() {
           <Tab fontFamily="Noto Sans Lao, sans-serif">
             ພະນັກງານ <Badge ml={2}>{employees.length}</Badge>
           </Tab>
+          <Tab fontFamily="Noto Sans Lao, sans-serif">
+            ໝວດໝູ່ <Badge ml={2}>{categories?.length}</Badge>
+          </Tab>
         </TabList>
 
-        <TabPanels>
-          {/* Supplier */}
+        <TabPanels mt={4}>
+          {/* SUPPLIER */}
           <TabPanel>
             <Button
               fontFamily="Noto Sans Lao, sans-serif"
               leftIcon={<AddIcon />}
               colorScheme="teal"
               mb={4}
+              size="sm"
+              rounded="md"
+              shadow="sm"
               onClick={() => handleOpenPartner("supplier")}
             >
               ເພີ່ມຜູ້ສະໜອງ
             </Button>
-            <Table variant="striped" size="sm">
-              <Thead>
+
+            <Table size="sm" variant="simple">
+              <Thead bg="gray.100">
                 <Tr>
                   <Th fontFamily="Noto Sans Lao, sans-serif">ຊື່</Th>
                   <Th fontFamily="Noto Sans Lao, sans-serif">ເບີໂທ</Th>
@@ -289,31 +426,37 @@ export default function Partner() {
                   <Th fontFamily="Noto Sans Lao, sans-serif">ຈັດການ</Th>
                 </Tr>
               </Thead>
+
               <Tbody>
-                {suppliers.map((s) => (
-                  <Tr key={s._id}>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{s.name}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{s.phone}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{s.address}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="xs"
-                        colorScheme="blue"
-                        leftIcon={<EditIcon />}
-                        onClick={() => handleOpenPartner("supplier", s)}
-                      >
-                        ແກ້ໄຂ
-                      </Button>
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="xs"
-                        colorScheme="red"
-                        onClick={()=>handleDeletePartner(s._id)}
-                        leftIcon={<DeleteIcon />}
-                      >
-                        ລົບ
-                      </Button>
+                {suppliers.map((i) => (
+                  <Tr key={i._id} _hover={{ bg: "gray.50" }}>
+                    <Td>{i.name}</Td>
+                    <Td>{i.phone}</Td>
+                    <Td>{i.address}</Td>
+                    <Td>
+                      <HStack>
+                        <Button
+                          size="xs"
+                          leftIcon={<EditIcon />}
+                          colorScheme="blue"
+                          rounded="md"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          onClick={() => handleOpenPartner("supplier", i)}
+                        >
+                          ແກ້ໄຂ
+                        </Button>
+
+                        <Button
+                          size="xs"
+                          colorScheme="red"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          leftIcon={<DeleteIcon />}
+                          rounded="md"
+                          onClick={() => handleDeletePartner(i._id)}
+                        >
+                          ລົບ
+                        </Button>
+                      </HStack>
                     </Td>
                   </Tr>
                 ))}
@@ -321,51 +464,61 @@ export default function Partner() {
             </Table>
           </TabPanel>
 
-          {/* Customer */}
+          {/* CUSTOMER */}
           <TabPanel>
             <Button
               fontFamily="Noto Sans Lao, sans-serif"
               leftIcon={<AddIcon />}
               colorScheme="teal"
               mb={4}
+              size="sm"
+              rounded="md"
+              shadow="sm"
               onClick={() => handleOpenPartner("customer")}
             >
               ເພີ່ມລູກໜີ້
             </Button>
-            <Table variant="striped" size="sm">
-              <Thead>
+
+            <Table size="sm" variant="simple">
+              <Thead bg="gray.100">
                 <Tr>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ຊື່</Th>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ເບີໂທ</Th>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ທີ່ຢູ່</Th>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ຈັດການ</Th>
+                  <Th>ຊື່</Th>
+                  <Th>ເບີໂທ</Th>
+                  <Th>ທີ່ຢູ່</Th>
+                  <Th>ຈັດການ</Th>
                 </Tr>
               </Thead>
+
               <Tbody>
-                {customers.map((c) => (
-                  <Tr key={c._id}>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{c.name}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{c.phone}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{c.address}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="xs"
-                        colorScheme="blue"
-                        leftIcon={<EditIcon />}
-                        onClick={() => handleOpenPartner("customer", c)}
-                      >
-                        ແກ້ໄຂ
-                      </Button>
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="xs"
-                        colorScheme="red"
-                        leftIcon={<DeleteIcon />}
-                          onClick={()=>handleDeletePartner(c._id)}
-                      >
-                        ລົບ
-                      </Button>
+                {customers.map((i) => (
+                  <Tr key={i._id} _hover={{ bg: "gray.50" }}>
+                    <Td>{i.name}</Td>
+                    <Td>{i.phone}</Td>
+                    <Td>{i.address}</Td>
+                    <Td>
+                      <HStack>
+                        <Button
+                          size="xs"
+                          colorScheme="blue"
+                          leftIcon={<EditIcon />}
+                          rounded="md"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          onClick={() => handleOpenPartner("customer", i)}
+                        >
+                          ແກ້ໄຂ
+                        </Button>
+
+                        <Button
+                          size="xs"
+                          colorScheme="red"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          leftIcon={<DeleteIcon />}
+                          rounded="md"
+                          onClick={() => handleDeletePartner(i._id)}
+                        >
+                          ລົບ
+                        </Button>
+                      </HStack>
                     </Td>
                   </Tr>
                 ))}
@@ -373,55 +526,132 @@ export default function Partner() {
             </Table>
           </TabPanel>
 
-          {/* Employee */}
+          {/* EMPLOYEE */}
           <TabPanel>
             <Button
               fontFamily="Noto Sans Lao, sans-serif"
               leftIcon={<AddIcon />}
               colorScheme="teal"
               mb={4}
+              size="sm"
+              rounded="md"
+              shadow="sm"
               onClick={() => handleOpenEmployee()}
             >
               ເພີ່ມພະນັກງານ
             </Button>
-            <Table variant="striped" size="sm">
-              <Thead>
+
+            <Table size="sm" variant="simple">
+              <Thead bg="gray.100">
                 <Tr>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ລະຫັດ</Th>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ຊື່</Th>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ພະແນກ</Th>
-                  <Th fontFamily="Noto Sans Lao, sans-serif">ຈັດການ</Th>
+                  <Th>ລະຫັດ</Th>
+                  <Th>ຊື່</Th>
+                  <Th>ພະແນກ</Th>
+                  <Th>ຈັດການ</Th>
                 </Tr>
               </Thead>
+
               <Tbody>
-                {employees.map((e) => (
-                  <Tr key={e._id}>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">{e.emp_code}</Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">
-                      {e.full_name}
+                {employees.map((i) => (
+                  <Tr key={i._id} _hover={{ bg: "gray.50" }}>
+                    <Td>{i.emp_code}</Td>
+                    <Td>{i.full_name}</Td>
+                    <Td>{i.department}</Td>
+                    <Td>
+                      <HStack>
+                        <Button
+                          size="xs"
+                          leftIcon={<EditIcon />}
+                          colorScheme="blue"
+                          rounded="md"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          onClick={() => handleOpenEmployee(i)}
+                        >
+                          ແກ້ໄຂ
+                        </Button>
+
+                        <Button
+                          size="xs"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          leftIcon={<DeleteIcon />}
+                          colorScheme="red"
+                          rounded="md"
+                          onClick={() => handleDeleteEmployee(i._id)}
+                        >
+                          ລົບ
+                        </Button>
+                      </HStack>
                     </Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">
-                      {e.department}
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </TabPanel>
+
+          {/* CATEGORY */}
+          <TabPanel>
+            <Button
+              fontFamily="Noto Sans Lao, sans-serif"
+              leftIcon={<AddIcon />}
+              colorScheme="teal"
+              mb={4}
+              size="sm"
+              rounded="md"
+              shadow="sm"
+              onClick={() => handleOpenCategory()}
+            >
+              ເພີ່ມໝວດໝູ່
+            </Button>
+
+            <Table size="sm" variant="simple">
+              <Thead bg="gray.100">
+                <Tr>
+                  <Th>ຊື່ໝວດ</Th>
+                  <Th>ປະເພດ</Th>
+                  <Th>ອະທິບາຍ</Th>
+                  <Th>ຈັດການ</Th>
+                </Tr>
+              </Thead>
+
+              <Tbody>
+                {categories?.map((i) => (
+                  <Tr key={i._id} _hover={{ bg: "gray.50" }}>
+                    <Td>{i.name}</Td>
+                    <Td>
+                      {{
+                        income: "💰 ລາຍຮັບ",
+                        asset: "🏦 ຊັບສິນ",
+                        cogs: "📦 ຕົ້ນທຶນຂາຍ",
+                        "selling-expense": "🛒 ຈ່າຍຈຳໜ່າຍ",
+                        "admin-expense": "🏢 ບໍລິຫານ",
+                        expense: "📉 ຈ່າຍອື່ນໆ",
+                      }[i.type]}
                     </Td>
-                    <Td fontFamily="Noto Sans Lao, sans-serif">
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="xs"
-                        colorScheme="blue"
-                        leftIcon={<EditIcon />}
-                        onClick={() => handleOpenEmployee(e)}
-                      >
-                        ແກ້ໄຂ
-                      </Button>
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="xs"
-                        colorScheme="red"
-                        leftIcon={<DeleteIcon />}
-                        onClick={()=>handleDeleteEmployee(e._id)}
-                      >
-                        ລົບ
-                      </Button>
+                    <Td>{i.description}</Td>
+                    <Td>
+                      <HStack>
+                        <Button
+                          size="xs"
+                          leftIcon={<EditIcon />}
+                          colorScheme="blue"
+                          rounded="md"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          onClick={() => handleOpenCategory(i)}
+                        >
+                          ແກ້ໄຂ
+                        </Button>
+
+                        <Button
+                          size="xs"
+                          leftIcon={<DeleteIcon />}
+                          colorScheme="red"
+                          rounded="md"
+                                    fontFamily="Noto Sans Lao, sans-serif"
+                          onClick={() => handleDeleteCategory(i._id)}
+                        >
+                          ລົບ
+                        </Button>
+                      </HStack>
                     </Td>
                   </Tr>
                 ))}
@@ -430,134 +660,201 @@ export default function Partner() {
           </TabPanel>
         </TabPanels>
       </Tabs>
-
-      {/* Partner Modal */}
-      <Modal isOpen={isPartnerModal} onClose={onClosePartner} size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-            {editingId ? "ແກ້ໄຂ" : "ເພີ່ມ"}{" "}
-            {formType === "supplier" ? "ຜູ້ສະໜອງ" : "ລູກໜີ້"}
-          </ModalHeader>
-          <ModalBody>
-            <VStack spacing={3}>
-              <Input
-                placeholder="ຊື່"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-              <Input
-                placeholder="ເບີໂທ"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-              />
-              <Textarea
-                placeholder="ທີ່ຢູ່"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
-              />
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              mr={3}
-              onClick={onClosePartner}
-            >
-              ຍົກເລີກ
-            </Button>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              colorScheme="teal"
-              onClick={handleSubmitPartner}
-            >
-              ບັນທຶກ
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Employee Modal */}
-      <Modal isOpen={isEmployeeModal} onClose={onCloseEmployee} size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-            {editingId ? "ແກ້ໄຂພະນັກງານ" : "ເພີ່ມພະນັກງານ"}
-          </ModalHeader>
-          <ModalBody>
-            <VStack spacing={3}>
-              <Input
-                fontFamily="Noto Sans Lao, sans-serif"
-                placeholder="ລະຫັດ"
-                value={formEmployee.emp_code}
-                onChange={(e) =>
-                  setFormEmployee({ ...formEmployee, emp_code: e.target.value })
-                }
-              />
-              <Input
-                fontFamily="Noto Sans Lao, sans-serif"
-                placeholder="ຊື່"
-                value={formEmployee.full_name}
-                onChange={(e) =>
-                  setFormEmployee({
-                    ...formEmployee,
-                    full_name: e.target.value,
-                  })
-                }
-              />
-              <Input
-                fontFamily="Noto Sans Lao, sans-serif"
-                placeholder="ພະແນກ"
-                value={formEmployee.department}
-                onChange={(e) =>
-                  setFormEmployee({
-                    ...formEmployee,
-                    department: e.target.value,
-                  })
-                }
-              />
-              <Input
-                fontFamily="Noto Sans Lao, sans-serif"
-                placeholder="ຕຳແໜ່ງ"
-                value={formEmployee.position}
-                onChange={(e) =>
-                  setFormEmployee({ ...formEmployee, position: e.target.value })
-                }
-              />
-              <Input
-                fontFamily="Noto Sans Lao, sans-serif"
-                placeholder="ເບີໂທ"
-                value={formEmployee.phone}
-                onChange={(e) =>
-                  setFormEmployee({ ...formEmployee, phone: e.target.value })
-                }
-              />
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              mr={3}
-              onClick={onCloseEmployee}
-            >
-              ຍົກເລີກ
-            </Button>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              colorScheme="teal"
-              onClick={handleSubmitEmployee}
-            >
-              ບັນທຶກ
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </Box>
-  );
+
+    {/* ========================= PARTNER MODAL ========================= */}
+    <Modal isOpen={partnerModal.isOpen} onClose={partnerModal.onClose} size="md">
+      <ModalOverlay />
+      <ModalContent rounded="xl" shadow="lg">
+        <ModalHeader
+          fontFamily="Noto Sans Lao, sans-serif"
+          color="teal.600"
+          fontWeight="bold"
+        >
+          {editingId
+            ? "ແກ້ໄຂຂໍ້ມູນ"
+            : formType === "supplier"
+            ? "ເພີ່ມຜູ້ສະໜອງ"
+            : "ເພີ່ມລູກໜີ້"}
+        </ModalHeader>
+
+        <ModalBody>
+          <VStack spacing={4}>
+            <Input
+              placeholder="ຊື່"
+              value={formData.name}
+              rounded="md"
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+            />
+            <Input
+              placeholder="ເບີໂທ"
+              value={formData.phone}
+              rounded="md"
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+            />
+            <Textarea
+              placeholder="ທີ່ຢູ່"
+              value={formData.address}
+              rounded="md"
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
+            />
+          </VStack>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button mr={3} onClick={partnerModal.onClose}>
+            ຍົກເລີກ
+          </Button>
+          <Button colorScheme="teal" onClick={handleSubmitPartner}>
+            ບັນທຶກ
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+
+    {/* EMPLOYEE MODAL */}
+    <Modal isOpen={employeeModal.isOpen} onClose={employeeModal.onClose}>
+      <ModalOverlay />
+      <ModalContent rounded="xl" shadow="lg">
+        <ModalHeader fontFamily="Noto Sans Lao, sans-serif" color="teal.600">
+          {editingId ? "ແກ້ໄຂພະນັກງານ" : "ເພີ່ມພະນັກງານ"}
+        </ModalHeader>
+
+        <ModalBody>
+          <VStack spacing={4}>
+            <Input
+              placeholder="ລະຫັດ"
+              value={formEmployee.emp_code}
+              rounded="md"
+              onChange={(e) =>
+                setFormEmployee({ ...formEmployee, emp_code: e.target.value })
+              }
+            />
+            <Input
+              placeholder="ຊື່"
+              value={formEmployee.full_name}
+              rounded="md"
+              onChange={(e) =>
+                setFormEmployee({
+                  ...formEmployee,
+                  full_name: e.target.value,
+                })
+              }
+            />
+            <Input
+              placeholder="ພະແນກ"
+              rounded="md"
+              value={formEmployee.department}
+              onChange={(e) =>
+                setFormEmployee({
+                  ...formEmployee,
+                  department: e.target.value,
+                })
+              }
+            />
+            <Input
+              placeholder="ຕຳແໜ່ງ"
+              rounded="md"
+              value={formEmployee.position}
+              onChange={(e) =>
+                setFormEmployee({
+                  ...formEmployee,
+                  position: e.target.value,
+                })
+              }
+            />
+            <Input
+              placeholder="ເບີໂທ"
+              rounded="md"
+              value={formEmployee.phone}
+              onChange={(e) =>
+                setFormEmployee({
+                  ...formEmployee,
+                  phone: e.target.value,
+                })
+              }
+            />
+          </VStack>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button mr={3} onClick={employeeModal.onClose}>
+            ຍົກເລີກ
+          </Button>
+          <Button colorScheme="teal" onClick={handleSubmitEmployee}>
+            ບັນທຶກ
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+
+    {/* CATEGORY MODAL */}
+    <Modal isOpen={categoryModal.isOpen} onClose={categoryModal.onClose}>
+      <ModalOverlay />
+      <ModalContent rounded="xl" shadow="lg">
+        <ModalHeader fontFamily="Noto Sans Lao, sans-serif" color="teal.600">
+          {editingId ? "ແກ້ໄຂໝວດໝູ່" : "ເພີ່ມໝວດໝູ່"}
+        </ModalHeader>
+
+        <ModalBody>
+          <VStack spacing={4}>
+            <Input
+              placeholder="ຊື່ໝວດ"
+              value={formCategory.name}
+              rounded="md"
+              onChange={(e) =>
+                setFormCategory({ ...formCategory, name: e.target.value })
+              }
+            />
+
+            <RadioGroup
+              value={formCategory.type}
+              onChange={(val) =>
+                setFormCategory({ ...formCategory, type: val })
+              }
+            >
+              <VStack align="start" spacing={2}>
+                <Radio value="income">💰 Income (ລາຍຮັບ)</Radio>
+                <Radio value="asset">🏦 Asset (ຊັບສິນ)</Radio>
+                <Radio value="cogs">📦 COGS (ຕົ້ນທຶນຂາຍ)</Radio>
+                <Radio value="selling-expense">🛒 ຈ່າຍຈຳໜ່າຍ</Radio>
+                <Radio value="admin-expense">🏢 ບໍລິຫານ</Radio>
+                <Radio value="expense">📉 ອື່ນໆ</Radio>
+              </VStack>
+            </RadioGroup>
+
+            <Textarea
+              placeholder="ອະທິບາຍ"
+              value={formCategory.description}
+              rounded="md"
+              onChange={(e) =>
+                setFormCategory({
+                  ...formCategory,
+                  description: e.target.value,
+                })
+              }
+            />
+          </VStack>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button mr={3} onClick={categoryModal.onClose}>
+            ຍົກເລີກ
+          </Button>
+          <Button colorScheme="teal" onClick={handleSubmitCategory}>
+            ບັນທຶກ
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  </Box>
+);
+
+  
 }

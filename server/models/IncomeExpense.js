@@ -7,6 +7,16 @@ const incomeExpenseSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
     serial: {
       type: String,
       required: true,
@@ -48,6 +58,10 @@ const incomeExpenseSchema = new mongoose.Schema(
           required: true,
           min: 0,
         },
+        accountId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Company",
+        },
       },
     ],
     note: {
@@ -60,16 +74,16 @@ const incomeExpenseSchema = new mongoose.Schema(
     },
     advance: {
       type: String,
-      enum: ["advance"],
-      default: "advance",
+      enum: ["advance", "other"],
+      default: "other",
     },
     referance: {
       type: mongoose.Schema.Types.ObjectId,
     },
-    installmentId:{
+    installmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Installment",
-    }
+    },
   },
   {
     timestamps: true,

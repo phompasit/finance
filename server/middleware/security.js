@@ -2,30 +2,50 @@ import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load ENV
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
-// 🔒 Environment-based allowed origins
+/* =========================================
+   🔒 ALLOWED ORIGINS (Dynamic)
+========================================= */
 const getAllowedOrigins = () => {
-  const origins = ["http://localhost:5173", "https://finance-1oi.pages.dev"];
+  const origins = [
+    "http://localhost:5173", // dev
+  ];
 
-  // ถ้ามี .env กำหนดไว้ เช่น FRONTEND_URL
+  // FRONTEND_DOMAIN from env
   if (process.env.PRODUCTION_URL) {
     origins.push(process.env.PRODUCTION_URL);
   }
 
+  // Allow multiple domains via ENV list
+  if (process.env.ALLOWED_ORIGINS) {
+    const list = process.env.ALLOWED_ORIGINS.split(",");
+    origins.push(...list);
+  }
+
   return origins;
 };
-// 🔒 CORS configuration with security
+
+/* =========================================
+   🔒 CORS CONFIG (Strict Mode)
+========================================= */
 const corsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = getAllowedOrigins();
+
+    // Allow non-browser tools (Postman / mobile apps)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) callback(null, true);
-    else {
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
       console.warn(`🚫 Blocked CORS request from: ${origin}`);
-      callback(new Error("Not allowed by CORS policy"));
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
@@ -36,33 +56,52 @@ const corsOptions = {
   preflightContinue: false,
   optionsSuccessStatus: 204,
 };
-// 🔒 Security headers middleware
+
+/* =========================================
+   🔒 SECURITY HEADERS (Fully Hardened)
+========================================= */
 const securityHeaders = (req, res, next) => {
-  // Prevent clickjacking
+  // No clickjacking
   res.setHeader("X-Frame-Options", "DENY");
 
-  // Prevent MIME type sniffing
+  // Prevent MIME sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
 
-  // XSS Protection (legacy but still useful)
+  // XSS protection (legacy)
   res.setHeader("X-XSS-Protection", "1; mode=block");
 
-  // Referrer Policy
+  // Referrer policy
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
-  // Content Security Policy
+  /* 
+    🔥 Single CSP header only (Fix duplicate issue)
+    ✔ No unsafe-inline
+    ✔ Dynamic connect-src
+    ✔ Allow only self + API + FRONTEND
+  */
+
+  const allowedConnect = [
+    "'self'",
+    process.env.PRODUCTION_URL || "",
+    ...(process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",")
+      : []),
+  ].filter(Boolean);
+
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
-      "style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: https:; " +
-      "font-src 'self' data:; " +
-      "connect-src 'self' https://finance-1oi.pages.dev https://finance-production-bd54.up.railway.app; " +
-      "frame-ancestors 'none';"
+    `
+      default-src 'self';
+      script-src 'self' https://cdnjs.cloudflare.com;
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: https:;
+      font-src 'self' data:;
+      connect-src ${allowedConnect.join(" ")};
+      frame-ancestors 'none';
+    `.replace(/\s+/g, " ") // compact formatting
   );
 
-  // HSTS - Force HTTPS (only in production)
+  // HTTPS enforcement
   if (process.env.NODE_ENV === "production") {
     res.setHeader(
       "Strict-Transport-Security",
@@ -70,7 +109,7 @@ const securityHeaders = (req, res, next) => {
     );
   }
 
-  // Permissions Policy (formerly Feature Policy)
+  // Block sensitive browser APIs
   res.setHeader(
     "Permissions-Policy",
     "geolocation=(), microphone=(), camera=(), payment=()"
@@ -79,24 +118,23 @@ const securityHeaders = (req, res, next) => {
   next();
 };
 
-// 🔒 Rate limiting per IP
-
+/* =========================================
+   🔒 RATE LIMITING
+========================================= */
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs`
-  message: "Too many requests from this IP, please try again later.",
+  windowMs: 15 * 60 * 1000,
+  max: 100, // each IP
+  message: "Too many requests, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for health check endpoints
-    return req.path === "/health" || req.path === "/api/health";
-  },
+  skip: (req) => req.path === "/health" || req.path === "/api/health",
 });
 
+// Login brute-force protection
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max:100, // 5 login attempts per 15 minutes
-  message: "Too many login attempts, please try again later.",
+  max: 10, // lowered for security
+  message: "Too many login attempts. Try again later.",
   skipSuccessfulRequests: true,
 });
 

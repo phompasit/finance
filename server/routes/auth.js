@@ -8,23 +8,29 @@ const router = express.Router();
 import ErrorLog from "../models/ErrorLog.js";
 import AuditLog from "../models/AuditLog.js";
 import crypto from "crypto";
-// Register
+import company from "../models/company.js";
+import bcrypt from "bcryptjs";
+import multer from "multer";
+import cloudinary from "../controller/cloudtionary/cloudImage.js";
+import IncomeExpense from "../models/IncomeExpense.js";
+import AdvanceRequests from "../models/advanceRequests.js";
+import Debt from "../models/Debt.js";
+import OPO from "../models/OPO.js";
+import Employees from "../models/employees.js";
+import Partner from "../models/partner.js";
+import Category from "../models/category.js";
+
+const upload = multer({ storage: multer.memoryStorage() });
+// Registe
 router.post("/register", registerLimiter, authenticate, async (req, res) => {
   try {
-    const {
-      username,
-      email,
-      password,
-      role,
-      companyInfo,
-    } = req.body;
-    if (!username || !email || !password || !companyInfo) {
+    const { username, email, password, role } = req.body;
+    if (!username || !email || !password) {
       return res.status(400).json({
         message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
       });
     }
-    console.log(req.user);
-    const isSuperAdmin = req.user
+    const isSuperAdmin = req.user;
     if (
       role === "admin" &&
       req.user.role === "admin" &&
@@ -67,13 +73,18 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
     }
 
     // Create new user
+    const companyId = await company.findById(req.user.companyId);
+    if (!companyId) {
+      return res.status(404).json({
+        message: "Not found this company please try again !!",
+      });
+    }
     const user = new User({
       username,
       email,
       password,
       role: role || "user",
-      companyId: req.user._id,
-      companyInfo,
+      companyId: companyId?._id,
     });
     await user.save();
 
@@ -96,7 +107,6 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
       },
     });
   } catch (error) {
-    console.log("Error in /register:", error);
     res.status(500).json({
       message: "เกิดข้อผิดพลาดในการสมัครสมาชิก",
       error: error.message,
@@ -116,7 +126,6 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
     if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
       return res.status(400).json({
         message:
-
           "ຊື່ຜູ້ໃຊ້ຕ້ອງມີ 3-30 ຕົວອັກສອນ ແລະປະກອບດ້ວຍ a-z, 0-9, _ ເທົ່ານັ້ນ",
       });
     }
@@ -129,23 +138,30 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(400).json({
-
         message: "ຜູ້ໃຊ້ງານນີ້ມີຢູ່ແລ້ວ ກະລຸນາເລືອກໃຊ້ອິເມວ ແລະ ຊື່ໃໝ່",
       });
     }
     // Create new super admin user
+    const companyId = await company.create({
+      name: companyInfo.name,
+      address: companyInfo.address,
+      phone: companyInfo.phone,
+      email: companyInfo.email,
+      logo: companyInfo.lgo,
+    });
+    await companyId.save();
     const user = new User({
       username,
       email,
       password,
       role: "admin",
-      companyInfo,
+      companyId: companyId._id,
       isSuperAdmin: true,
     });
     await user.save();
+
     res.status(201).json({
       message: "ສ້າງບັນຊີຜູ້ດູແລລະບົບສໍາເລັດ",
-
     });
   } catch (error) {
     res.status(500).json({
@@ -157,7 +173,7 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
 
 // Account lockout tracking (ใช้ Redis หรือ Memory) ປ້ອງກັນການໂຈມຕີແບບ  Ddos
 const loginAttempts = new Map();
-const MAX_LOGIN_ATTEMPTS = 100
+const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_TIME = 1 * 60 * 1000; // 1 นาที
 
 // Login
@@ -301,7 +317,7 @@ router.post(
       const user = await User.findOne({ email: sanitizedEmail }).select(
         "+password +loginAttempts +lockedUntil +isActive +lastLogin +twoFactorEnabled +twoFactorSecret"
       );
-      const plainUser = user
+      const plainUser = user;
       // 4. Timing-safe user check
       const userExists = !!user;
 
@@ -341,13 +357,9 @@ router.post(
       }
 
       // 6. Check password with timing-safe comparison
-      console.log("Comparing password for user:", user);
-      console.log("Stored hashed password:", password);
       const isMatch = await user.comparePassword(password);
-      console.log("Password match result:", isMatch);
       if (!isMatch) {
         const attempts = recordFailedAttempt(identifier);
-        console.log("Failed login attempts:", attempts);
         await AuditLog.create({
           action: "LOGIN_FAILED_WRONG_PASSWORD",
           userId: user._id,
@@ -555,7 +567,6 @@ async function checkSuspiciousLogin(userId, ipAddress, userAgent) {
 // Helper function: ส่ง security alert
 async function sendSecurityAlert(email, details) {
   // ใช้ email service หรือ notification service
-  console.log(`Security alert sent to ${email}:`, details);
   // TODO: Implement actual email/notification service
 }
 
@@ -636,7 +647,9 @@ router.post("/logout", authenticate, async (req, res) => {
 // Get current user
 router.get("/me", authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user._id)
+      .select("-password")
+      .populate("companyId");
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
@@ -648,17 +661,19 @@ router.get("/users", authenticate, async (req, res) => {
   try {
     let users;
 
-    if (req.user.role === "admin") {
-      // 🔹 ดึงเฉพาะ user ที่ admin คนนั้นสร้าง
+    // MASTER → เห็นทุกคน
+    if (req.user.role === "admin" && req.user.isSuperAdmin === true) {
+      users = await User.find({ companyId: req.user.companyId })
+        .select("-password")
+        .populate("companyId");
+
+      // SUPERADMIN → เห็นเฉพาะตัวเอง
+    } else if (req.user.role === "master" || req.user.role === "admin") {
       users = await User.find({
-        companyId: req.user._id,
-      }).select("-password");
-    } else if (req.user.role === "master") {
-      // 🔹 master เห็นทุกคนได้
-      users = await User.find().select("-password");
-    } else {
-      // 🔹 user ทั่วไปเห็นแค่ตัวเอง
-      users = await User.find({ _id: req.user._id }).select("-password");
+        _id: req.user._id,
+      })
+        .select("-password")
+        .populate("companyId");
     }
 
     res.json(users);
@@ -679,7 +694,16 @@ router.patch("/users/:id/role", authenticate, async (req, res) => {
     if (req.user.role === "admin" && req.user.isSuperAdmin !== true) {
       return res.status(403).json({ message: "ບໍ່ມີສິດ ສ້າງ ແອດມຶນໃໝ່" });
     }
+
+    if (
+      req.params.id === req.user._id.toString() &&
+      req.user.role === "admin" &&
+      req.user.isSuperAdmin === true
+    ) {
+      return res.status(403).json({ message: "ບໍ່ສາມາດປ່ຽນສະຖານະຕົນເອງໄດ້" });
+    }
     const { role } = req.body;
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },
@@ -695,86 +719,193 @@ router.patch("/users/:id/role", authenticate, async (req, res) => {
 // Delete user (admin only)
 router.delete("/users/:id", authenticate, async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึง" });
+    if (req.user.role !== "admin" && req.user.isSuperAdmin === true) {
+      return res
+        .status(403)
+        .json({ success: false, message: "ບໍ່ມີສິດເຂົ້າເຖິງ" });
     }
 
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: "ลบผู้ใช้งานสำเร็จ" });
+    const userId = req.params.id;
+
+    if (req.user._id.toString() === userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ບໍ່ສາມາດລົບຕົນເອງໄດ້" });
+    }
+
+    const hasIncomeExpense = await IncomeExpense.exists({ userId });
+    const hasAdvance = await AdvanceRequests.exists({ userId });
+    const OPO = await OPO.exists({ userId });
+    const Debt = await Debt.exists({ userId });
+    const Employees = await OPO.exists({ userId });
+    const Partner = await OPO.exists({ userId });
+    const Category = await OPO.exists({ userId });
+
+    if (
+      hasIncomeExpense ||
+      Employees ||
+      hasAdvance ||
+      OPO ||
+      Category ||
+      Partner ||
+      Debt
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້ ເນື່ອງຈາກມີຂໍ້ມູນລາຍການອື່ນຢູ່",
+      });
+    }
+
+    // 4) ลบผู้ใช้ได้ (ถ้าไม่มีข้อมูลผูกอยู่)
+    await User.findByIdAndDelete(userId);
+    res.json({ success: true, message: "ລົບຜູ້ໃຊ້ງານສຳເລັດ" });
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
   }
 });
+
 // PATCH /api/auth/users/:id
 // PATCH /api/auth/users/:id
-router.patch("/user/:id", authenticate, async (req, res) => {
+
+const uploadImageLogo = async (image) => {
   try {
-    const { username, email, role, companyInfo } = req.body;
-    const updater = req.user; // ผู้ที่กำลังแก้ไข
-    const targetUser = await User.findById(req.params.id);
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // เตรียม data สำหรับอัปเดต
-    const updateData = { username, email, companyInfo };
-
-    // --------------------------------------------------------
-    // 1) ถ้าไม่ใช้ SuperAdmin → ห้ามแก้ไข role ของ admin
-    // --------------------------------------------------------
-    if (updater.isSuperAdmin !== true) {
-      // admin ธรรมดา, master, staff → ห้ามแก้ไข super-level
-      if (targetUser.role === "admin") {
-        return res.status(403).json({
-          message: "ທ່ານບໍ່ມີສິດແກ້ໄຂ admin",
-        });
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "finance/image_company",
+          resource_type: "image",
+          transformation: [{ width: 500, height: 500, crop: "limit" }],
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result.secure_url);
+        }
+      );
+      // ❗️ส่งเฉพาะ image.buffer
+      stream.end(image?.buffer);
+    });
+  } catch (error) {
+    console.error("❌ Cloudinary upload error:", error);
+    throw new Error("Image upload failed");
+  }
+};
+const deleteCloudinaryImage = async (imageUrl) => {
+  try {
+    const publicId = imageUrl.split("/").pop().split(".")[0];
+    await cloudinary.uploader.destroy(`finance/image_company/${publicId}`);
+  } catch (err) {
+    console.error("⚠️ Failed to delete old image from Cloudinary:", err);
+  }
+};
+router.patch(
+  "/user/:id",
+  upload.single("logo"),
+  authenticate,
+  async (req, res) => {
+    try {
+      const updater = req.user;
+      const targetUser = await User.findById(req.params.id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      // admin ธรรมดา ห้ามสร้าง admin
-      if (role === "admin") {
-        return res.status(403).json({
-          message: "ທ່ານບໍ່ມີສິດສ້າງ ຫຼື ປ່ຽນ role ເປັນ admin",
-        });
+      // ดึงข้อมูลจาก body
+      let { username, email, password, role, companyId } = req.body;
+
+      // ถ้า companyId ส่งมาเป็น string → parse
+      if (companyId && typeof companyId === "string") {
+        companyId = JSON.parse(companyId);
       }
-    }
 
-    // --------------------------------------------------------
-    // 2) ถ้าเป็น user (master/staff) → ห้ามแก้ไข role ใด ๆ
-    // --------------------------------------------------------
-    if (updater.role !== "admin" && updater.isSuperAdmin !== true) {
-      if (role) {
-        return res.status(403).json({
-          message: "ທ່ານບໍ່ມີສິດປ່ຽນ Role ຂອງຜູ້ໃຊ້",
-        });
+      const updateData = { username, email };
+
+      // ---------------------------------------------------
+      // 1) Hash password (ถ้ามี)
+      // ---------------------------------------------------
+      if (password) {
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(password, salt);
       }
-    }
 
-    // --------------------------------------------------------
-    // 3) เฉพาะ SuperAdmin เท่านั้นที่แก้ role ได้ทุกระดับ
-    // --------------------------------------------------------
+      // ---------------------------------------------------
+      // 2) Role Permission Logic
+      // ---------------------------------------------------
+      if (!updater.isSuperAdmin) {
+        if (targetUser.role === "admin") {
+          return res.status(403).json({ message: "ບໍ່ມີສິດແກ້ໄຂ admin" });
+        }
+        if (role === "admin") {
+          return res.status(403).json({
+            message: "ບໍ່ມີສິດສ້າງ ຫຼື ປ່ຽນ role admin",
+          });
+        }
+      }
 
-    if (updater.isSuperAdmin === true) {
-      updateData.role = role;
-    } else {
-      // admin ธรรมดาแก้ role ได้เฉพาะ master / staff
-      if (role && (role === "master" || role === "staff")) {
+      if (!updater.isSuperAdmin && updater.role !== "admin") {
+        if (role) {
+          return res.status(403).json({
+            message: "ບໍ່ມີສິດປ່ຽນ role ຂອງຜູ້ໃຊ້",
+          });
+        }
+      }
+
+      // superadmin แก้ role ได้หมด
+      if (updater.isSuperAdmin) {
+        updateData.role = role;
+      } else if (role === "master" || role === "staff") {
         updateData.role = role;
       }
+
+      // ---------------------------------------------------
+      // 3) อัปเดต Company (ถ้ามีส่งมา)
+      // ---------------------------------------------------
+      if (companyId && companyId._id) {
+        const companyDoc = await company.findById(companyId._id);
+
+        if (!companyDoc)
+          return res.status(404).json({ message: "Company not found" });
+
+        const companyUpdate = {
+          name: companyId.name,
+          address: companyId.address,
+          phone: companyId.phone,
+          email: companyId.email,
+        };
+        // 📌 ถ้ามีไฟล์โลโก้ใหม่
+        if (req.file) {
+          // ลบรูปเก่าออกก่อน
+          if (companyDoc.logo) {
+            await deleteCloudinaryImage(companyDoc.logo);
+          }
+
+          // อัปโหลดรูปใหม่
+          const newLogoUrl = await uploadImageLogo(req.file);
+          companyUpdate.logo = newLogoUrl;
+        }
+
+        // update company
+        await company.findByIdAndUpdate(companyId._id, companyUpdate);
+      }
+
+      // ---------------------------------------------------
+      // 4) อัปเดต User
+      // ---------------------------------------------------
+      const updatedUser = await User.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true }
+      ).select("-password");
+
+      res.json({
+        success: true,
+        message: "User updated successfully",
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
     }
-
-    // --------------------------------------------------------
-    // อัปเดตข้อมูล
-    // --------------------------------------------------------
-
-    const user = await User.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-    }).select("-password");
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
   }
-});
+);
 
 export default router;

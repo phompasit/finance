@@ -8,6 +8,11 @@ const PartnerSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
     name: { type: String, required: true },
     taxId: { type: String, trim: true },
     phone: { type: String, trim: true },

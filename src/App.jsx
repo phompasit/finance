@@ -15,6 +15,15 @@ import ChartOfAccounts from "./accounting/ChartOfAccounts";
 import PrepaidExpenseDashboard from "./pages/PrepaidExpenseDashboard";
 import Partner from "./pages/Partner";
 import RegisterForm from "./pages/RegisterForSuperAdmin";
+import OpeningBalancePage from "./accounting/OpeningBalancePage";
+import JournalEntryPage from "./accounting/Journal/JournalEntryPage";
+import JournalDetailPage from "./accounting/Journal/JournalDetailPage";
+import PrintJournalPage from "./accounting/Journal/PrintJournalPage";
+import IncomeStatementPage from "./accounting/IncomeStatementPage";
+import BalanceSheetPage from "./accounting/BalanceSheetPage";
+import GeneralLedgerPage from "./accounting/GeneralLedgerPage";
+import StatementOfFinancialPosition from "./accounting/StatementOfFinancialPosition";
+import AssetsPage from "./accounting/AssetsPage";
 
 function App() {
   const refreshToken = async () => {
@@ -27,7 +36,7 @@ function App() {
       });
 
       const { token } = res.data;
-      localStorage.setItem("token", token); 
+      localStorage.setItem("token", token);
       return token;
     } catch (err) {
       console.error("Refresh token failed:", err);
@@ -58,12 +67,22 @@ function App() {
           <Route path="income-expense" element={<IncomeExpense />} />
           <Route path="opo" element={<OPO />} />
           <Route path="debt" element={<Debt />} />
-          <Route path="reports" element={<Reports />} />          
-          <Route path="prepaid" element={<PrepaidExpenseDashboard/>} />
-          <Route path="partner" element={<Partner/>} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="prepaid" element={<PrepaidExpenseDashboard />} />
+          <Route path="partner" element={<Partner />} />
           <Route path="users" element={<Users />} />
+          <Route path="chartAccount" element={<ChartOfAccounts />} />
+          <Route path="openingBalance" element={<OpeningBalancePage />} />
+          <Route path="journal" element={<JournalEntryPage />} />
+          <Route path="journal/:id" element={<JournalDetailPage />} />
+          <Route path="journal/print" element={<PrintJournalPage />} />
+          <Route path="income-statement" element={<IncomeStatementPage />} />
+          <Route path="balanceSheet" element={<BalanceSheetPage />} />
+          <Route path="leger" element={<GeneralLedgerPage />} />
+          <Route path="statement" element={<StatementOfFinancialPosition />} />
+          <Route path="statement-assets" element={<AssetsPage />} />
         </Route>
-             <Route path="register" element={<RegisterForm />} />
+        <Route path="register" element={<RegisterForm />} />
       </Routes>
     </AuthProvider>
   );

@@ -49,6 +49,10 @@ const amountSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    accountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+    },
   },
   { _id: false }
 );
@@ -109,6 +113,16 @@ const advanceRequestsSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
     employee_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employees",
@@ -156,10 +170,10 @@ const advanceRequestsSchema = new mongoose.Schema(
       default: {},
     },
     // Meta data เพิ่มเติม
-    meta: {
-      type: metaSchema,
-      default: {},
-    },
+    // meta: {
+    //   type: metaSchema,
+    //   default: {},
+    // },
     closed_at: {
       type: Date,
       default: null,

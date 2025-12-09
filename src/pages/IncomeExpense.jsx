@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import DOMPurify from "dompurify";
 import {
   Box,
   Button,
   FormControl,
   FormLabel,
   Input,
-  Select,
   Textarea,
   VStack,
   HStack,
@@ -58,6 +58,7 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
+  InputRightElement,
 } from "@chakra-ui/react";
 import {
   AddIcon,
@@ -72,6 +73,7 @@ import {
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Papa from "papaparse";
+import Select from "react-select";
 import {
   FilterIcon,
   SearchIcon,
@@ -83,13 +85,22 @@ import {
   CreditCard,
   ChevronLeftIcon,
   ChevronRightIcon,
+  InfoIcon,
 } from "lucide-react";
-import { on } from "events";
 import { useAuth } from "../context/AuthContext";
 import { useRef } from "react";
-
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCategories } from "../store/reducer/partner";
+import {
+  createIncomeExpense,
+  deleteIncomeExpense,
+  fetchTransaction,
+  removeCurrencyFromServer,
+  updateIncomeExpense,
+  updateStatusIncomeExpense,
+} from "../store/reducer/incomeExpense";
+import { Wallet } from 'lucide-react';
 export default function IncomeExpense() {
-  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -101,27 +112,23 @@ export default function IncomeExpense() {
     onOpen: onEditOpen,
     onClose: onEditClose,
   } = useDisclosure();
+  console.log("user ", user);
   const [selectedTransactions, setSelectedTransactions] = useState([]);
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("purple.200", "purple.600");
-  const badgeBg = useColorModeValue("purple.50", "purple.900");
-
   const {
     isOpen: isViews,
     onOpen: onOpenViews,
     onClose: onCloseViews,
   } = useDisclosure();
   // Enhanced color scheme
-  const bgGradient = useColorModeValue(
-    "linear(to-br, gray.50, blue.50)",
-    "linear(to-br, gray.900, gray.800)"
+  const { categoriesRedu: categories } = useSelector((state) => state.partner);
+  const { transactionsRedu: transactions } = useSelector(
+    (state) => state.incomeExpense
   );
+  const dispatch = useDispatch();
   const cardBg = useColorModeValue("white", "gray.800");
   const borderClr = useColorModeValue("gray.200", "gray.700");
   const labelClr = useColorModeValue("gray.700", "gray.300");
   const hoverBg = useColorModeValue("gray.50", "gray.700");
-  const statBg = useColorModeValue("white", "gray.700");
-  const tableBg = useColorModeValue("white", "gray.800");
   const tableHeaderBg = useColorModeValue("teal.600", "teal.700");
   const statusColors = {
     pending: "yellow",
@@ -136,10 +143,11 @@ export default function IncomeExpense() {
     type: "income",
     paymentMethod: "cash",
     date: "",
-    amounts: [{ currency: "LAK", amount: "" }],
+    amounts: [{ currency: "LAK", amount: "", accountId: "" }],
     note: "",
     status: "paid",
     status_Ap: "pending",
+    categoryId: null,
   });
   const [formEditData, setFormEditData] = useState({
     id: null,
@@ -148,10 +156,11 @@ export default function IncomeExpense() {
     type: "income",
     paymentMethod: "cash",
     date: new Date().toISOString().split("T")[0],
-    amounts: [{ currency: "LAK", amount: "" }],
+    amounts: [{ currency: "LAK", amount: "", accountId: "" }],
     note: "",
     status: "paid",
     status_Ap: "pending",
+    categoryId: null,
   });
 
   const [filters, setFilters] = useState({
@@ -164,49 +173,34 @@ export default function IncomeExpense() {
     status: "",
     status_Ap: "",
   });
-
   const toast = useToast();
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  const fetchTransactions = async () => {
+  const fetchC = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/income-expense`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const data = await response.json();
-      setTransactions(data);
+      await Promise.all([
+        dispatch(fetchCategories()).unwrap(),
+        dispatch(fetchTransaction()).unwrap(),
+      ]);
     } catch (error) {
-      console.error("Error fetching transactions:", error);
-      toast({
-        title: "ຜິດພາດ",
-        description: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍການໄດ້",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
+      console.error("Fetch failed:", error);
     }
   };
+
+  useEffect(() => {
+    fetchC();
+  }, []);
   const pageSize = 100;
   const [page, setPage] = useState(1);
-
   const paymentMethodLabels = {
     cash: "ເງິນສົດ",
     bank_transfer: "ໂອນເງິນ",
-    ໂອນເງິນ: "bank_transfer",
   };
+  const paymentOptions = Object.entries(paymentMethodLabels).map(
+    ([key, label]) => ({
+      value: key,
+      label: label,
+    })
+  );
   const status_Ap = {
     cancel: "ຍົກເລີກ",
     approve: "ອະນຸມັດ",
@@ -225,67 +219,74 @@ export default function IncomeExpense() {
     return `${day}/${month}/${year}`;
   }
 
-  const filteredTransactions = transactions.filter((t) => {
-    const searchLower = filters.search.toLowerCase();
+  const filteredTransactions = useMemo(() => {
+    return transactions?.filter((t) => {
+      const searchLower = filters.search.toLowerCase();
 
-    const matchesSearch =
-      filters.search === "" ||
-      t.description.toLowerCase().includes(searchLower) ||
-      t.note?.toLowerCase().includes(searchLower) ||
-      t.serial.toLowerCase().includes(searchLower);
+      const matchesSearch =
+        filters.search === "" ||
+        t.description.toLowerCase().includes(searchLower) ||
+        t.note?.toLowerCase().includes(searchLower) ||
+        t.serial.toLowerCase().includes(searchLower);
 
-    // แปลงทุก date ให้เหลือแค่ yyyy-mm-dd
-    const tDate = new Date(t.date);
-    const tLocal = new Date(
-      tDate.getFullYear(),
-      tDate.getMonth(),
-      tDate.getDate()
-    );
+      // แปลงทุก date ให้เหลือแค่ yyyy-mm-dd
+      const tDate = new Date(t.date);
+      const tLocal = new Date(
+        tDate.getFullYear(),
+        tDate.getMonth(),
+        tDate.getDate()
+      );
 
-    const startDate = filters.dateStart
-      ? new Date(
-          new Date(filters.dateStart).getFullYear(),
-          new Date(filters.dateStart).getMonth(),
-          new Date(filters.dateStart).getDate()
-        )
-      : null;
+      const startDate = filters.dateStart
+        ? new Date(
+            new Date(filters.dateStart).getFullYear(),
+            new Date(filters.dateStart).getMonth(),
+            new Date(filters.dateStart).getDate()
+          )
+        : null;
 
-    const endDate = filters.dateEnd
-      ? new Date(
-          new Date(filters.dateEnd).getFullYear(),
-          new Date(filters.dateEnd).getMonth(),
-          new Date(filters.dateEnd).getDate()
-        )
-      : null;
+      const endDate = filters.dateEnd
+        ? new Date(
+            new Date(filters.dateEnd).getFullYear(),
+            new Date(filters.dateEnd).getMonth(),
+            new Date(filters.dateEnd).getDate()
+          )
+        : null;
 
-    const matchesDate =
-      (!startDate || tLocal >= startDate) && (!endDate || tLocal <= endDate);
+      const matchesDate =
+        (!startDate || tLocal >= startDate) && (!endDate || tLocal <= endDate);
 
-    const matchesType = !filters.type || t.type === filters.type;
-    const matchesCurrency =
-      !filters.currency ||
-      t.amounts.some((amt) => amt.currency === filters.currency);
-    const matchesPaymentMethod =
-      !filters.paymentMethod || t.paymentMethod === filters.paymentMethod;
-    const matchesStatus = !filters.status || t.status === filters.status;
-    const matchstatus_Ap =
-      !filters.status_Ap || t.status_Ap === filters.status_Ap;
+      const matchesType = !filters.type || t.type === filters.type;
+      const matchesCurrency =
+        !filters.currency ||
+        t.amounts.some((amt) => amt.currency === filters.currency);
+      const matchesPaymentMethod =
+        !filters.paymentMethod || t.paymentMethod === filters.paymentMethod;
+      const matchesStatus = !filters.status || t.status === filters.status;
+      const matchstatus_Ap =
+        !filters.status_Ap || t.status_Ap === filters.status_Ap;
 
-    return (
-      matchesSearch &&
-      matchesDate &&
-      matchesType &&
-      matchesCurrency &&
-      matchesPaymentMethod &&
-      matchesStatus &&
-      matchstatus_Ap
-    );
-  });
+      return (
+        matchesSearch &&
+        matchesDate &&
+        matchesType &&
+        matchesCurrency &&
+        matchesPaymentMethod &&
+        matchesStatus &&
+        matchstatus_Ap
+      );
+    });
+  }, [transactions, filters]);
+  /////
   const totalPages = Math.ceil(filteredTransactions.length / pageSize);
   const offset = (page - 1) * pageSize;
+  ///
   const pageData = useMemo(() => {
     const s = (page - 1) * pageSize;
-    return filteredTransactions.slice(s, s + pageSize);
+    return filteredTransactions
+      .slice()
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(s, s + pageSize);
   }, [filteredTransactions, page]);
   // Calculate statistics
   const calculateStats = () => {
@@ -321,7 +322,9 @@ export default function IncomeExpense() {
     return summary;
   };
 
-  const stats = calculateStats();
+  const stats = useMemo(() => calculateStats(filteredTransactions), [
+    filteredTransactions,
+  ]);
 
   const addCurrency = (index = null) => {
     if (index !== null) {
@@ -329,7 +332,7 @@ export default function IncomeExpense() {
       const updated = { ...formEditData };
       updated.amounts = [
         ...(updated.amounts || []),
-        { currency: "LAK", amount: "" },
+        { currency: "LAK", amount: "", accountId: "" },
       ];
       setFormEditData(updated);
     } else {
@@ -337,7 +340,7 @@ export default function IncomeExpense() {
       const updated = { ...formData };
       updated.amounts = [
         ...(updated.amounts || []),
-        { currency: "LAK", amount: "" },
+        { currency: "LAK", amount: "", accountId: "" },
       ];
       setFormData(updated);
     }
@@ -345,19 +348,12 @@ export default function IncomeExpense() {
   const removeCurrency = async (currencyIndex, index = null) => {
     if (index !== null) {
       // formEditData
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_URL
-        }/api/income-expense/item/${currencyIndex}/${index}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      await dispatch(
+        removeCurrencyFromServer({
+          currencyIndex: currencyIndex,
+          index: index,
+        })
+      ).unwrap();
       const updated = { ...formEditData };
       updated.amounts = (updated.amounts || []).filter(
         (_, i) => i !== currencyIndex
@@ -435,55 +431,41 @@ export default function IncomeExpense() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      // กรอง amounts ที่มี amount มากกว่า 0
 
-      const hasValidAmount = (formData.amounts || []).some(
-        (item) => parseFloat(item.amount) > 0
-      );
-
-      // ตรวจว่าข้อมูลจำเป็นครบไหม
-      const errors = validateForm();
-      if (Object.keys(errors).length > 0) {
-        toast({
-          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-          description: Object.values(errors).join(" , "),
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-
-      const endpoint = `${
-        import.meta.env.VITE_API_URL
-      }/api/income-expense/bulk`;
-
-      // เตรียม body ให้เป็น JSON string
-      const body = JSON.stringify({ transactions: formData });
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body,
+    // Validate ก่อน
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+        description: Object.values(errors).join(" , "),
+        status: "error",
+        duration: 3000,
+        isClosable: true,
       });
+      return;
+    }
 
-      if (response.ok) {
+    try {
+      // ส่งข้อมูลตรงๆ ไม่ต้อง stringify
+      const response = await dispatch(
+        createIncomeExpense({ transactions: formData })
+      ).unwrap();
+      await fetchC();
+
+      // Backend ควรส่ง success: true
+      if (response?.success) {
         setShowForm(false);
-        fetchTransactions();
         setFormData({
           serial: "",
           description: "",
           type: "income",
           paymentMethod: "cash",
           date: "",
-          amounts: [{ currency: "LAK", amount: 0 }],
+          amounts: [{ currency: "LAK", amount: 0, accountId: "" }],
           note: "",
           status: "paid",
         });
+
         toast({
           title: "ສຳເລັດ",
           description: "ບັນທຶກລາຍການສຳເລັດ",
@@ -491,37 +473,35 @@ export default function IncomeExpense() {
           duration: 3000,
           isClosable: true,
         });
+
         onClose();
         setSelectedTransactions([]);
       } else {
-        const data = await response.json();
         toast({
           title: "ກະລຸນາກວດສອບຄືນ",
-          description: data.message,
+          description: response?.message || "เกิดข้อผิดพลาด",
           status: "error",
           duration: 3000,
           isClosable: true,
         });
       }
     } catch (error) {
-      const data = await response.json();
       toast({
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description: data.message,
+        description: error?.message || "Server error",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     }
   };
-  const handleEdit = async (id) => {
-    try {
-      const amounts = formData.amounts || [];
 
+  const handleEdit = async () => {
+    try {
       const hasValidAmount = (formEditData.amounts || []).some(
         (item) => parseFloat(item.amount) > 0
       );
-      // ตรวจว่าข้อมูลจำเป็นครบไหม
+
       if (
         !hasValidAmount ||
         !formEditData?.serial ||
@@ -540,22 +520,17 @@ export default function IncomeExpense() {
         });
         return;
       }
-      const endpoint = `${import.meta.env.VITE_API_URL}/api/income-expense/${
-        formEditData.id
-      }`;
-      const body = JSON.stringify(formEditData);
-      const response = await fetch(endpoint, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body,
-      });
-      if (response.ok) {
-        setShowForm(false);
-        fetchTransactions();
+      console.log(formEditData?._id);
+      // ✔ ส่งเป็น object ไม่ stringify
+      const response = await dispatch(
+        updateIncomeExpense({
+          id: formEditData?.id, // หรือ formEditData.id แล้วแต่ structure
+          Editdata: formEditData,
+        })
+      ).unwrap();
 
+      // ✔ เช็ค success ไม่ใช่ response.ok
+      if (response?.success) {
         toast({
           title: "ສຳເລັດ",
           description: "ແກ້ໄຂລາຍການສຳເລັດ",
@@ -563,50 +538,15 @@ export default function IncomeExpense() {
           duration: 3000,
           isClosable: true,
         });
+
+        setShowForm(false);
+        await fetchC();
         onEditClose();
         setSelectedTransactions([]);
       } else {
-        const data = await response.json();
         toast({
           title: "ເກີດຂໍ້ຜິດພາດ",
-          description: data.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      console.error("Error editing transaction:", error);
-    }
-  };
-  const handleDelete = async (id) => {
-    try {
-      const endpoint = `${
-        import.meta.env.VITE_API_URL
-      }/api/income-expense/${id}`;
-      const response = await fetch(endpoint, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (response.ok) {
-        setShowForm(false);
-        fetchTransactions();
-        toast({
-          title: "ສຳເລັດ",
-          description: "ລຶບລາຍການສຳເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        const data = await response.json();
-
-        toast({
-          title: "ເກີດຂໍ້ຜິພາດ",
-          description: data.message,
+          description: response.message || "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນ",
           status: "error",
           duration: 3000,
           isClosable: true,
@@ -614,14 +554,40 @@ export default function IncomeExpense() {
       }
     } catch (error) {
       toast({
-        title: "ເກີດຂໍ້ຜິພາດ",
-        description: error.message,
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description: error?.message || "Server Error",
         status: "error",
         duration: 3000,
         isClosable: true,
       });
     }
   };
+
+  const handleDelete = async (id) => {
+    try {
+      const response = await dispatch(deleteIncomeExpense(id)).unwrap();
+
+      toast({
+        title: "ສຳເລັດ",
+        description: "ລຶບລາຍການສຳເລັດ",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      await fetchC();
+      setShowForm(false);
+    } catch (error) {
+      toast({
+        title: "ເກີດຂໍ້ຜິພາດ",
+        description: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   // ในคอมโพเนนต์ของคุณ
   const {
     isOpen: isWarningIsOpen,
@@ -631,10 +597,10 @@ export default function IncomeExpense() {
   const cancelRef = useRef();
   const [deleteId, setDeleteId] = useState(null);
 
-  const onDeleteClick = (id) => {
+  const onDeleteClick = useCallback((id) => {
     setDeleteId(id);
     onWarningOpen();
-  };
+  }, []);
 
   const confirmDelete = () => {
     handleDelete(deleteId);
@@ -647,48 +613,29 @@ export default function IncomeExpense() {
 
   const handleStatus = async (data, status) => {
     try {
-      const endpoint = `${
-        import.meta.env.VITE_API_URL
-      }/api/income-expense/status/:${data._id}`;
+      if (data.type === "income") return;
 
-      // เตรียม body ให้เป็น JSON string
-      const body = JSON.stringify({
-        status_Ap: status,
+      const response = await dispatch(
+        updateStatusIncomeExpense({
+          id: data._id,
+          status: status,
+        })
+      ).unwrap();
+
+      toast({
+        title: "ສຳເລັດ",
+        description: `${status} ສຳເລັດແລ້ວ`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
       });
 
-      const response = await fetch(endpoint, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body,
-      });
-
-      if (response.ok) {
-        fetchTransactions();
-        toast({
-          title: "ສຳເລັດ",
-          description: `${status} ສຳເລັດແລ້ວ`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-        onClose();
-      } else {
-        const data = await response.json();
-        toast({
-          title: "ກະລຸນາກວດສອບຄືນ",
-          description: data.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
+      await fetchC();
+      onClose();
     } catch (error) {
       toast({
-        title: "something with wrong",
-        description: "ກະລຸນາລອງໃໝ່",
+        title: "ເກີດຂໍ້ຜິພາດ",
+        description: error?.message || "ກະລຸນາລອງໃໝ່",
         status: "error",
         duration: 2000,
         isClosable: true,
@@ -696,6 +643,41 @@ export default function IncomeExpense() {
       });
     }
   };
+
+  const laoType = {
+    income: "💰 ລາຍຮັບ",
+    asset: "🏦 ຊັບສິນ",
+    cogs: "📦 ຕົ້ນທຶນຂາຍ",
+    "selling-expense": "🛒 ຄ່າໃຊ້ຈ່າຍຈຳໜ່າຍ",
+    "admin-expense": "🏢 ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
+    expense: "📉 ຄ່າໃຊ້ຈ່າຍອື່ນໆ",
+  };
+  const typeOptions = [
+    { value: "income", label: "ລາຍຮັບ" },
+    { value: "expense", label: "ລາຍຈ່າຍ" },
+  ];
+  const statusOptions = [
+    { value: "paid", label: "ຊຳລະແລ້ວ" },
+    { value: "unpaid", label: "ຍັງບໍ່ຊຳລະ" },
+  ];
+  const statusOptions2 = { paid: "ຊຳລະແລ້ວ", unpaid: "ຍັງບໍ່ຊຳລະ" };
+
+  const currencyOptions = [
+    { value: "LAK", label: "LAK (₭)" },
+    { value: "THB", label: "THB (฿)" },
+    { value: "USD", label: "USD ($)" },
+    { value: "CNY", label: "CNY (¥)" },
+  ];
+  const bankOptions = (user?.companyId?.bankAccounts || []).map((b) => ({
+    label: `${b.bankName} (${b.currency})`,
+    value: b._id,
+    currency: b.currency,
+  }));
+  const cashOptions = (user?.companyId?.cashAccounts || []).map((b) => ({
+    label: `${b.name} (${b.currency})`,
+    value: b._id,
+    currency: b.currency,
+  }));
   const exportToPDF = () => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -791,44 +773,61 @@ body {
 }
 
 /* Company Info */
-.company-info {
- display: flex;
-    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
-    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
-    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
-  text-align: left;
-  margin-bottom: 15px;
-  line-height: 1.8;
-    font-weight: 700;
-}
- .company-info div {
-    white-space: nowrap;     /* ไม่ให้ขึ้นบรรทัดใหม่ */
-  }
-.company-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #000;
-}
+     .company-info {
+            background: white;
+            max-width: 1200px;
+            width: 100%;
+               display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
 
-.company-address {
-  font-size: 12px;
-  color: #333;
-  font-weight: 700;
-}
+        .company-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 30px;
+        }
 
-/* Top Header */
-.topHeader {
-  font-weight: 700;
-}
+        .company-logo {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 10px;
 
-.topHeader div {
-  font-size: 16px;
-  font-weight: 700;
-  color: #000;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
+        }
 
+        .company-details {
+            flex: 1;
+        }
+
+        .contact-section {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .company-name {
+            font-size: 12px;
+            color: #2d3748;
+            padding-right: 10px;
+            font-weight: 500;
+        }
+
+        .company-name:first-child {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a202c;
+        }
+
+        .topHeader {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            background-clip: text;
+            white-space: nowrap;
+            padding-left: 150px;
+        }
 /* Date Section */
 .date-section {
   text-align: right;
@@ -1097,20 +1096,32 @@ td:nth-child(8) {
         <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
       </div>
            <!-- Company Info -->
-      <div class="company-info">
-      <div>
-        <div class="company-name">${user?.companyInfo?.name || ""}</div>
-        <div class="company-address">${user?.companyInfo?.address || ""}</div>
-          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
-      </div>
+        <div class="company-info">
+         <div class="company-section">
+           <img 
+          class="company-logo" 
+          src="${user?.companyId?.logo || "/default-logo.png"}" 
+          alt="Company Logo"
+            />
+              <div class="company-details">
+              <div class="contact-section">
+              <div class="company-name">${
+                user?.companyId?.name || "Company Name"
+              }</div>
+                <div class="company-name">${
+                  user?.companyId?.address || ""
+                }</div>
+              <div class="company-name">${user?.companyId?.phone || ""}</div>
+                </div>
+                </div>
+                <!-- Date Section --> 
           <div class="topHeader">ລາຍງານການເງິນ</div>
           <!-- Date Section -->
-          <div class="date-section">
-            ວັນທີ: <input type="text" value="${formatDate(
-              new Date()
-            )}" readonly>
           </div>
-      </div>
+          <div class="date-section">
+        ວັນທີ: <input type="text" value="${formatDate(new Date())}" readonly>
+           </div>
+                </div>
 
       
       <!-- Table Section -->
@@ -1184,10 +1195,6 @@ td:nth-child(8) {
                     </tr>`;
                 })
                 .join("");
-              // { minimumFractionDigits: 2 }
-              // { minimumFractionDigits: 2 }
-              // { minimumFractionDigits: 2 }
-              // { minimumFractionDigits: 2 }
               const totalRow = `
                 <tr style" class="summary-row">
                   <td colspan="4" style="text-align: right;">ລວມທັງໝົດ</td>
@@ -1198,7 +1205,6 @@ td:nth-child(8) {
                   <td></td>
                   <td></td>
                 </tr>`;
-
               return rows + totalRow;
             })()}
           </tbody>
@@ -1209,7 +1215,7 @@ td:nth-child(8) {
       <div class="signature-date">
         ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
       </div>
-  <div class="signatures">
+    <div class="signatures">
       <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
       <div class="signature-grid">
         <div class="signature-cell">
@@ -1267,7 +1273,10 @@ td:nth-child(8) {
     const updateField = (field, value) => {
       setFormData({ ...data, [field]: value });
     };
-
+    const categoryOptions = categories?.map((c) => ({
+      value: c._id,
+      label: `${c.name} (${laoType[c.type]})`,
+    }));
     return (
       <VStack spacing={5} align="stretch">
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
@@ -1299,14 +1308,11 @@ td:nth-child(8) {
               ປະເພດ
             </FormLabel>
             <Select
-              value={data.type}
-              onChange={(e) => updateField("type", e.target.value)}
-              size="md"
-              rounded="lg"
-            >
-              <option value="income">ລາຍຮັບ</option>
-              <option value="expense">ລາຍຈ່າຍ</option>
-            </Select>
+              value={typeOptions.find((i) => i.value === data.type)}
+              onChange={(v) => updateField("type", v.value)}
+              options={typeOptions}
+              isSearchable={false}
+            />
           </FormControl>
 
           <FormControl>
@@ -1318,19 +1324,13 @@ td:nth-child(8) {
             >
               ວິທີຊຳລະ
             </FormLabel>
+
             <Select
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              value={data.paymentMethod}
-              onChange={(e) => updateField("paymentMethod", e.target.value)}
-              size="md"
-              rounded="lg"
-            >
-              {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </Select>
+              value={paymentOptions.find((i) => i.value === data.paymentMethod)}
+              onChange={(v) => updateField("paymentMethod", v.value)}
+              options={paymentOptions}
+              isSearchable={false}
+            />
           </FormControl>
         </SimpleGrid>
 
@@ -1383,17 +1383,32 @@ td:nth-child(8) {
             ສະຖານະ
           </FormLabel>
           <Select
-            value={data.status}
-            onChange={(e) => updateField("status", e.target.value)}
-            size="md"
-            rounded="lg"
-            fontFamily={"Noto Sans Lao, sans-serif"}
-          >
-            <option value="paid">ຊຳລະແລ້ວ</option>
-            <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-          </Select>
+            value={statusOptions.find((i) => i.value === data.status)}
+            onChange={(v) => updateField("status", v.value)}
+            options={statusOptions}
+            isSearchable={false}
+          />
         </FormControl>
-
+        <FormControl>
+          <FormLabel
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            color={labelClr}
+            fontSize="sm"
+            fontWeight="600"
+          >
+            ໝວດໝູ່
+          </FormLabel>
+          <Select
+            fontFamily={"Noto Sans Lao, sans-serif"}
+            value={categoryOptions.find((c) => c.value === data.categoryId)}
+            onChange={(v) => updateField("categoryId", v.value)}
+            options={categories?.map((c) => ({
+              label: `${c.name} (${laoType[c.type]})`,
+              value: c._id,
+            }))}
+            isSearchable
+          />
+        </FormControl>
         <Divider />
 
         <Box>
@@ -1419,61 +1434,134 @@ td:nth-child(8) {
             </Button>
           </Flex>
           <VStack spacing={3}>
-            {data.amounts.map((amt, currencyIndex) => (
-              <HStack key={currencyIndex} spacing={2} w="full">
-                <Select
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  value={amt.currency}
-                  onChange={(e) =>
-                    updateCurrency(
-                      currencyIndex,
-                      "currency",
-                      e.target.value,
-                      index
-                    )
-                  }
-                  w="120px"
-                  size="md"
-                  rounded="lg"
-                >
-                  <option value="LAK">LAK (₭)</option>
-                  <option value="THB">THB (฿)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="CNY">CNY (¥)</option>
-                </Select>
-                <Input
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  type="number"
-                  step="0.01"
-                  value={amt.amount}
-                  onChange={(e) =>
-                    updateCurrency(
-                      currencyIndex,
-                      "amount",
-                      e.target.value,
-                      index
-                    )
-                  }
-                  placeholder="ຈຳນວນ"
-                  isRequired
-                  size="md"
-                  rounded="lg"
-                />
-                {data.amounts.length > 1 && (
-                  <IconButton
-                    icon={<CloseIcon />}
-                    colorScheme="red"
-                    variant="ghost"
-                    rounded="full"
-                    size="sm"
-                    onClick={() => removeCurrency(currencyIndex, index)}
-                  />
-                )}
-              </HStack>
-            ))}
+            {data.amounts.map((amt, currencyIndex) => {
+              const accountOptions =
+                data.paymentMethod === "cash"
+                  ? cashOptions.filter((acc) => acc.currency === amt.currency)
+                  : bankOptions.filter((acc) => acc.currency === amt.currency);
+
+              const selectedAccount = accountOptions.find(
+                (acc) => acc.currency === amt.accountId
+              );
+
+              return (
+                <VStack key={currencyIndex} spacing={3} w="full">
+                  <Box
+                    w="full"
+                    p={4}
+                    bg="white"
+                    borderWidth="1px"
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _hover={{ borderColor: "blue.300", shadow: "sm" }}
+                    transition="all 0.2s"
+                  >
+                    <VStack spacing={3} align="stretch">
+                      {/* Currency and Account Selection Row */}
+                      <HStack spacing={3}>
+                        <FormControl flex={1}>
+                          <FormLabel fontSize="sm" mb={1} color="gray.600">
+                            ສະກຸນເງິນ
+                          </FormLabel>
+                          <Select
+                            value={currencyOptions.find(
+                              (i) => i.value === amt.currency
+                            )}
+                            onChange={(v) =>
+                              updateCurrency(
+                                currencyIndex,
+                                "currency",
+                                v.value,
+                                index
+                              )
+                            }
+                            options={currencyOptions}
+                            isSearchable={false}
+                            size="md"
+                            borderRadius="lg"
+                            focusBorderColor="blue.400"
+                            bg="gray.50"
+                            _hover={{ bg: "white" }}
+                          />
+                        </FormControl>
+
+                        <FormControl flex={1}>
+                          <FormLabel fontSize="sm" mb={1} color="gray.600">
+                            ບັນຊີ
+                          </FormLabel>
+                          <Select
+                            value={selectedAccount}
+                            onChange={(v) =>
+                              updateCurrency(
+                                currencyIndex,
+                                "accountId",
+                                v.value,
+                                index
+                              )
+                            }
+                            options={accountOptions}
+                            isSearchable={false}
+                            size="md"
+                            borderRadius="lg"
+                            focusBorderColor="blue.400"
+                            bg="gray.50"
+                            _hover={{ bg: "white" }}
+                          />
+                        </FormControl>
+                      </HStack>
+
+                      {/* Amount Input */}
+                      <FormControl>
+                        <FormLabel fontSize="sm" mb={1} color="gray.600">
+                          ຈຳນວນເງິນ
+                        </FormLabel>
+                        <InputGroup size="md">
+                          <Input
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            type="number"
+                            step="0.01"
+                            value={amt.amount}
+                            onChange={(e) =>
+                              updateCurrency(
+                                currencyIndex,
+                                "amount",
+                                e.target.value,
+                                index
+                              )
+                            }
+                            placeholder="0.00"
+                            isRequired
+                            borderRadius="lg"
+                            focusBorderColor="blue.400"
+                            bg="gray.50"
+                            _hover={{ bg: "white" }}
+                            fontSize="lg"
+                            fontWeight="medium"
+                          />
+                          <InputRightElement>
+                            <Icon as={InfoIcon} color="gray.400" />
+                          </InputRightElement>
+                        </InputGroup>
+                      </FormControl>
+
+                      {/* Remove Button */}
+                      {data.amounts.length > 1 && (
+                        <IconButton
+                          icon={<CloseIcon />}
+                          colorScheme="red"
+                          variant="ghost"
+                          rounded="full"
+                          size="sm"
+                          onClick={() => removeCurrency(currencyIndex, index)}
+                        />
+                      )}
+                    </VStack>
+                  </Box>
+                </VStack>
+              );
+            })}
           </VStack>
         </Box>
-
         <FormControl>
           <FormLabel
             fontFamily={"Noto Sans Lao, sans-serif"}
@@ -1517,11 +1605,160 @@ td:nth-child(8) {
     );
   };
   // form edit
+  const PaymentCard = ({ amount, views }) => {
+    const bgColor = useColorModeValue("white", "gray.800");
+    const borderColor = useColorModeValue("gray.200", "gray.600");
+    const labelColor = useColorModeValue("gray.600", "gray.400");
+    const accountBg = useColorModeValue("gray.50", "gray.700");
+    const hoverBg = useColorModeValue("gray.50", "gray.750");
+
+    const isIncome = views?.type === "income";
+    const isCash =
+      amount?.account?.type === "cash" || !amount?.account?.accountNumber;
+
+    const amountColor = isIncome ? "green.500" : "red.500";
+    const iconColor = isIncome ? "green.400" : "red.400";
+    const badgeColor = isIncome ? "green" : "red";
+    const accountIcon = isCash ? Wallet : CreditCard;
+    const accountTypeLabel = isCash ? "ເງິນສົດ" : "ບັນຊີທະນາຄານ";
+
+    return (
+      <Box
+        p={5}
+        bg={bgColor}
+        rounded="xl"
+        border="1px solid"
+        borderColor={borderColor}
+        shadow="sm"
+        transition="all 0.2s"
+        _hover={{
+          shadow: "md",
+          bg: hoverBg,
+          transform: "translateY(-2px)",
+        }}
+      >
+        <VStack align="stretch" spacing={4}>
+          {/* Header with icon and badge */}
+          <Flex justify="space-between" align="center">
+            <HStack spacing={2}>
+              <Box p={2} bg={accountBg} rounded="md">
+                <Icon as={accountIcon} boxSize={5} color={iconColor} />
+              </Box>
+              <VStack align="start" spacing={0}>
+                <Text   fontFamily={"Noto Sans Lao, sans-serif"} fontSize="xs" color={labelColor} fontWeight="medium">
+                  {accountTypeLabel}
+                </Text>
+                <Badge
+                  colorScheme={badgeColor}
+                  fontSize="xs"
+                  px={2}
+                  py={0.5}
+                  rounded="md"
+                    fontFamily={"Noto Sans Lao, sans-serif"}
+                >
+                  {isIncome ? "ລາຍຮັບ" : "ລາຍຈ່າຍ"}
+                </Badge>
+              </VStack>
+            </HStack>
+            <Icon
+              as={isIncome ? TrendingUp : TrendingDown}
+              boxSize={6}
+              color={amountColor}
+            />
+          </Flex>
+
+          <Divider />
+
+          {/* Account Details */}
+          <VStack align="stretch" spacing={2}>
+            <HStack justify="space-between">
+              <Text
+                fontSize="sm"
+                color={labelColor}
+                fontFamily="Noto Sans Lao, sans-serif"
+              >
+                ຊຳລະຜ່ານ:
+              </Text>
+              <Text
+                fontSize="sm"
+                fontWeight="semibold"
+                fontFamily="Noto Sans Lao, sans-serif"
+              >
+                {amount?.account?.name || amount?.account?.bankName}
+              </Text>
+            </HStack>
+
+            {!isCash && amount?.account?.accountNumber && (
+              <HStack justify="space-between">
+                <Text
+                  fontSize="sm"
+                  color={labelColor}
+                  fontFamily="Noto Sans Lao, sans-serif"
+                >
+                  ເລກບັນຊີ:
+                </Text>
+                <Text   fontFamily={"Noto Sans Lao, sans-serif"} fontSize="sm" fontWeight="mono">
+                  {amount?.account?.accountNumber}
+                </Text>
+              </HStack>
+            )}
+
+            <HStack justify="space-between">
+              <Text
+                fontSize="sm"
+                color={labelColor}
+                fontFamily="Noto Sans Lao, sans-serif"
+              >
+                ສະກຸນເງິນ:
+              </Text>
+              <Badge   fontFamily={"Noto Sans Lao, sans-serif"} colorScheme="blue" fontSize="sm">
+                {amount?.account?.currency || amount?.currency}
+              </Badge>
+            </HStack>
+          </VStack>
+
+          <Divider />
+
+          {/* Amount Display */}
+          <HStack justify="space-between" align="baseline">
+            <Text
+              fontSize="sm"
+              color={labelColor}
+              fontWeight="medium"
+              fontFamily="Noto Sans Lao, sans-serif"
+            >
+              ຈຳນວນເງິນ:
+            </Text>
+            <HStack spacing={2} align="baseline">
+              <Text
+                fontSize="2xl"
+                fontWeight="bold"
+                color={amountColor}
+                fontFamily="Noto Sans Lao, sans-serif"
+              >
+                {amount.amount.toLocaleString("lo-LA")}
+              </Text>
+              <Text fontSize="lg" fontWeight="semibold" color={labelColor}>
+                {amount?.currency}
+              </Text>
+            </HStack>
+          </HStack>
+        </VStack>
+      </Box>
+    );
+  };
+
   const renderFormFieldsEdit = (data, index) => {
     const updateField = (field, value) => {
       setFormEditData({ ...data, [field]: value });
     };
-
+    const categoryOptions = categories.map((c) => ({
+      value: c._id,
+      label: `${c.name} (${laoType[c.type]})`,
+    }));
+    console.log(
+      categoryOptions?.find((c) => c.value === data?.categoryId?._id)
+    );
     return (
       <VStack spacing={5} align="stretch">
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
@@ -1553,14 +1790,11 @@ td:nth-child(8) {
               ປະເພດ
             </FormLabel>
             <Select
-              value={data.type}
-              onChange={(e) => updateField("type", e.target.value)}
-              size="md"
-              rounded="lg"
-            >
-              <option value="income">ລາຍຮັບ</option>
-              <option value="expense">ລາຍຈ່າຍ</option>
-            </Select>
+              value={typeOptions.find((i) => i.value === data.type)}
+              onChange={(v) => updateField("type", v.value)}
+              options={typeOptions}
+              isSearchable={false}
+            />
           </FormControl>
 
           <FormControl>
@@ -1572,19 +1806,13 @@ td:nth-child(8) {
             >
               ວິທີຊຳລະ
             </FormLabel>
+
             <Select
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              value={data.paymentMethod}
-              onChange={(e) => updateField("paymentMethod", e.target.value)}
-              size="md"
-              rounded="lg"
-            >
-              {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </Select>
+              value={paymentOptions.find((i) => i.value === data.paymentMethod)}
+              onChange={(v) => updateField("paymentMethod", v.value)}
+              options={paymentOptions}
+              isSearchable={false}
+            />
           </FormControl>
         </SimpleGrid>
 
@@ -1627,27 +1855,43 @@ td:nth-child(8) {
           </FormControl>
         </SimpleGrid>
 
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ສະຖານະ
-          </FormLabel>
-          <Select
-            value={data.status}
-            onChange={(e) => updateField("status", e.target.value)}
-            size="md"
-            rounded="lg"
-            fontFamily={"Noto Sans Lao, sans-serif"}
-          >
-            <option value="paid">ຊຳລະແລ້ວ</option>
-            <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-          </Select>
-        </FormControl>
-
+        <SimpleGrid>
+          <FormControl>
+            <FormLabel
+              fontFamily={"Noto Sans Lao, sans-serif"}
+              color={labelClr}
+              fontSize="sm"
+              fontWeight="600"
+            >
+              ສະຖານະ
+            </FormLabel>
+            <Select
+              value={statusOptions.find((i) => i.value === data.status)}
+              onChange={(v) => updateField("status", v.value)}
+              options={statusOptions}
+              isSearchable={false}
+            />
+          </FormControl>
+          <FormControl>
+            <FormLabel
+              fontFamily={"Noto Sans Lao, sans-serif"}
+              color={labelClr}
+              fontSize="sm"
+              fontWeight="600"
+            >
+              ໝວດໝູ່
+            </FormLabel>
+            <Select
+              fontFamily={"Noto Sans Lao, sans-serif"}
+              value={categoryOptions?.find(
+                (c) => c?.value === data?.categoryId?._id
+              )}
+              onChange={(v) => updateField("categoryId", v.value)}
+              options={categoryOptions}
+              isSearchable={false}
+            />
+          </FormControl>
+        </SimpleGrid>
         <Divider />
 
         <Box>
@@ -1673,58 +1917,118 @@ td:nth-child(8) {
             </Button>
           </Flex>
           <VStack spacing={3}>
-            {data.amounts.map((amt, currencyIndex) => (
-              <HStack key={currencyIndex} spacing={2} w="full">
-                <Select
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  value={amt.currency}
-                  onChange={(e) =>
-                    updateCurrency(
-                      currencyIndex,
-                      "currency",
-                      e.target.value,
-                      index
-                    )
-                  }
-                  w="120px"
-                  size="md"
-                  rounded="lg"
-                >
-                  <option value="LAK">LAK (₭)</option>
-                  <option value="THB">THB (฿)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="CNY">CNY (¥)</option>
-                </Select>
-                <Input
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  type="number"
-                  step="0.01"
-                  value={amt.amount}
-                  onChange={(e) =>
-                    updateCurrency(
-                      currencyIndex,
-                      "amount",
-                      e.target.value,
-                      index
-                    )
-                  }
-                  placeholder="ຈຳນວນ"
-                  isRequired
-                  size="md"
-                  rounded="lg"
-                />
-                {data.amounts.length > 1 && (
-                  <IconButton
-                    icon={<CloseIcon />}
-                    colorScheme="red"
-                    variant="ghost"
-                    rounded="full"
-                    size="sm"
-                    onClick={() => removeCurrency(currencyIndex, index)}
-                  />
-                )}
-              </HStack>
-            ))}
+            {data.amounts.map((amt, currencyIndex) => {
+              const accountOptions =
+                data.paymentMethod === "cash"
+                  ? cashOptions.filter((acc) => acc.currency === amt.currency)
+                  : bankOptions.filter((acc) => acc.currency === amt.currency);
+
+              const selectedAccount = accountOptions.find(
+                (acc) => acc.value === amt.accountId
+              );
+              console.log("selectedAccount", selectedAccount);
+              console.log("amt", amt);
+              return (
+                <VStack key={currencyIndex} spacing={3} w="full">
+                  <Box
+                    w="full"
+                    p={4}
+                    bg="white"
+                    borderWidth="1px"
+                    borderColor="gray.200"
+                    borderRadius="xl"
+                    _hover={{ borderColor: "blue.300", shadow: "sm" }}
+                    transition="all 0.2s"
+                  >
+                    <VStack spacing={3} align="stretch">
+                      {/* Currency + Account */}
+                      <HStack spacing={3}>
+                        {/* Currency */}
+                        <FormControl flex={1}>
+                          <FormLabel fontSize="sm" color="gray.600">
+                            ສະກຸນເງິນ
+                          </FormLabel>
+                          <Select
+                            value={currencyOptions.find(
+                              (i) => i.value === amt.currency
+                            )}
+                            options={currencyOptions}
+                            onChange={(v) => {
+                              updateCurrency(
+                                currencyIndex,
+                                "currency",
+                                v.value,
+                                index
+                              );
+                              // 🔧 Reset accountId when currency changes
+                              updateCurrency(
+                                currencyIndex,
+                                "accountId",
+                                "",
+                                index
+                              );
+                            }}
+                            isSearchable={false}
+                          />
+                        </FormControl>
+
+                        {/* Account */}
+                        <FormControl flex={1} isInvalid={!selectedAccount}>
+                          <FormLabel fontSize="sm" color="gray.600">
+                            ບັນຊີ
+                          </FormLabel>
+                          <Select
+                            value={selectedAccount}
+                            options={accountOptions}
+                            placeholder="ກະລຸນາເລືອກບັນຊີ"
+                            isSearchable={false}
+                            onChange={(v) =>
+                              updateCurrency(
+                                currencyIndex,
+                                "accountId",
+                                v.value,
+                                index
+                              )
+                            }
+                          />
+                        </FormControl>
+                      </HStack>
+
+                      {/* Amount */}
+                      <FormControl isInvalid={Number(amt.amount) <= 0}>
+                        <FormLabel fontSize="sm" color="gray.600">
+                          ຈຳນວນເງິນ
+                        </FormLabel>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={amt.amount}
+                          placeholder="0.00"
+                          onChange={(e) =>
+                            updateCurrency(
+                              currencyIndex,
+                              "amount",
+                              e.target.value,
+                              index
+                            )
+                          }
+                        />
+                      </FormControl>
+
+                      {/* Remove */}
+                      {data.amounts.length > 1 && (
+                        <IconButton
+                          icon={<CloseIcon />}
+                          colorScheme="red"
+                          variant="ghost"
+                          onClick={() => removeCurrency(currencyIndex, index)}
+                        />
+                      )}
+                    </VStack>
+                  </Box>
+                </VStack>
+              );
+            })}
           </VStack>
         </Box>
 
@@ -1771,32 +2075,6 @@ td:nth-child(8) {
       </VStack>
     );
   };
-  if (loading) {
-    return (
-      <Flex h="100vh" align="center" justify="center">
-        <VStack spacing={4}>
-          <Box
-            borderWidth={4}
-            borderColor="teal.500"
-            borderTopColor="transparent"
-            borderRadius="full"
-            w={12}
-            h={12}
-            animation="spin 1s linear infinite"
-            css={{
-              "@keyframes spin": {
-                "0%": { transform: "rotate(0deg)" },
-                "100%": { transform: "rotate(360deg)" },
-              },
-            }}
-          />
-          <Text fontFamily={"Noto Sans Lao, sans-serif"} color={labelClr}>
-            ກຳລັງໂຫຼດ...
-          </Text>
-        </VStack>
-      </Flex>
-    );
-  }
 
   return (
     <Box>
@@ -2376,30 +2654,35 @@ td:nth-child(8) {
                           {transaction?.createdBy?.username}
                         </Badge>
                       </Td>
-                      <Td>
-                        <Badge
-                          rounded="lg"
-                          colorScheme={
-                            statusColors[transaction?.status_Ap] || "blue"
-                          }
-                          fontFamily={"Noto Sans Lao, sans-serif"}
-                          px={4}
-                          py={2}
-                          fontWeight="bold"
-                          fontSize={"22px"}
-                          textTransform="capitalize"
-                          variant="solid" // ใช้แบบทึบจะเด่นกว่า outline
-                          boxShadow="0px 2px 10px rgba(0,0,0,0.25)" // เพิ่มเงาให้ลอยขึ้น
-                          border="1px solid rgba(255,255,255,0.6)" // ขอบจาง ๆ ให้ดูมีชั้น
-                          letterSpacing="0.5px"
-                        >
-                          {status_Ap[transaction?.status_Ap] || "ບໍ່ມີຂໍ້ມູນ"}
-                        </Badge>
-                      </Td>
 
+                      {transaction.type !== "income" ? (
+                        <Td>
+                          <Badge
+                            rounded="lg"
+                            colorScheme={
+                              statusColors[transaction?.status_Ap] || "blue"
+                            }
+                            fontFamily={"Noto Sans Lao, sans-serif"}
+                            px={4}
+                            py={2}
+                            fontWeight="bold"
+                            fontSize={"22px"}
+                            textTransform="capitalize"
+                            variant="solid" // ใช้แบบทึบจะเด่นกว่า outline
+                            boxShadow="0px 2px 10px rgba(0,0,0,0.25)" // เพิ่มเงาให้ลอยขึ้น
+                            border="1px solid rgba(255,255,255,0.6)" // ขอบจาง ๆ ให้ดูมีชั้น
+                            letterSpacing="0.5px"
+                          >
+                            {status_Ap[transaction?.status_Ap] || "ບໍ່ມີຂໍ້ມູນ"}
+                          </Badge>
+                        </Td>
+                      ) : (
+                        <Td>-</Td>
+                      )}
                       <Td>
                         <HStack spacing={1}>
                           {user?.role === "admin" &&
+                            transaction.advance !== "advance" &&
                             transaction.type !== "income" && (
                               <HStack spacing={2}>
                                 <Button
@@ -2495,7 +2778,9 @@ td:nth-child(8) {
                                   amounts: transaction.amounts.map((amt) => ({
                                     currency: amt.currency,
                                     amount: amt.amount,
+                                    accountId: amt.accountId,
                                   })),
+                                  categoryId: transaction.categoryId,
                                   note: transaction.note || "",
                                   id: transaction._id,
                                 });
@@ -2634,7 +2919,7 @@ td:nth-child(8) {
               <Button
                 fontFamily={"Noto Sans Lao, sans-serif"}
                 variant="ghost"
-                onClose={onClose}
+                onClick={onClose}
                 rounded="xl"
               >
                 ຍົກເລີກ
@@ -2693,7 +2978,7 @@ td:nth-child(8) {
               <Button
                 fontFamily={"Noto Sans Lao, sans-serif"}
                 variant="ghost"
-                onClick={onClose}
+                onClick={onEditClose}
                 rounded="xl"
               >
                 ຍົກເລີກ
@@ -2816,6 +3101,30 @@ td:nth-child(8) {
                       {formatDate(new Date(views?.date))}
                     </Text>
                   </VStack>
+
+                  <VStack spacing={1} align="start">
+                    <HStack spacing={1}>
+                      <Icon as={CreditCard} boxSize={4} color="blue.500" />
+                      <Text
+                        fontFamily="Noto Sans Lao, sans-serif"
+                        fontSize="sm"
+                        color="gray.500"
+                      >
+                        ໝວດໝູ່
+                      </Text>
+                    </HStack>
+                    <Badge
+                      px={3}
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      py={1}
+                      rounded="md"
+                      colorScheme="blue"
+                      fontSize="sm"
+                    >
+                      {views?.categoryId?.name}-{" "}
+                      {laoType[views?.categoryId?.type]}
+                    </Badge>
+                  </VStack>
                 </HStack>
 
                 {/* Description */}
@@ -2834,7 +3143,21 @@ td:nth-child(8) {
                     {views?.description || "-"}
                   </Text>
                 </VStack>
-
+                <VStack spacing={1} align="start" flex={1}>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    color="gray.500"
+                  >
+                    ສະຖານະການຊຳລະເງິນ
+                  </Text>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontWeight="medium"
+                  >
+                    {statusOptions2[views?.status]}
+                  </Text>
+                </VStack>
                 <Divider />
 
                 {/* Amounts */}
@@ -2852,37 +3175,7 @@ td:nth-child(8) {
                   </HStack>
                   <VStack spacing={3} align="stretch">
                     {views?.amounts?.map((amount, index) => (
-                      <Box
-                        key={index}
-                        p={4}
-                        bg={useColorModeValue("gray.50", "gray.700")}
-                        rounded="lg"
-                        border="1px solid"
-                        borderColor={borderClr}
-                      >
-                        <HStack justify="space-between">
-                          <HStack spacing={2}>
-                            <Text
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              fontSize="lg"
-                              fontWeight="bold"
-                              color="gray.600"
-                            >
-                              {amount?.currency}
-                            </Text>
-                          </HStack>
-                          <Text
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            fontSize="2xl"
-                            fontWeight="bold"
-                            color={
-                              views?.type === "income" ? "green.500" : "red.500"
-                            }
-                          >
-                            {amount.amount.toLocaleString("lo-LA")}
-                          </Text>
-                        </HStack>
-                      </Box>
+                      <PaymentCard amount={amount} index={index} />
                     ))}
                   </VStack>
                 </Box>

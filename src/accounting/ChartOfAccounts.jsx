@@ -1,11 +1,19 @@
-import React, { useState, useMemo } from "react";
+// src/pages/ChartOfAccountsWithCostCenters.jsx
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  ChakraProvider,
   Box,
-  Button,
+  ChakraProvider,
+  Flex,
+  Text,
+  Icon,
+  Badge,
   Input,
   InputGroup,
   InputLeftElement,
+  Button,
+  Divider,
+  VStack,
+  HStack,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -16,184 +24,38 @@ import {
   FormControl,
   FormLabel,
   Select,
-  VStack,
-  HStack,
-  Text,
-  Icon,
+  Switch,
   useDisclosure,
   useToast,
-  Flex,
-  Badge,
-  Divider,
-  Switch,
-  FormHelperText,
 } from "@chakra-ui/react";
+import { Search, Plus, ChevronRight, ChevronDown, Lock } from "lucide-react";
+import SelectReact from "react-select";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  Search,
-  Plus,
-  Upload,
-  ChevronRight,
-  ChevronDown,
-  FileText,
-  Lock,
-} from "lucide-react";
+  getAccounts,
+  getAccountTree,
+  createAccount,
+  updateAccount,
+  messageClear,
+} from "../store/accountingReducer/chartAccounting";
 
-const MOCK_DATA = [
-  {
-    companyId: "1",
-    parentCode: "",
-    code: "1",
-    name: "ຊັບສິນ (Asset)",
-    type: "asset",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 0,
-    isMainAccount: true,
-  },
-  {
-    companyId: "1",
-    parentCode: "1",
-    code: "101",
-    name: "ເງິນສົດ",
-    type: "asset",
-    category: "ອື່ນໆ",
-    balanceDr: 50000,
-    balanceCr: 0,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "101",
-    code: "101.01",
-    name: "ເງິນສົດໃນມື",
-    type: "asset",
-    category: "ອື່ນໆ",
-    balanceDr: 20000,
-    balanceCr: 0,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "101",
-    code: "101.02",
-    name: "ເງິນສົດໃນທະນາຄານ",
-    type: "asset",
-    category: "ອື່ນໆ",
-    balanceDr: 30000,
-    balanceCr: 0,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "1",
-    code: "102",
-    name: "ລູກໜີ້ການຄ້າ",
-    type: "asset",
-    category: "ອື່ນໆ",
-    balanceDr: 15000,
-    balanceCr: 0,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "",
-    code: "2",
-    name: "ໜີ້ສິນ (Liability)",
-    type: "liability",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 0,
-    isMainAccount: true,
-  },
-  {
-    companyId: "1",
-    parentCode: "2",
-    code: "201",
-    name: "ເຈົ້າໜີ້ການຄ້າ",
-    type: "liability",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 25000,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "",
-    code: "3",
-    name: "ທຶນ (Equity)",
-    type: "equity",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 0,
-    isMainAccount: true,
-  },
-  {
-    companyId: "1",
-    parentCode: "3",
-    code: "301",
-    name: "ທຶນຈົດທະບຽນ",
-    type: "equity",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 100000,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "",
-    code: "4",
-    name: "ລາຍຮັບ (Income)",
-    type: "income",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 0,
-    isMainAccount: true,
-  },
-  {
-    companyId: "1",
-    parentCode: "4",
-    code: "401",
-    name: "ລາຍຮັບຈາກການຂາຍ",
-    type: "income",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 80000,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "",
-    code: "5",
-    name: "ຄ່າໃຊ້ຈ່າຍ (Expense)",
-    type: "expense",
-    category: "ອື່ນໆ",
-    balanceDr: 0,
-    balanceCr: 0,
-    isMainAccount: true,
-  },
-  {
-    companyId: "1",
-    parentCode: "5",
-    code: "501",
-    name: "ຕົ້ນທຶນຂາຍ",
-    type: "expense",
-    category: "ຕົ້ນທຶນຂາຍ",
-    balanceDr: 40000,
-    balanceCr: 0,
-    isMainAccount: false,
-  },
-  {
-    companyId: "1",
-    parentCode: "5",
-    code: "502",
-    name: "ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
-    type: "expense",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
-    balanceDr: 10000,
-    balanceCr: 0,
-    isMainAccount: false,
-  },
-];
+/**
+ * Chart of Accounts with explicit Cost-of-Goods-Sold / Distribution / Administrative grouping.
+ *
+ * Assumptions:
+ * - Account schema has fields: _id, code, name, parentCode, type (asset/liability/equity/income/expense), category
+ * - category strings include: "ຕົ້ນທຸນຂາຍ" (COGS), "ຕົ້ນທຸນຈຳຫນ່າຍ" (Distribution), "ຕົ້ນທຸນບໍລິຫານ" (Administrative), and others.
+ * - You have Redux actions listed above available.
+ */
+
+/* ---------- Type order (custom sort) ---------- */
+const TYPE_ORDER = {
+  asset: 1,
+  equity: 2,
+  liability: 3,
+  expense: 4,
+  income: 5,
+};
 
 const TYPE_COLORS = {
   asset: "blue",
@@ -203,22 +65,29 @@ const TYPE_COLORS = {
   expense: "orange",
 };
 
-const TreeNode = ({
+/* ---------- map English labels to Lao / business labels ---------- */
+const CATEGORY_LABELS = {
+  ຕົ້ນທຸນຂາຍ: "Cost of Goods Sold",
+  ຕົ້ນທຸນຈຳຫນ່າຍ: "Distribution Cost",
+  ຕົ້ນທຸນບໍລິຫານ: "Administrative Cost",
+  ອື່ນໆ: "Other",
+};
+
+/* ---------- Tree node component ---------- */
+const TreeNode = React.memo(function TreeNode({
   account,
-  children,
-  level,
+  children = [],
+  level = 0,
   expanded,
   onToggle,
   onEdit,
   isAdmin,
-}) => {
-  const hasChildren = children && children.length > 0;
-  const isExpanded = expanded[account.code];
-
-  const balance = account.balanceDr - account.balanceCr;
+}) {
+  const hasChildren = children.length > 0;
+  const isExpanded = !!expanded[account?.code];
+  const balance = (account?.balanceDr || 0) - (account?.balanceCr || 0);
   const balanceColor = balance >= 0 ? "green.600" : "red.600";
-
-  const canEdit = isAdmin || !account.isMainAccount;
+  const canEdit = isAdmin || !account?.isMainAccount;
 
   return (
     <Box>
@@ -226,50 +95,20 @@ const TreeNode = ({
         align="center"
         py={2}
         px={3}
-        pl={level * 8 + 3}
-        _hover={{ bg: canEdit ? "gray.50" : "gray.100" }}
-        cursor={canEdit ? "pointer" : "not-allowed"}
-        onClick={() => canEdit && onEdit(account)}
-        bg={account.isMainAccount ? "blue.50" : "white"}
+        pl={level * 14}
+        bg={account?.isMainAccount ? "blue.50" : "white"}
         borderBottom="1px solid"
         borderColor="gray.100"
-        position="relative"
+        _hover={{ bg: "gray.50" }}
+        cursor={canEdit ? "pointer" : "not-allowed"}
+        onClick={() => canEdit && onEdit && onEdit(account)}
       >
-        {/* เส้นเชื่อมแนวตั้ง */}
-        {level > 0 && (
-          <Box
-            position="absolute"
-            left={level * 8 - 4}
-            top={0}
-            bottom="50%"
-            width="2px"
-            bg="gray.300"
-          />
-        )}
-
-        {/* เส้นเชื่อมแนวนอน */}
-        {level > 0 && (
-          <Box
-            position="absolute"
-            left={level * 8 - 4} // ปรับจาก 8 → 20 เพื่อเพิ่มระยะไม่ชน text
-            top="50%"
-            transform="translateY(-50%)"
-            width="20px"
-            height="2px"
-            bg="gray.300"
-            zIndex={0} // ทำให้เส้นอยู่ข้างหลังตัวหนังสือ
-          />
-        )}
-
         <Box
           mr={2}
           onClick={(e) => {
             e.stopPropagation();
-            hasChildren && onToggle(account.code);
+            hasChildren && onToggle && onToggle(account.code);
           }}
-          zIndex={1}
-          bg="white"
-          borderRadius="sm"
         >
           {hasChildren ? (
             <Icon
@@ -278,77 +117,53 @@ const TreeNode = ({
               color="gray.600"
             />
           ) : (
-            <Box w={4} />
+            <Box boxSize={4} />
           )}
         </Box>
 
         <Badge
-          colorScheme={TYPE_COLORS[account.type]}
+          colorScheme={TYPE_COLORS[account?.type]}
           mr={2}
-          fontSize="xs"
           minW="60px"
           textAlign="center"
-          fontFamily="Noto Sans Lao, sans-serif"
         >
-          {account.code}
+          {account?.code}
         </Badge>
 
         <Text
           flex={1}
           fontSize="sm"
-          fontFamily="Noto Sans Lao, sans-serif"
-          fontWeight={
-            account.isMainAccount ? "bold" : level === 0 ? "semibold" : "normal"
-          }
-          color={account.isMainAccount ? "blue.700" : "gray.700"}
+          fontWeight={account?.isMainAccount ? "bold" : "medium"}
         >
-          {account.name}
+          {account?.name}
         </Text>
 
-        {account.isMainAccount && (
+        {account?.isMainAccount && (
           <Icon as={Lock} boxSize={3} color="blue.500" mr={2} />
         )}
 
         <Text
-          fontFamily="Noto Sans Lao, sans-serif"
           fontSize="sm"
           color={balanceColor}
-          fontWeight="medium"
-          mr={3}
-          minW="80px"
+          minW="120px"
           textAlign="right"
+          mr={3}
         >
-          {balance.toLocaleString()}
+          {balance?.toLocaleString ? balance.toLocaleString() : balance}
         </Text>
 
-        <Badge
-          fontFamily="Noto Sans Lao, sans-serif"
-          colorScheme="gray"
-          fontSize="xs"
-          minW="70px"
-          textAlign="center"
-        >
-          {account.type}
+        <Badge minW="90px" textAlign="center">
+          {account?.type}
         </Badge>
       </Flex>
 
       {hasChildren && isExpanded && (
-        <Box position="relative">
-          {/* เส้นแนวตั้งสำหรับ children */}
-          <Box
-            fontFamily="Noto Sans Lao, sans-serif"
-            position="absolute"
-            left={(level + 1) * 8 - 4}
-            top={0}
-            bottom={0}
-            width="2px"
-            bg="gray.300"
-          />
-          {children.map((child, index) => (
+        <Box ml={6}>
+          {children.map((child) => (
             <TreeNode
-              key={child.account.code}
-              account={child.account}
-              children={child.children}
+              key={child._id || child.code}
+              account={child}
+              children={child.children || []}
               level={level + 1}
               expanded={expanded}
               onToggle={onToggle}
@@ -360,88 +175,70 @@ const TreeNode = ({
       )}
     </Box>
   );
-};
+});
 
-const ChartOfAccounts = () => {
-  const [accounts, setAccounts] = useState(MOCK_DATA);
+/* ---------- Main component ---------- */
+const ChartOfAccountsWithCostCenters = () => {
+  const dispatch = useDispatch();
+  const toast = useToast();
+
+  const {
+    accounts = [],
+    tree = [],
+    loader,
+    successMessage,
+    errorMessage,
+  } = useSelector((s) => s.chartAccount || {});
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [expanded, setExpanded] = useState({
-    "1": true,
-    "2": true,
-    "3": true,
-    "4": true,
-    "5": true,
-  });
+  const [expanded, setExpanded] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null);
   const [formData, setFormData] = useState({
     parentCode: "",
     code: "",
     name: "",
     type: "asset",
     category: "ອື່ນໆ",
+    isMainAccount: false,
   });
-  const [editingAccount, setEditingAccount] = useState(null);
 
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const {
-    isOpen: isImportOpen,
-    onOpen: onImportOpen,
-    onClose: onImportClose,
-  } = useDisclosure();
-  const toast = useToast();
 
-  const buildTree = (data, parentCode = "") => {
-    return data
-      .filter((acc) => acc.parentCode === parentCode)
-      .map((acc) => ({
-        account: acc,
-        children: buildTree(data, acc.code),
-      }));
-  };
+  useEffect(() => {
+    dispatch(getAccounts());
+    dispatch(getAccountTree());
+  }, [dispatch]);
 
-  const findMatchingCodes = (data, term) => {
-    const matches = new Set();
-    const lowerTerm = term.toLowerCase();
-
-    data.forEach((acc) => {
-      if (
-        acc.code.toLowerCase().includes(lowerTerm) ||
-        acc.name.toLowerCase().includes(lowerTerm) ||
-        acc.type.toLowerCase().includes(lowerTerm) ||
-        acc.category.toLowerCase().includes(lowerTerm)
-      ) {
-        matches.add(acc.code);
-        let parent = acc.parentCode;
-        while (parent) {
-          matches.add(parent);
-          const parentAcc = data.find((a) => a.code === parent);
-          parent = parentAcc ? parentAcc.parentCode : "";
-        }
-      }
-    });
-
-    return matches;
-  };
-
-  const treeData = useMemo(() => {
-    if (searchTerm) {
-      const matchingCodes = findMatchingCodes(accounts, searchTerm);
-      const filtered = accounts.filter((acc) => matchingCodes.has(acc.code));
-      const newExpanded = {};
-      matchingCodes.forEach((code) => {
-        newExpanded[code] = true;
-      });
-      setExpanded(newExpanded);
-      return buildTree(filtered);
+  useEffect(() => {
+    if (successMessage) {
+      toast({ title: successMessage, status: "success" });
+      dispatch(messageClear());
     }
-    return buildTree(accounts);
-  }, [accounts, searchTerm]);
+    if (errorMessage) {
+      toast({ title: errorMessage, status: "error" });
+      dispatch(messageClear());
+    }
+  }, [successMessage, errorMessage]);
 
-  const toggleNode = (code) => {
-    setExpanded((prev) => ({
-      ...prev,
-      [code]: !prev[code],
-    }));
+  const toggleNode = useCallback((code) => {
+    setExpanded((p) => ({ ...p, [code]: !p[code] }));
+  }, []);
+
+  const handleEdit = (acc) => {
+    if (!isAdmin && acc.isMainAccount) {
+      return toast({ title: "ไม่สามารถแก้ไขบัญชีหลักได้", status: "warning" });
+    }
+    setEditingAccount(acc);
+    setFormData({
+      parentCode: acc.parentCode || "",
+      code: acc.code,
+      name: acc.name,
+      type: acc.type,
+      category: acc.category || "ອື່ນໆ",
+      isMainAccount: !!acc.isMainAccount,
+    });
+    onOpen();
   };
 
   const handleOpenAdd = () => {
@@ -452,293 +249,189 @@ const ChartOfAccounts = () => {
       name: "",
       type: "asset",
       category: "ອື່ນໆ",
+      isMainAccount: false,
     });
     onOpen();
   };
 
-  const handleEdit = (account) => {
-    if (!isAdmin && account.isMainAccount) {
-      toast({
-        title: "ບໍ່ສາມາດແກ້ໄຂບັນຊີຫຼັກໄດ້",
-        description: "ເຉພາະແອດມິນເທົ່ານັ້ນທີ່ສາມາດແກ້ໄຂບັນຊີຫຼັກໄດ້",
-        status: "warning",
-        duration: 3000,
-      });
-      return;
-    }
-
-    setEditingAccount(account);
-    setFormData({
-      parentCode: account.parentCode,
-      code: account.code,
-      name: account.name,
-      type: account.type,
-      category: account.category,
-    });
-    onOpen();
-  };
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.code || !formData.name) {
-      toast({
-        title: "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-        status: "warning",
-        duration: 3000,
-      });
-      return;
+      return toast({ title: "กรุณากรอก code และ name", status: "warning" });
     }
 
-    // ตรวจสอบว่าเป็นการสร้างบัญชีหลักหรือไม่
-    const isCreatingMainAccount = !formData.parentCode;
-    if (isCreatingMainAccount && !isAdmin) {
-      toast({
-        title: "ບໍ່ສາມາດສ້າງບັນຊີຫຼັກໄດ້",
-        description: "ເຉພາະແອດມິນເທົ່ານັ້ນທີ່ສາມາດສ້າງບັນຊີຫຼັກໄດ້",
-        status: "error",
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (editingAccount) {
-      // ตรวจสอบสิทธิ์ในการแก้ไข
-      if (editingAccount.isMainAccount && !isAdmin) {
-        toast({
-          title: "ບໍ່ມີສິດແກ້ໄຂ",
-          description: "ເຉພາະແອດມິນເທົ່ານັ້ນທີ່ສາມາດແກ້ໄຂບັນຊີຫຼັກໄດ້",
-          status: "error",
-          duration: 3000,
-        });
-        return;
-      }
-
-      setAccounts((prev) =>
-        prev.map((acc) =>
-          acc.code === editingAccount.code
-            ? { ...acc, ...formData, isMainAccount: acc.isMainAccount }
-            : acc
-        )
-      );
-      toast({
-        title: "ອັບເດດບັນຊີສຳເລັດ",
-        status: "success",
-        duration: 3000,
-      });
-    } else {
-      const exists = accounts.find((acc) => acc.code === formData.code);
-      if (exists) {
-        toast({
-          title: "ລະຫັດບັນຊີນີ້ມີຢູ່ແລ້ວ",
-          status: "error",
-          duration: 3000,
-        });
-        return;
-      }
-
-      setAccounts((prev) => [
-        ...prev,
-        {
-          companyId: "1",
-          ...formData,
-          balanceDr: 0,
-          balanceCr: 0,
-          isMainAccount: isCreatingMainAccount,
-        },
-      ]);
-      toast({
-        title: "ເພີ່ມບັນຊີສຳເລັດ",
-        status: "success",
-        duration: 3000,
-      });
-    }
-    onClose();
-  };
-
-  const handleFileUpload = (e) => {
-    if (!isAdmin) {
-      toast({
-        title: "ບໍ່ມີສິດນຳເຂົ້າຂໍ້ມູນ",
-        description: "ເຉພາະແອດມິນເທົ່ານັ້ນທີ່ສາມາດນຳເຂົ້າຂໍ້ມູນໄດ້",
-        status: "error",
-        duration: 3000,
-      });
-      return;
-    }
-
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target.result;
-        const lines = text.split("\n").filter((line) => line.trim());
-        const headers = lines[0].split(",").map((h) => h.trim());
-
-        const imported = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(",").map((v) => v.trim());
-          const row = {};
-          headers.forEach((header, idx) => {
-            row[header] = values[idx] || "";
-          });
-
-          if (row.code) {
-            imported.push({
-              companyId: row.companyId || "1",
-              parentCode: row.parentCode || "",
-              code: row.code,
-              name: row.name,
-              type: row.type || "asset",
-              category: row.category || "ອື່ນໆ",
-              balanceDr: parseFloat(row.balanceDr) || 0,
-              balanceCr: parseFloat(row.balanceCr) || 0,
-              isMainAccount: row.isMainAccount === "true" || !row.parentCode,
-            });
-          }
-        }
-
-        setAccounts((prev) => {
-          const updated = [...prev];
-          imported.forEach((imp) => {
-            const idx = updated.findIndex((acc) => acc.code === imp.code);
-            if (idx >= 0) {
-              updated[idx] = imp;
-            } else {
-              updated.push(imp);
-            }
-          });
-          return updated;
-        });
-
-        toast({
-          title: `ນຳເຂົ້າ ${imported.length} ບັນຊີສຳເລັດ`,
-          status: "success",
-          duration: 3000,
-        });
-        onImportClose();
-      } catch (error) {
-        toast({
-          title: "ເກີດຂໍ້ຜິດພາດໃນການນຳເຂົ້າ",
-          description: error.message,
-          status: "error",
-          duration: 3000,
-        });
-      }
+    const payload = {
+      parentCode: formData.parentCode || null,
+      code: formData.code,
+      name: formData.name,
+      type: formData.type,
+      category: formData.category,
+      isMainAccount: !!formData.isMainAccount,
     };
-    reader.readAsText(file);
+
+    try {
+      if (editingAccount) {
+        await dispatch(
+          updateAccount({ id: editingAccount._id, formData: payload })
+        );
+        toast({ title: "Updated", status: "success" });
+      } else {
+        await dispatch(createAccount(payload));
+        toast({ title: "Created", status: "success" });
+      }
+      dispatch(getAccounts());
+      dispatch(getAccountTree());
+      onClose();
+    } catch (err) {
+      toast({ title: "Save failed", status: "error" });
+    }
   };
 
-  // Filter parent accounts - ผู้ใช้ทั่วไปเลือกได้เฉพาะบัญชีย่อย
-  const availableParentAccounts = isAdmin
-    ? accounts
-    : accounts.filter((acc) => !acc.isMainAccount || acc.parentCode !== "");
+  /* ---------- Parent options: only show main accounts as parents ---------- */
+  const parentOptions = useMemo(
+    () =>
+      accounts
+        ?.filter((a) => !a.parentCode) // only top-level (main) accounts
+        .map((a) => ({ value: a.code, label: `${a.code} - ${a.name}` })) || [],
+    [accounts]
+  );
+
+  /* ---------- Sorted top-level tree by requested order ---------- */
+  const sortedTree = useMemo(() => {
+    if (!tree) return [];
+    // make shallow copy and sort top-level nodes by TYPE_ORDER
+    const copy = [...tree];
+    copy.sort((a, b) => {
+      const ta = TYPE_ORDER[a.account?.type] || 99;
+      const tb = TYPE_ORDER[b.account?.type] || 99;
+      if (ta !== tb) return ta - tb;
+      // fallback: sort by code
+      const ca = a.account?.code || "";
+      const cb = b.account?.code || "";
+      return ca.localeCompare(cb, undefined, { numeric: true });
+    });
+    return copy;
+  }, [tree]);
+
+  /* ---------- For Expense: split into COGS / Distribution / Admin / Other ---------- */
+  const expenseMeta = useMemo(() => {
+    // find expense top-level node
+    const node = sortedTree.find((n) => n.account?.type === "expense");
+    if (!node) return { node: null, byCategory: {} };
+
+    // flatten tree into array of accounts under expense
+    const flat = [];
+    function walk(n) {
+      const acc = n.account;
+      flat.push({ ...acc, children: n.children || [] });
+      (n.children || []).forEach((c) => walk(c));
+    }
+    (node.children || []).forEach((c) => walk(c));
+
+    // group by category (use Lao category string)
+    const byCategory = {};
+    flat.forEach((a) => {
+      const cat = a.category || "ອື່ນໆ";
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(a);
+    });
+
+    return { node, byCategory };
+  }, [sortedTree]);
+
+  /* ---------- Filter search across tree: we're still rendering full tree but you can enhance to filter ---------- */
+  // For now we keep search as client-only filter for top-level nodes by account name/code
+  const filteredTop = useMemo(() => {
+    if (!searchTerm) return sortedTree;
+    const q = searchTerm.toLowerCase();
+    return sortedTree.map((n) => {
+      // shallow filter children too: simple approach - keep node if name/code matches or any child's name/code matches
+      const matches = (acc) =>
+        (acc.name || "").toLowerCase().includes(q) ||
+        (acc.code || "").toLowerCase().includes(q);
+
+      if (matches(n.account)) return n;
+      // deep search children, if any match keep node but don't prune children to keep structure simpler
+      const anyChildMatch = JSON.stringify(n).toLowerCase().includes(q);
+      if (anyChildMatch) return n;
+      return n; // keep anyway to preserve tree; you can implement pruning later
+    });
+  }, [sortedTree, searchTerm]);
 
   return (
     <ChakraProvider>
-      <Box minH="100vh" bg="gray.50" p={6}>
-        <Box maxW="1400px" mx="auto">
-          <Flex justify="space-between" align="center" mb={6}>
-            <Box>
-              <Text
-                fontFamily="Noto Sans Lao, sans-serif"
-                fontSize="2xl"
-                fontWeight="bold"
-                color="gray.700"
-              >
-                ຜັງບັນຊີ (Chart of Accounts)
-              </Text>
-              <Text
-                fontFamily="Noto Sans Lao, sans-serif"
-                fontSize="sm"
-                color="gray.500"
-                mt={1}
-              >
-                ບັນຊີຫຼັກ (ພື້ນຖານຕາມກົດໝາຍລາວ) ສາມາດແກ້ໄຂໄດ້ເຉພາະແອດມິນ
-              </Text>
-            </Box>
-            <HStack spacing={3}>
-              <HStack bg="white" px={4} py={2} borderRadius="md" shadow="sm">
-                <Text
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="sm"
-                  fontWeight="medium"
-                >
-                  ສະຖານະ: {isAdmin ? "Admin" : "User"}
-                </Text>
-                <Switch
-                  colorScheme="blue"
-                  isChecked={isAdmin}
-                  onChange={(e) => setIsAdmin(e.target.checked)}
-                />
-              </HStack>
-              <Button
-                leftIcon={<Plus size={18} />}
-                colorScheme="blue"
-                onClick={handleOpenAdd}
-                fontFamily="Noto Sans Lao, sans-serif"
-              >
-                ເພີ່ມບັນຊີ
-              </Button>
-              <Button
-                leftIcon={<Upload size={18} />}
-                colorScheme="green"
-                onClick={onImportOpen}
-                isDisabled={!isAdmin}
-                fontFamily="Noto Sans Lao, sans-serif"
-              >
-                Import CSV
-              </Button>
-            </HStack>
-          </Flex>
-
-          <Box bg="white" borderRadius="lg" shadow="sm" p={4} mb={4}>
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <Search size={18} color="gray" />
-              </InputLeftElement>
-              <Input
-                placeholder="ຄົ້ນຫາບັນຊີ (code, name, type, category)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </InputGroup>
+      <Box p={6} maxW="1400px" mx="auto" bg="gray.50" minH="100vh">
+        <Flex justify="space-between" mb={6}>
+          <Box>
+            <Text fontSize="2xl" fontWeight="bold">
+              Chart of Accounts — Cost Centers
+            </Text>
+            <Text fontSize="sm" color="gray.500">
+              แยก ต้นทุนขาย / ต้นทุนจำหน่าย / ต้นทุนบริหาร
+            </Text>
           </Box>
 
-          <Box bg="white" borderRadius="lg" shadow="sm" overflow="hidden">
-            <Flex
-              bg="gray.100"
-              px={3}
-              py={3}
-              fontWeight="bold"
-              fontSize="sm"
-              color="gray.600"
+          <HStack spacing={3}>
+            <HStack bg="white" px={4} py={2} borderRadius="md" shadow="sm">
+              <Text fontSize="sm">Admin mode</Text>
+              <Switch
+                isChecked={isAdmin}
+                onChange={(e) => setIsAdmin(e.target.checked)}
+                colorScheme="blue"
+              />
+            </HStack>
+
+            <Button
+              leftIcon={<Plus size={18} />}
+              colorScheme="blue"
+              onClick={handleOpenAdd}
             >
-              <Box w={6} />
-              <Text flex={1}>ບັນຊີ</Text>
-              <Text
-                fontFamily="Noto Sans Lao, sans-serif"
-                w="100px"
-                textAlign="right"
-                mr={3}
-              >
-                ຍອດຄົງເຫຼືອ
-              </Text>
-              <Box
-                fontFamily="Noto Sans Lao, sans-serif"
-                w="80px"
-                textAlign="center"
-              >
-                ປະເພດ
-              </Box>
-            </Flex>
-            <Divider />
-            <Box maxH="calc(100vh - 320px)" overflowY="auto">
-              {treeData.map((node) => (
+              Add Account
+            </Button>
+          </HStack>
+        </Flex>
+
+        <Box bg="white" p={4} mb={4} borderRadius="md" shadow="sm">
+          <InputGroup>
+            <InputLeftElement pointerEvents="none">
+              <Search size={16} />
+            </InputLeftElement>
+            <Input
+              placeholder="Search account code or name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </InputGroup>
+        </Box>
+
+        {/* Render top-level nodes in sorted order */}
+        <Box bg="white" borderRadius="lg" shadow="sm" mb={6}>
+          <Flex
+            bg="gray.100"
+            px={3}
+            py={3}
+            fontWeight="bold"
+            fontSize="sm"
+            color="gray.600"
+          >
+            <Box w={6} />
+            <Text flex={1}>Account</Text>
+            <Box w="120px" textAlign="right" mr={3}>
+              Balance
+            </Box>
+            <Box w="90px" textAlign="center">
+              Type
+            </Box>
+          </Flex>
+          <Divider />
+
+          <Box maxH="calc(100vh - 320px)" overflowY="auto">
+            {filteredTop
+              ?.sort((a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type])
+              ?.map((node) => (
                 <TreeNode
-                  key={node.account.code}
-                  account={node.account}
-                  children={node.children}
+                  key={node._id}
+                  account={node}
+                  children={node.children || []}
                   level={0}
                   expanded={expanded}
                   onToggle={toggleNode}
@@ -746,200 +439,123 @@ const ChartOfAccounts = () => {
                   isAdmin={isAdmin}
                 />
               ))}
-            </Box>
-          </Box>
-
-          <Box mt={4} p={4} bg="blue.50" borderRadius="md" fontSize="sm">
-            <HStack spacing={4}>
-              <HStack>
-                <Box w={3} h={3} bg="blue.200" borderRadius="sm" />
-                <Text fontFamily="Noto Sans Lao, sans-serif">
-                  ບັນຊີຫຼັກ (ລ໋ອກ)
-                </Text>
-              </HStack>
-              <HStack>
-                <Icon as={Lock} boxSize={3} color="blue.500" />
-                <Text fontFamily="Noto Sans Lao, sans-serif">
-                  ແກ້ໄຂໄດ້ເຉພາະ Admin
-                </Text>
-              </HStack>
-            </HStack>
           </Box>
         </Box>
 
+        {/* Expense detail grouped by cost categories */}
+      
+
+        {/* Modal for add/edit */}
         <Modal isOpen={isOpen} onClose={onClose} size="lg">
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-              {editingAccount ? "ແກ້ໄຂບັນຊີ" : "ເພີ່ມບັນຊີໃໝ່"}
-              {editingAccount?.isMainAccount && (
-                <Badge ml={2} colorScheme="blue">
-                  <HStack spacing={1}>
-                    <Icon as={Lock} boxSize={3} />
-                    <Text fontFamily="Noto Sans Lao, sans-serif">
-                      ບັນຊີຫຼັກ
-                    </Text>
-                  </HStack>
-                </Badge>
-              )}
+            <ModalHeader>
+              {editingAccount ? "Edit Account" : "Create Account"}
             </ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <VStack spacing={4}>
                 <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ບັນຊີຕົ້ນທາງ (Parent Code)
-                  </FormLabel>
-                  <Select
-                    value={formData.parentCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, parentCode: e.target.value })
+                  <FormLabel>Parent Account (main accounts only)</FormLabel>
+                  <SelectReact
+                    options={parentOptions}
+                    value={
+                      parentOptions.find(
+                        (o) => o.value === formData.parentCode
+                      ) || null
                     }
-                    isDisabled={editingAccount?.isMainAccount && !isAdmin}
-                  >
-                    <option value="">-- ບັນຊີຫຼັກ (ເຉພາະ Admin) --</option>
-                    {availableParentAccounts.map((acc) => (
-                      <option key={acc.code} value={acc.code}>
-                        {acc.code} - {acc.name}
-                      </option>
-                    ))}
-                  </Select>
-                  {!isAdmin && (
-                    <FormHelperText
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      color="orange.600"
-                    >
-                      ຜູ້ໃຊ້ທົ່ວໄປສາມາດສ້າງບັນຊີຍ່ອຍໄດ້ເທົ່ານັ້ນ
-                    </FormHelperText>
-                  )}
+                    onChange={(opt) =>
+                      setFormData((s) => ({
+                        ...s,
+                        parentCode: opt?.value || "",
+                      }))
+                    }
+                    placeholder="-- Main Account --"
+                    isClearable
+                    styles={{
+                      container: (base) => ({ ...base, width: "100%" }),
+                    }}
+                  />
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ລະຫັດບັນຊີ (Code)
-                  </FormLabel>
+                  <FormLabel>Code</FormLabel>
                   <Input
                     value={formData.code}
                     onChange={(e) =>
-                      setFormData({ ...formData, code: e.target.value })
+                      setFormData((s) => ({ ...s, code: e.target.value }))
                     }
-                    placeholder="ເຊັ່ນ: 101.01"
-                    isDisabled={editingAccount?.isMainAccount && !isAdmin}
                   />
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ຊື່ບັນຊີ (Name)
-                  </FormLabel>
+                  <FormLabel>Name</FormLabel>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
+                      setFormData((s) => ({ ...s, name: e.target.value }))
                     }
-                    placeholder="ເຊັ່ນ: ເງິນສົດໃນມື"
-                    isDisabled={editingAccount?.isMainAccount && !isAdmin}
                   />
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ປະເພດ (Type)
-                  </FormLabel>
+                  <FormLabel>Type</FormLabel>
                   <Select
-                    fontFamily="Noto Sans Lao, sans-serif"
                     value={formData.type}
                     onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
+                      setFormData((s) => ({ ...s, type: e.target.value }))
                     }
-                    isDisabled={editingAccount?.isMainAccount && !isAdmin}
                   >
-                    <option value="asset">ຊັບສິນ (Asset)</option>
-                    <option value="liability">ໜີ້ສິນ (Liability)</option>
-                    <option value="equity">ທຶນ (Equity)</option>
-                    <option value="income">ລາຍຮັບ (Income)</option>
-                    <option value="expense">ຄ່າໃຊ້ຈ່າຍ (Expense)</option>
+                    <option value="asset">Asset</option>
+                    <option value="liability">Liability</option>
+                    <option value="equity">Equity</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
                   </Select>
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ໝວດໝູ່ (Category)
-                  </FormLabel>
+                  <FormLabel>Category (for Expense split)</FormLabel>
                   <Select
-                    fontFamily="Noto Sans Lao, sans-serif"
                     value={formData.category}
                     onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
+                      setFormData((s) => ({ ...s, category: e.target.value }))
                     }
                   >
-                    <option value="ຕົ້ນທຶນຂາຍ">ຕົ້ນທຶນຂາຍ</option>
-                    <option value="ຕົ້ນທຶນຈຳໜ່າຍ">ຕົ້ນທຶນຈຳໜ່າຍ</option>
-                    <option value="ຕົ້ນທຸນບໍລິຫານ">ຕົ້ນທຸນບໍລິຫານ</option>
-                    <option value="ອື່ນໆ">ອື່ນໆ</option>
+                    <option value="ຕົ້ນທຸນຂາຍ">ຕົ້ນທຸນຂາຍ (COGS)</option>
+                    <option value="ຕົ້ນທຸນຈຳຫນ່າຍ">
+                      ຕົ້ນທຸນຈຳຫນ່າຍ (Distribution)
+                    </option>
+                    <option value="ຕົ້ນທຸນບໍລິຫານ">
+                      ຕົ້ນທຸນບໍລິຫານ (Admin)
+                    </option>
+                    <option value="ອື່ນໆ">Other</option>
                   </Select>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Is Main Account</FormLabel>
+                  <Switch
+                    isChecked={formData.isMainAccount}
+                    onChange={(e) =>
+                      setFormData((s) => ({
+                        ...s,
+                        isMainAccount: e.target.checked,
+                      }))
+                    }
+                  />
                 </FormControl>
               </VStack>
             </ModalBody>
+
             <ModalFooter>
-              <Button
-                fontFamily="Noto Sans Lao, sans-serif"
-                variant="ghost"
-                mr={3}
-                onClick={onClose}
-              >
-                ຍົກເລີກ
+              <Button mr={3} onClick={onClose}>
+                Cancel
               </Button>
-              <Button
-                fontFamily="Noto Sans Lao, sans-serif"
-                colorScheme="blue"
-                onClick={handleSave}
-              >
-                ບັນທຶກ
+              <Button colorScheme="blue" onClick={handleSave}>
+                {editingAccount ? "Update" : "Create"}
               </Button>
             </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        <Modal isOpen={isImportOpen} onClose={onImportClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Import CSV (Admin Only)</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack spacing={4} py={4}>
-                <Icon as={FileText} boxSize={12} color="gray.400" />
-                <Text
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="sm"
-                  color="gray.600"
-                  textAlign="center"
-                >
-                  ເລືອກໄຟລ์ CSV ທີ່ມີຫົວຕາຕະລາງ:
-                  <br />
-                  companyId, parentCode, code, name, type, category, balanceDr,
-                  balanceCr, isMainAccount
-                </Text>
-                <Input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  display="none"
-                  id="csv-upload"
-                />
-                <Button
-                  as="label"
-                  htmlFor="csv-upload"
-                  colorScheme="blue"
-                  leftIcon={<Upload size={18} />}
-                  cursor="pointer"
-                  isDisabled={!isAdmin}
-                  fontFamily="Noto Sans Lao, sans-serif"
-                >
-                  ເລືອກໄຟລ์
-                </Button>
-              </VStack>
-            </ModalBody>
           </ModalContent>
         </Modal>
       </Box>
@@ -947,10 +563,4 @@ const ChartOfAccounts = () => {
   );
 };
 
-export default ChartOfAccounts;
-
-// Example CSV format for import:
-// companyId,parentCode,code,name,type,category,balanceDr,balanceCr,isMainAccount
-// 1,,1,ຊັບສິນ (Asset),asset,ອື່ນໆ,0,0,true
-// 1,1,101,ເງິນສົດ,asset,ອື່ນໆ,50000,0,false
-// 1,101,101.01,ເງິນສົດໃນມື,asset,ອື່ນໆ,20000,0,false
+export default ChartOfAccountsWithCostCenters;

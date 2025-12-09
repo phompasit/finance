@@ -25,7 +25,7 @@ const OPOSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ["PENDING", "APPROVED", "PAID", "CANCELLED"],
-      default:"PENDING"
+      default: "PENDING",
     },
     requester: { type: String },
     manager: { type: String },
@@ -33,6 +33,11 @@ const OPOSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+    },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
       required: true,
     },
     items: [ItemSchema],

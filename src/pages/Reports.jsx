@@ -710,9 +710,9 @@ tbody tr:nth-child(even) {
       
  <div class="company-info">
       <div>
-        <div class="company-name">${user?.companyInfo?.name || ""}</div>
-        <div class="company-address">${user?.companyInfo?.address || ""}</div>
-          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
+        <div class="company-name">${user?.companyId?.name || ""}</div>
+        <div class="company-address">${user?.companyId?.address || ""}</div>
+          <div class="company-address">${user?.companyId?.phone || ""}</div>
       </div>
           <div class="topHeader">ລາຍງານການເງິນ</div>
           <!-- Date Section -->

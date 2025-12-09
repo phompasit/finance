@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
-import { User } from "lucide-react";
 
 const AuthContext = createContext(null);
 
@@ -33,6 +32,7 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/auth/me`
       );
+      console.log("response",response)
       setUser(response.data);
     } catch (error) {
       localStorage.removeItem("token");

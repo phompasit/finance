@@ -3,7 +3,8 @@ import OPO from "../models/OPO.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import User from "../models/User.js";
 const router = express.Router();
-
+import sanitizeHtml from "sanitize-html";
+import Joi from "joi";
 // Get all OPO records
 router.get("/", authenticate, async (req, res) => {
   try {
@@ -13,11 +14,7 @@ router.get("/", authenticate, async (req, res) => {
     const page = parseInt(req.query.page) || 30;
     const skip = (page - 1) * limit;
     /////
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    } else {
-      query.userId = req.user.companyId;
-    }
+    query.companyId = req.user.companyId;
     /////
     if (status) query.status = status;
     /////
@@ -32,7 +29,7 @@ router.get("/", authenticate, async (req, res) => {
     const records = await OPO.find(query)
       .populate("userId", "username email role companyInfo")
       .populate("staff", "username email role")
-      .sort({ date: -1 })
+      .sort({ date: -1 });
 
     res.json(records);
   } catch (error) {
@@ -43,103 +40,147 @@ router.get("/", authenticate, async (req, res) => {
 // Get single OPO record by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
-    const query = {};
+    const opoId = req.params.id;
 
-    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
+    // 1️⃣ หาเฉพาะ OPO ที่อยู่ในบริษัทเดียวกัน
+    const opo = await OPO.findOne({
+      _id: opoId,
+      companyId: req.user.companyId,
+    }).populate("userId", "username role");
 
-    const record = await OPO.findOne(query).populate(
-      "userId",
-      "username email"
-    );
-
-    if (!record) {
+    if (!opo) {
       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ OPO" });
     }
 
-    res.json(record);
+    // 2️⃣ RBAC: ตรวจสิทธิ์การเข้าถึง
+    const CAN_VIEW_ALL = ["admin", "manager"]; // กำหนด role ที่ดูได้ทุกเอกสาร
+
+    // staff / user → ดูเฉพาะ OPO ที่ตัวเองสร้าง
+    if (!CAN_VIEW_ALL.includes(req.user.role)) {
+      if (String(opo.userId._id) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "ທ່ານບໍ່ມີສິດເບິ່ງ OPO ນີ້",
+        });
+      }
+    }
+
+    return res.json(opo);
   } catch (error) {
-    res.status(500).json({ message: "ເກີດຂໍ້ຜິດພລາດ", error: error.message });
+    console.error("Error fetching OPO:", error);
+    return res.status(500).json({
+      message: "ເກີດຂໍ້ຜິດພາດ",
+      error: error.message,
+    });
   }
 });
 
-// Create OPO record
+// dependencies assumed: Joi, sanitize-html or your sanitize util, mongoose
+
 router.post("/", authenticate, async (req, res) => {
+  // Optional: start a session if you want atomic multi-collection writes
+  // const session = await mongoose.startSession();
+  // session.startTransaction();
   try {
-    // Validate required fields manually for better error messages
-    const { serial, status, items } = req.body;
-    const exists = await OPO.findOne({ serial }).lean();
-    if (exists) {
+    // 1) Validate payload shape with Joi (whitelist)
+    const itemSchema = Joi.object({
+      description: Joi.string().max(1000).required(),
+      paymentMethod: Joi.string().valid("cash", "bank_transfer").required(),
+      reason: Joi.string().max(1000).required(),
+      currency: Joi.string().max(10).required(),
+      amount: Joi.number().min(0).required(),
+      accountId: Joi.string().optional().allow("", null),
+      // ... any other allowed item fields
+    });
+
+    const schema = Joi.object({
+      serial: Joi.string().trim().required(),
+      status: Joi.string().valid("paid", "unpaid").required(),
+      items: Joi.array().items(itemSchema).min(1).required(),
+      note: Joi.string().max(2000).allow("", null),
+      // allow only these top-level fields
+    });
+
+    const { error, value } = schema.validate(req.body, { stripUnknown: true });
+    if (error) {
       return res.status(400).json({
-        message: "ເລກທີ OPO (serial) ມີແລ້ວກະລຸນາເລືອກໃໝ່",
+        message: error.details.map((i) => i.message),
       });
     }
 
-    if (!serial) {
-      return res.status(400).json({ message: "ກະລຸນາປ້ອນເລກທີ OPO (serial)" });
-    }
-    if (!status) {
-      return res.status(400).json({ message: "ກະລຸນາປ້ອນສະຖານະ (status)" });
+    const { serial, status, items, note } = value;
+
+    // 2) Ensure serial uniqueness WITHIN company (prevent cross-company duplicate)
+    const existing = await OPO.findOne({
+      serial,
+      companyId: req.user.companyId,
+    }).lean();
+    if (existing) {
+      return res.status(400).json({
+        message: "ເລກທີ OPO (serial) ມີແລ້ວໃນບໍລິສັດນີ້",
+      });
     }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "ກະລຸນາປ້ອນລາຍການຢ່າງໜ້ອຍໜຶ່ງລາຍການ" });
-    }
+    // 3) Sanitize text fields to prevent stored XSS
+    const sanitizedItems = items.map((it) => ({
+      description: sanitizeHtml(it.description, {
+        allowedTags: [],
+        allowedAttributes: {},
+      }),
+      reason: sanitizeHtml(it.reason, {
+        allowedTags: [],
+        allowedAttributes: {},
+      }),
+      paymentMethod: it.paymentMethod,
+      currency: it.currency,
+      amount: Number(it.amount),
+      accountId: it.accountId || null,
+    }));
 
-    // Validate each item
-    for (const item of items) {
-      if (!item.description) {
-        return res
-          .status(400)
-          .json({ message: "ກະລຸນາປ້ອນລາຍລະອຽດສຳລັບທຸກລາຍການ" });
-      }
-      if (!item.paymentMethod) {
-        return res
-          .status(400)
-          .json({ message: "ກະລຸນາປ້ອນວິທີຊຳລະສຳລັບທຸກລາຍການ" });
-      }
-      if (!item.reason) {
-        return res
-          .status(400)
-          .json({ message: "ກະລຸນາປ້ອນສາເຫດສຳລັບທຸກລາຍການ" });
-      }
-    }
-    const query = {};
+    const sanitizedNote = sanitizeHtml(note || "", {
+      allowedTags: [],
+      allowedAttributes: {},
+    });
 
-    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    // Create new OPO record
-    const record = new OPO({
-      ...req.body,
-      serial, // Map 'number' from frontend to 'serial' in backend
-      userId: query.userId,
-      createdBy: req.user.username, // Fallback to authenticated user's username
+    // 4) Recalculate totals
+    const totalAmount = sanitizedItems.reduce(
+      (s, it) => s + (Number(it.amount) || 0),
+      0
+    );
+
+    // 5) Build record with whitelist only
+    const recordData = {
+      serial,
+      status,
+      items: sanitizedItems,
+      note: sanitizedNote,
+      totalAmount,
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      createdBy: req.user.username || "N/A",
       createdAt: new Date(),
       staff: req.user._id,
       status_Ap: "PENDING",
-    });
+    };
 
+    // 6) Save (optionally within transaction)
+    // await Model.create([recordData], { session }); // if using session
+    const record = new OPO(recordData);
     await record.save();
-    res.status(201).json(record);
-  } catch (error) {
-    console.error("Error creating OPO:", error);
-    res.status(400).json({
-      message: "ການສ້າງ OPO ລົ້ມເຫລວ",
-      error: error.message,
+
+    // if using transaction:
+    // await session.commitTransaction();
+    // session.endSession();
+
+    return res.status(201).json(record);
+  } catch (err) {
+    // if using transaction:
+    // await session.abortTransaction();
+    // session.endSession();
+
+    console.error("Error creating OPO:", err);
+    return res.status(500).json({
+      message: "การสร้าง OPO ล้มเหลว",
+      error: err.message,
     });
   }
 });
@@ -147,89 +188,87 @@ router.post("/", authenticate, async (req, res) => {
 // Update OPO record (Full Update)
 router.put("/:id", authenticate, async (req, res) => {
   try {
-    const { serial, status, items } = req.body;
+    const opoId = req.params.id;
 
-    // Validate required fields
-    if (!serial) {
-      return res.status(400).json({ message: "ກະລຸນາປ້ອນເລກທີ OPO (serial)" });
-    }
-    if (!status) {
-      return res.status(400).json({ message: "ກະລຸນາປ້ອນສະຖານະ (status)" });
-    }
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "ກະລຸນາປ້ອນລາຍການຢ່າງໜ້ອຍໜຶ່ງລາຍການ" });
-    }
+    // 1️⃣ Find exact OPO of this company
+    const opo = await OPO.findOne({
+      _id: opoId,
+      companyId: req.user.companyId,
+    });
 
-    // Validate each item
-    for (const item of items) {
-      if (!item.description) {
-        return res
-          .status(400)
-          .json({ message: "ກະລຸນາປ້ອນລາຍລະອຽດສຳລັບທຸກລາຍການ" });
-      }
-      if (!item.paymentMethod) {
-        return res
-          .status(400)
-          .json({ message: "ກະລຸນາປ້ອນວິທີຊຳລະສຳລັບທຸກລາຍການ" });
-      }
-      if (!item.reason) {
-        return res
-          .status(400)
-          .json({ message: "ກະລຸນາປ້ອນສາເຫດສຳລັບທຸກລາຍການ" });
-      }
-    }
-
-    const query = {};
-
-    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-
-    // Find the record first to check permissions
-    const existingRecord = await OPO.findOne(query);
-
-    if (!existingRecord) {
+    if (!opo) {
       return res.status(404).json({
-        message: "ບໍ່ພົບຂໍ້ມູນ OPO ຫຼື ທ່ານບໍ່ມີສິດແກ້ໄຂ",
+        message: "ບໍ່ພົບຂໍ້ມູນ OPO ຫຼື ບໍ່ມີສິດແກ້ໄຂ",
       });
     }
 
-    // Prevent editing if already approved (unless admin/staff)
+    // 2️⃣ Check permission (creator or admin)
     if (
-      existingRecord.status_Ap === "APPROVED" ||
-      existingRecord.status_Ap === "CANCELLED"
+      req.user.role !== "admin" &&
+      String(opo.createdBy) !== String(req.user._id)
     ) {
       return res.status(403).json({
-        message: "ບໍ່ສາມາດແກ້ໄຂ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
+        message: "ທ່ານບໍ່ມີສິດແກ້ໄຂ OPO ນີ້",
       });
     }
 
-    // Update the record
-    const updatedRecord = await OPO.findOneAndUpdate(
-      query,
-      {
-        ...req.body,
-        serial,
-        updatedBy: req.user.username,
-        updatedAt: new Date(),
-      },
-      { new: true, runValidators: true }
-    ).populate("userId", "username email");
+    // 3️⃣ Prevent editing approved/cancelled OPO
+    if (["APPROVED", "CANCELLED"].includes(opo.status_Ap)) {
+      return res.status(403).json({
+        message: "OPO ທີ່ອະນຸມັດ ຫຼື ຍົກເລີກ ບໍ່ສາມາດແກ້ໄຂໄດ້",
+      });
+    }
 
-    res.json({
+    // 4️⃣ Validate input (server side)
+    if (!req.body.serial) {
+      return res.status(400).json({ message: "Serial ບໍ່ຖືກຕ້ອງ" });
+    }
+
+    if (!Array.isArray(req.body.items) || req.body.items.length === 0) {
+      return res.status(400).json({
+        message: "ກະລຸນາປ້ອນລາຍການຢ່າງໜ້ອຍ 1 ລາຍການ",
+      });
+    }
+
+    // 5️⃣ Validate each item
+    for (const item of req.body.items) {
+      if (!item.description || !item.paymentMethod || !item.reason) {
+        return res.status(400).json({
+          message: "ລາຍການບໍ່ຄົບຖ້ວນ",
+        });
+      }
+    }
+
+    // 6️⃣ Allowed fields only
+    const allowedUpdate = {
+      serial: req.body.serial,
+      status: req.body.status,
+      items: req.body.items,
+      note: req.body.note || "",
+      updatedBy: req.user.username,
+      updatedAt: new Date(),
+    };
+
+    // 7️⃣ Recalculate totals
+    allowedUpdate.totalAmount = req.body.items.reduce(
+      (sum, i) => sum + Number(i.amount || 0),
+      0
+    );
+
+    // 8️⃣ Update safely
+    const updated = await OPO.findOneAndUpdate(
+      { _id: opoId, companyId: req.user.companyId },
+      allowedUpdate,
+      { new: true }
+    );
+
+    return res.json({
       message: "ອັບເດດ OPO ສຳເລັດ",
-      data: updatedRecord,
+      data: updated,
     });
   } catch (error) {
     console.error("Error updating OPO:", error);
-    res.status(400).json({
+    return res.status(500).json({
       message: "ການອັບເດດ OPO ລົ້ມເຫລວ",
       error: error.message,
     });
@@ -239,77 +278,132 @@ router.put("/:id", authenticate, async (req, res) => {
 // Update OPO status (admin/staff only)
 router.patch("/:id/status", authenticate, async (req, res) => {
   try {
-    if (req.user.role === "user") {
-      return res.status(403).json({ message: "ບໍ່ມີສິດເຂົ້າເຖິງ" });
+    const { id } = req.params;
+
+    // 1️⃣ Allowed roles for approving / rejecting / cancel
+    const CAN_UPDATE_STATUS = ["admin", "finance", "manager"];
+
+    if (!CAN_UPDATE_STATUS.includes(req.user.role)) {
+      return res.status(403).json({ message: "ບໍ່ມີສິດປ່ຽນສະຖານະ" });
     }
 
-    const { status, approvedBy, rejectionReason } = req.body;
-    const record = await OPO.findByIdAndUpdate(
-      req.params.id,
-      {
-        status,
-        approvedBy,
-        rejectionReason,
-        updatedBy: req.user.username,
-        updatedAt: new Date(),
-      },
-      { new: true }
-    );
+    // 2️⃣ Validate input
+    const schema = Joi.object({
+      status: Joi.string()
+        .valid("PENDING", "APPROVED", "PAID", "CANCELLED")
+        .required(),
+      approvedBy: Joi.string().allow("").optional(),
+      rejectionReason: Joi.string().allow("").optional(),
+    });
 
-    if (!record) {
+    const { error, value } = schema.validate(req.body);
+    if (error) return res.status(400).json({ message: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" });
+
+    // 3️⃣ Get existing record (important for business rules)
+    const existing = await OPO.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    });
+
+    if (!existing) {
       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
 
-    res.json({
+    // 4️⃣ Prevent modifications on locked statuses
+    if (["PAID", "CANCELLED"].includes(existing.status)) {
+      return res.status(403).json({
+        message: "ບໍ່ສາມາດປ່ຽນສະຖານະໄດ້ເມື່ອລາຍການແມ່ນ PAID ຫຼື CANCELLED",
+      });
+    }
+
+    // 5️⃣ Sanitize only unsafe inputs
+    const sanitizedReason = sanitize(value.rejectionReason || "");
+
+    // 6️⃣ Only update allowed fields (whitelist)
+    const updateData = {
+      status: value.status,
+      approvedBy: CAN_UPDATE_STATUS.includes(req.user.role)
+        ? value.approvedBy
+        : existing.approvedBy,
+      rejectionReason: sanitizedReason,
+      updatedBy: sanitize(req.user.username),
+      updatedAt: new Date(),
+    };
+
+    // 7️⃣ Update safely
+    const updated = await OPO.findOneAndUpdate(
+      { _id: id, companyId: req.user.companyId },
+      updateData,
+      { new: true }
+    );
+
+    return res.json({
       message: "ອັບເດດສະຖານະສຳເລັດ",
-      data: record,
+      data: updated,
     });
   } catch (error) {
-    res.status(500).json({ message: "ເກີດຂໍ້ຜິດພລາດ", error: error.message });
+    console.error("Update status error:", error);
+    res.status(500).json({ message: "ເກີດຂໍ້ຜິດພາດ" });
   }
 });
 
 // Delete OPO record
 router.delete("/:id", authenticate, async (req, res) => {
   try {
-    const query = {};
+    const { id } = req.params;
 
-    // ✅ ถ้าเป็น admin ให้ดูได้ทั้งหมดในบริษัทนั้น
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
+    // 1️⃣ หาเฉพาะเอกสารของบริษัทนี้ + ID ต้องตรง
+    const opo = await OPO.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    });
 
-    // Find the record first to check status
-    const existingRecord = await OPO.findOne(query);
-
-    if (!existingRecord) {
+    if (!opo) {
       return res.status(404).json({
         message: "ບໍ່ພົບຂໍ້ມູນ OPO ຫຼື ທ່ານບໍ່ມີສິດລຶບ",
       });
     }
 
-    // Prevent deletion if already approved (unless admin)
+    // 2️⃣ Only admin or creator may delete
     if (
-      existingRecord.status_Ap === "APPROVED" ||
-      existingRecord.status_Ap === "CANCELLED"
+      req.user.role !== "admin" &&
+      String(opo.createdBy) !== String(req.user._id)
     ) {
       return res.status(403).json({
-        message: "ບໍ່ສາມາດແກ້ໄຂ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
+        message: "ທ່ານບໍ່ມີສິດລຶບລາຍການນີ້",
       });
     }
 
-    const record = await OPO.findOneAndDelete(query);
+    // 3️⃣ Prevent deletion if approved or cancelled
+    if (["APPROVED", "CANCELLED"].includes(opo.status_Ap)) {
+      return res.status(403).json({
+        message: "OPO ທີ່ອະນຸມັດ ຫຼື ຍົກເລີກ ບໍ່ສາມາດລຶບໄດ້",
+      });
+    }
 
-    res.json({
+    // 4️⃣ ตรวจว่ามีการเชื่อมโยงกับ Invoice หรือ Payment ไหม
+    const linked = await Invoice.findOne({ opoId: id });
+    if (linked) {
+      return res.status(400).json({
+        message: "OPO ຖືກນຳໃຊ້ໃນ Invoice ແລ້ວ ບໍ່ສາມາດລຶບ",
+      });
+    }
+
+    // TODO: เพิ่มตรวจใน Stock, Payment, GRN ถ้ามีระบบนั้น
+
+    // 5️⃣ ลบเอกสาร
+    await OPO.deleteOne({ _id: id });
+
+    return res.json({
       message: "ລຶບຂໍ້ມູນສຳເລັດ",
-      deletedId: record._id,
+      deletedId: id,
     });
   } catch (error) {
-    res.status(500).json({ message: "ເກີດຂໍ້ຜິດພລາດ", error: error.message });
+    console.error(error);
+    return res.status(500).json({
+      message: "ເກີດຂໍ້ຜິດພາດ",
+      error: error.message,
+    });
   }
 });
 
@@ -317,49 +411,139 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
   try {
     const { id, itemId } = req.params;
 
-    const opo = await OPO.findById(id);
+    // 1️⃣ ค้นหา OPO เฉพาะบริษัทของ user เพื่อป้องกันข้อมูลรั่ว
+    const opo = await OPO.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    });
+
     if (!opo) {
       return res.status(404).json({ message: "OPO not found" });
     }
-    if (opo.status_Ap === "APPROVED" || opo.status_Ap === "CANCELLED") {
+
+    // 2️⃣ Only admin or creator can modify
+    if (
+      req.user.role !== "admin" &&
+      String(opo.createdBy) !== String(req.user._id)
+    ) {
       return res.status(403).json({
-        message: "ບໍ່ສາມາດແກ້ໄຂ OPO ທີ່ອະນຸມັດແລ້ວໄດ້",
+        message: "ທ່ານບໍ່ມີສິດລຶບລາຍການນີ້",
       });
     }
 
-    // Remove the item from the items array
+    // 3️⃣ Prevent modification if approved or cancelled
+    const lockedStatuses = ["APPROVED", "CANCELLED"];
+    if (lockedStatuses.includes(opo.status_Ap)) {
+      return res.status(403).json({
+        message: "OPO ທີ່ອະນຸມັດ/ຍົກເລີກ ບໍ່ສາມາດແກ້ໄຂໄດ້",
+      });
+    }
+
+    // 4️⃣ ตรวจว่ามี itemId ใน OPO จริงไหม
+    const exists = opo.items.some((item) => item._id.toString() === itemId);
+
+    if (!exists) {
+      return res.status(400).json({
+        message: "Item not found in this OPO",
+      });
+    }
+
+    // 5️⃣ ลบ item
     opo.items = opo.items.filter((item) => item._id.toString() !== itemId);
 
+    // 6️⃣ Recalculate totals after deletion
+    opo.totalAmount = opo.items.reduce(
+      (sum, i) => sum + Number(i.subTotal || 0),
+      0
+    );
+
+    opo.taxAmount = (opo.totalAmount * (opo.taxRate || 0)) / 100;
+    opo.finalAmount = opo.totalAmount + opo.taxAmount - (opo.discount || 0);
+
+    // 7️⃣ Save OPO
     await opo.save();
-    res.json({ message: "Item removed successfully", opo });
+
+    return res.json({
+      message: "Item removed successfully",
+      opo,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error removing item", error: error.message });
+    console.error("DELETE /opoId/:id/item/:itemId error:", error);
+    return res.status(500).json({
+      message: "Error removing item",
+      error: error.message,
+    });
   }
 });
 
 router.patch("/status/:id", authenticate, async (req, res) => {
   try {
-    const id = req.params.id.replace(/^:/, "");
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    const record = await OPO.findOneAndUpdate({ _id: id, ...query }, req.body, {
-      new: true,
-    });
-    if (!record) {
+    const id = req.params.id;
+
+    // 1️⃣ ดึงข้อมูลก่อนอัปเดต
+    const existing = await OPO.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    }).lean();
+
+    if (!existing) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-    res.json(record);
+
+    // 2️⃣ ป้องกัน user แก้ไขรายการที่ approve แล้ว
+    if (req.user.role !== "admin" && existing.status_Ap === "approve") {
+      return res.status(403).json({
+        message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດປ່ຽນແປງໄດ້",
+      });
+    }
+
+    // 3️⃣ User ห้ามเปลี่ยน status_Ap (approve)
+    if (req.user.role !== "admin" && "status_Ap" in req.body) {
+      return res.status(403).json({
+        message: "ທ່ານບໍ່ມີສິດປ່ຽນສະຖານະອະນຸມັດ",
+      });
+    }
+
+    // 4️⃣ Validate allowed status values
+    const allowedStatus = ["PENDING", "APPROVED", "PAID", "CANCELLED"];
+    const allowedApproval = ["PENDING", "APPROVED", "PAID", "CANCELLED"];
+
+    if (req.body.status && !allowedStatus.includes(req.body.status)) {
+      return res.status(400).json({ message: "สถานะไม่ถูกต้อง" });
+    }
+
+    if (req.body.status_Ap && !allowedApproval.includes(req.body.status_Ap)) {
+      return res.status(400).json({ message: "สถานะอนุมัติไม่ถูกต้อง" });
+    }
+
+    // 5️⃣ Whitelist fields ที่แก้ได้เท่านั้น
+    const update = {};
+
+    if ("status" in req.body) update.status = req.body.status;
+
+    if (req.user.role === "admin" && "status_Ap" in req.body) {
+      update.status_Ap = req.body.status_Ap;
+    }
+
+    // ถ้าไม่มี field ให้อัปเดตที่ปลอดภัย
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: "ไม่มีข้อมูลที่สามารถอัปเดตได้" });
+    }
+
+    // 6️⃣ อัปเดตอย่างปลอดภัย
+    const updated = await OPO.findByIdAndUpdate(id, update, { new: true });
+
+    return res.json({
+      message: "อัปเดตสถานะสำเร็จ",
+      data: updated,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.error(error);
+    res.status(500).json({
+      message: "เกิดข้อผิดพลาด",
+      error: error.message,
+    });
   }
 });
+
 export default router;

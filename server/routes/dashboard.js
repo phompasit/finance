@@ -74,6 +74,7 @@ router.get("/", async (req, res) => {
             currency: amt.currency,
             paymentMethod: amt.paymentMethod,
             status: debt.status,
+            categoryId:debt.categoryId,
             note: debt.note || "-",
             source: "DEBT",
           });
@@ -95,6 +96,7 @@ router.get("/", async (req, res) => {
         paymentMethod: record.paymentMethod,
         status: record.status,
         note: record.note || "-",
+        categoryId:record.categoryId,
         source: "INCOME_EXPENSE",
       });
     });
@@ -137,6 +139,7 @@ router.get("/", async (req, res) => {
             status: opo.status,
             note: opo.note || "-",
             source: "OPO",
+            
           });
         });
       }

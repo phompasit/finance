@@ -1,13 +1,17 @@
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 🔒 Load environment variables FIRST
+dotenv.config({ path: path.join(__dirname, "./.env") });
+
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-import dotenv from "dotenv";
 import helmet from "helmet";
 import hpp from "hpp";
-import mongoSanitize from "express-mongo-sanitize";
-import path from "path";
-import { fileURLToPath } from "url";
-
 // Routes
 import authRoutes from "./routes/auth.js";
 import incomeExpenseRoutes from "./routes/incomeExpense.js";
@@ -16,38 +20,37 @@ import debtRoutes from "./routes/debt.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import reportRoutes from "./routes/report.js";
 import advanceRoutes from "./routes/advance.js";
+import categoryRoutes from "./routes/category.js"
+import companyRoutes from "./routes/company.js"
+import accountRoutes from "./routes/accounting/accountingL.js"
+import opening_balanceRoutes from "./routes/accounting/openingBalance.js"
+import journalRoutes from "./routes/accounting/journal.js"
+import financialReportsRoutes from "./routes/accounting/balanceSlice.js"
+import generalLedgerRoutes from "./routes/accounting/generalLedger.js"
+import statementRoutes from "./routes/accounting/statementOfFinancialPosition.js"
+import statementAssetsRoutes from "./routes/accounting/assets.js"
+import income_statementRoutes from "./routes/accounting/incomeStatement.js"
 // Security middleware
 import {
   corsOptions,
   securityHeaders,
-  apiLimiter,
   authLimiter,
 } from "./middleware/security.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 🔒 Load environment variables FIRST
-dotenv.config({ path: path.join(__dirname, "./.env") });
-
 const app = express();
 
 // ============================================
 // 🔒 SECURITY MIDDLEWARE (Order matters!)
 // ============================================
 
+console.log("Cloudinary ENV Loaded:", {
+  cloud: process.env.CLOUDINARY_CLOUD_NAME,
+  key: process.env.CLOUDINARY_API_KEY,
+  secret: process.env.CLOUDINARY_API_SECRET,
+});
 // 1. Helmet - Basic security headers
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
-  })
-);
-
+app.use(helmet());
 
 app.use(securityHeaders);
-
-
 app.use(cors(corsOptions));
 
 // 4. Body parsing with size limits
@@ -59,7 +62,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // 6. Prevent HTTP Parameter Pollution
 app.use(
   hpp({
-    whitelist: ["sort", "fields", "page", "limit", "type", "status"],
+    whitelist: ["sort", "fields", "page", "limit"],
   })
 );
 
@@ -146,25 +149,23 @@ app.use("/api/debt", debtRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/report", reportRoutes);
 app.use("/api/advances", advanceRoutes);
+app.use("/api/category",categoryRoutes)
+app.use("/api/company",companyRoutes)
+app.use("/api/account-document",accountRoutes)
+app.use("/api/opening-balance",opening_balanceRoutes)
+app.use("/api/journal",journalRoutes)
+app.use("/api/reports",financialReportsRoutes)
+app.use("/api/generalLedger",generalLedgerRoutes)
+app.use("/api/statement",statementRoutes)
+app.use("/api/statement-assets",statementAssetsRoutes)
+app.use("/api/income-statement",income_statementRoutes)
+
 
 // ============================================
 // 🔒 STATIC FILES & SPA (Last priority)
 // ============================================
 
 // Only serve static files in production
-// if (process.env.NODE_ENV === "production") {
-//   const distPath = path.join(__dirname, "../dist");
-
-//   // Serve static files
-//   app.use(
-//     express.static(distPath, {
-//       maxAge: "1y", // Cache static assets
-//       etag: true,
-//     })
-//   );
-
-//   // Catch-all route for SPA (must be last!)
-// }
 // ============================================
 // 🔒 ERROR HANDLING
 // ============================================
@@ -238,8 +239,8 @@ process.on("unhandledRejection", (reason, promise) => {
 // 🚀 START SERVER
 // ============================================
 
-const PORT = process.env.PORT || 5000
-app.listen(PORT,  () => {
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
   console.log("=".repeat(50));
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV || "development"}`);

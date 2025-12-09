@@ -64,6 +64,18 @@ import {
   ChevronLeftIcon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { fetchCategories } from "../store/reducer/partner";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  addTransaction,
+  closeAdvance,
+  createAdvanceA,
+  deleteAdvance,
+  fetchAdvances,
+  fetchEmployees,
+  reopenAdvance,
+  updateAdvance,
+} from "../store/reducer/advance";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -75,7 +87,7 @@ const INITIAL_ADD_FORM = {
   requester: "",
   account: "",
   description: "",
-  amounts: [{ currency: "LAK", amount: "" }],
+  amounts: [{ currency: "LAK", amount: "", accountId: "" }],
   date_from: "",
   date_to: "",
   serial: "",
@@ -110,8 +122,6 @@ export default function PrepaidExpenseDashboard() {
   const { user } = useAuth();
   const textColor = useColorModeValue("gray.700", "gray.200");
   // State management
-  const [advances, setAdvances] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [currencies, setCurrencies] = useState(["LAK", "THB", "USD", "CNY"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -153,7 +163,13 @@ export default function PrepaidExpenseDashboard() {
   const [transForm, setTransForm] = useState(INITIAL_TRANS_FORM);
   const [detail, setDetail] = useState();
   // Computed values with useMemo
-
+  console.log(detail);
+  const dispatch = useDispatch();
+  const { categoriesRedu: categories } = useSelector((state) => state.partner);
+  const { advancesList: advances, employees } = useSelector(
+    (state) => state.advance
+  );
+  console.log("advances", advances);
   // Filtered advances with useMemo
   const filteredAdvances = advances?.filter((a) => {
     // 🔍 กรองตามคำค้นหา
@@ -200,7 +216,6 @@ export default function PrepaidExpenseDashboard() {
   const pageSize = 100;
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(filteredAdvances.length / pageSize);
-  const offset = (page - 1) * pageSize;
   const pageData = useMemo(() => {
     const s = (page - 1) * pageSize;
     return filteredAdvances.slice(s, s + pageSize);
@@ -272,64 +287,20 @@ export default function PrepaidExpenseDashboard() {
   }, []);
 
   // API calls
-  const fetchAdvances = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+
+  const fetchC = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/advances`, {
-        headers: authHeaders(),
-      });
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          json.message || `HTTP ${res.status}: Failed to fetch advances`
-        );
-      }
-
-      setAdvances(json.data || []);
-    } catch (err) {
-      console.error("Fetch advances error:", err);
-      setError(err.message);
-      toast({
-        title: "ບໍ່ສາມາດດຶງຂໍ້ມູນໄດ້",
-        description: err.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
+      await dispatch(fetchCategories()).unwrap();
+      await dispatch(fetchAdvances()).unwrap();
+      await dispatch(fetchEmployees()).unwrap();
+    } catch (error) {
+      console.error("Fetch failed:", error);
     }
-  }, [authHeaders, toast]);
-
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/debt/employees`, {
-        headers: authHeaders(),
-      });
-      const result = await res.json();
-
-      if (result.success) {
-        setEmployees(result.data || []);
-      }
-    } catch (err) {
-      console.error("Fetch employees error:", err);
-      toast({
-        title: "ບໍ່ສາມາດດຶງຂໍ້ມູນພະນັກງານໄດ້",
-        description: err.message,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [authHeaders, toast]);
-
+  };
   // Initial data fetch
   useEffect(() => {
-    fetchAdvances();
-    fetchEmployees();
-  }, [fetchAdvances, fetchEmployees]);
+    fetchC();
+  }, []);
 
   // Multi-currency handlers
   const addCurrencyRow = () => {
@@ -356,7 +327,10 @@ export default function PrepaidExpenseDashboard() {
   const addEditCurrencyRow = () => {
     setEditForm({
       ...editForm,
-      amounts: [...(editForm.amounts || []), { currency: "LAK", amount: "" }],
+      amounts: [
+        ...(editForm.amounts || []),
+        { currency: "LAK", amount: "", accountId: "" },
+      ],
     });
   };
 
@@ -368,104 +342,147 @@ export default function PrepaidExpenseDashboard() {
   };
 
   const updateEditCurrencyRow = (index, field, value) => {
-    const newAmounts = [...(editForm.amounts || [])];
-    newAmounts[index][field] = value;
-    setEditForm({ ...editForm, amounts: newAmounts });
+    setEditForm((prev) => {
+      const newAmounts = prev.amounts.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      );
+
+      return { ...prev, amounts: newAmounts };
+    });
   };
 
   // Form validation
   const validateAddForm = () => {
-    if (!addForm.description.trim()) {
-      toast({
-        title: "ກະລຸນາກອກລາຍລະອຽດ",
-        status: "warning",
-        duration: 3000,
-      });
-      return false;
+    const {
+      type,
+      employee_id,
+      description,
+      amounts,
+      date_from,
+      date_to,
+      serial,
+      paymentMethods,
+      date,
+      note,
+    } = addForm;
+
+    // 1. description
+    if (!description.trim()) {
+      return toastWarn("ກະລຸນາກອກລາຍລະອຽດ");
     }
 
-    const hasValidAmount = addForm.amounts.some(
+    // 2. amount
+    const hasValidAmount = amounts.some(
       (a) => a.amount && parseFloat(a.amount) > 0
     );
-
     if (!hasValidAmount) {
-      toast({
-        title: "ກະລຸນາກອກຈໍານວນເງິນທີ່ຖືກຕ້ອງ",
-        status: "warning",
-        duration: 3000,
-      });
-      return false;
+      return toastWarn("ກະລຸນາກອກຈໍານວນເງິນທີ່ຖືກຕ້ອງ");
     }
 
-    if (!addForm.date) {
-      toast({
-        title: "ກະລຸນາເລືອກວັນທີ່",
-        status: "warning",
-        duration: 3000,
-      });
-      return false;
+    // 3. date
+    if (!date) {
+      return toastWarn("ກະລຸນາເລືອກວັນທີ່");
     }
+
+    // 4. employee_id
+    if (type === "employee" && !employee_id.trim()) {
+      return toastWarn("ກະລຸນາເລືອກພະນັກງານ");
+    }
+
+    // 8. date_from - date_to
+    if (!date_from || !date_to) {
+      return toastWarn("ກະລຸນາເລືອກວັນທີ່ (From-To)");
+    }
+
+    // ถ้าอยากบังคับว่า date_from <= date_to
+    if (new Date(date_from) > new Date(date_to)) {
+      return toastWarn("ວັນທີ່ From ຕ້ອງນ້ອຍກວ່າ To");
+    }
+
+    // 9. serial
+    if (!serial.trim()) {
+      return toastWarn("ກະລຸນາກອກ Serial");
+    }
+
+    // 10. payment method
+    if (!paymentMethods.trim()) {
+      return toastWarn("ກະລຸນາເລືອກວິທີການຈ່າຍ");
+    }
+
     return true;
   };
 
+  // Toast helper
+  const toastWarn = (title) => {
+    toast({
+      title,
+      status: "warning",
+      duration: 3000,
+    });
+    return false;
+  };
+  ///category
+  const [value, setValue] = useState("");
   // Create advance
   const createAdvance = async () => {
-    if (!validateAddForm()) return;
-
     try {
-      // Filter out empty amounts and format
+      if (!validateAddForm()) return;
+
       const validAmounts = addForm.amounts
-        .filter((a) => a.amount && parseFloat(a.amount) > 0)
-        .map((a) => ({
-          currency: a.currency,
-          amount: parseFloat(a.amount),
+        .filter(({ amount }) => parseFloat(amount) > 0)
+        .map(({ currency, amount, accountId }) => ({
+          currency,
+          amount: parseFloat(amount),
+          accountId,
         }));
 
       const payload = {
         type: addForm.type,
         employee_id: addForm.employee_id || null,
-        purpose: addForm.description,
+        purpose: addForm.description?.trim(),
         amounts: validAmounts,
         request_date: addForm.date,
-        serial: addForm.serial,
+        serial: addForm.serial?.trim(),
         status_payment: addForm.status_payment,
+        paymentMethods: addForm.paymentMethods,
+        categoryId: value || null,
         meta: {
-          company: addForm.company,
-          account: addForm.account,
+          company: addForm.company || "",
+          account: addForm.account || "",
           date_from: addForm.date_from,
           date_to: addForm.date_to,
           requester: addForm.requester,
           note: addForm.note,
         },
       };
+      console.log("payload", payload);
+      // 👇 ส่งให้ Redux แทน fetch()
+      const resultAction = await dispatch(createAdvanceA(payload)).unwrap();
+      if (resultAction?.success) {
+        toast({
+          title: "ບັນທຶກສໍາເລັດ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
 
-      const res = await fetch(`${API_BASE}/api/advances`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || "ບໍ່ສາມາດບັນທຶກຂໍ້ມູນໄດ້");
+        onAddClose();
+        setAddForm(INITIAL_ADD_FORM);
+      } else {
+        toast({
+          title: "ບັນທຶກບໍ່ສໍາເລັດ",
+          description: resultAction?.message || "Error",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
-
+      await fetchC(); // โหลดใหม่
+    } catch (error) {
+      // ถ้ามีอะไรผิดพลาด มันจะกระโดดมาที่นี่โดยอัตโนมัติ
       toast({
-        title: "ບັນທຶກສໍາເລັດ",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
-      onAddClose();
-      setAddForm(INITIAL_ADD_FORM);
-      await fetchAdvances();
-    } catch (err) {
-      console.error("Create advance error:", err);
-      toast({
-        title: "ບັນທຶກບໍ່ສໍາເລັດ",
-        description: err.message,
+        title: "ມີບາງຢ່າງຜິດພາດ",
+        description: error?.message || "Error",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -474,50 +491,56 @@ export default function PrepaidExpenseDashboard() {
   };
 
   // Update advance
-  const updateAdvance = async (id, data) => {
+  const updateAdvanceA = async (id, data) => {
     try {
+      // 🔹 1) Validate amounts
       const validAmounts = (data.amounts || [])
-        .filter((a) => a.amount && parseFloat(a.amount) > 0)
+        .filter((a) => !!a.amount && parseFloat(a.amount) > 0)
         .map((a) => ({
           currency: a.currency,
           amount: parseFloat(a.amount),
+          accountId: a.accountId,
         }));
 
+      // 🔹 2) Build payload
       const payload = {
         amounts: validAmounts,
-        request_date: data.request_date,
-        purpose: data.purpose,
-        serial: data.serial,
-        status_payment: data.status_payment,
-        employee_id: data.employee_id,
+        request_date: data.request_date || null,
+        purpose: data.purpose?.trim() || "",
+        serial: data.serial?.trim() || "",
+        status_payment: data.status_payment || "",
+        employee_id: data.employee_id || null,
+        paymentMethods: data.paymentMethods || "",
+        categoryId: data.categoryId || null,
       };
 
-      const res = await fetch(`${API_BASE}/api/advances/${id}`, {
-        method: "PUT",
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-      });
+      // 🔹 3) Dispatch Redux Thunk
+      const response = await dispatch(
+        updateAdvance({ id, data: payload })
+      ).unwrap();
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນໄດ້");
+      // 🔹 4) Check success
+      if (!response?.success) {
+        throw new Error(response?.message || "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນໄດ້");
       }
 
+      // 🔹 5) Toast success
       toast({
         title: "ແກ້ໄຂສໍາເລັດ",
         status: "success",
         duration: 3000,
       });
 
+      // 🔹 6) Close modal + refresh
       onEditClose();
-      await fetchAdvances();
+      await fetchC();
       setSelected([]);
     } catch (err) {
       console.error("Update advance error:", err);
+
       toast({
         title: "ແກ້ໄຂບໍ່ສໍາເລັດ",
-        description: err.message,
+        description: err.message || "Error",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -526,29 +549,27 @@ export default function PrepaidExpenseDashboard() {
   };
 
   // Delete advance
-  const deleteAdvance = async (id) => {
+  const deleteAdvanceA = async (id) => {
     if (!window.confirm("ແນ່ໃຈວ່າຈະລົບລາຍການນີ້ຫຼືບໍ່?")) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/advances/${id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
+      const response = await dispatch(deleteAdvance(id)).unwrap();
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້");
+      if (!response.success) {
+        toast({
+          title: "ລົບສໍາເລັດ",
+          description: response.message || "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້",
+          status: "success",
+          duration: 3000,
+        });
       }
-
+      setSelected((prev) => prev.filter((selId) => selId !== id));
+      await fetchC();
       toast({
         title: "ລົບສໍາເລັດ",
         status: "success",
         duration: 3000,
       });
-
-      setSelected((prev) => prev.filter((selId) => selId !== id));
-      await fetchAdvances();
     } catch (err) {
       console.error("Delete advance error:", err);
       toast({
@@ -562,7 +583,7 @@ export default function PrepaidExpenseDashboard() {
   };
 
   // Add transaction
-  const addTransaction = async (
+  const addTransactionA = async (
     advanceId,
     { type, amount, note, currency }
   ) => {
@@ -583,21 +604,16 @@ export default function PrepaidExpenseDashboard() {
         currency,
       };
 
-      const res = await fetch(
-        `${API_BASE}/api/advances/${advanceId}/transaction`,
-        {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify(payload),
-        }
-      );
+      const response = await dispatch(
+        addTransaction({
+          advanceId: advanceId,
+          transaction: payload,
+        })
+      ).unwrap();
 
-      const json = await res.json();
-
-      if (!res.ok) {
+      if (!response.success) {
         throw new Error(json.message || "ບໍ່ສາມາດເພີ່ມລາຍການໄດ້");
       }
-
       toast({
         title: "ເພີ່ມລາຍການສໍາເລັດ",
         status: "success",
@@ -606,7 +622,7 @@ export default function PrepaidExpenseDashboard() {
 
       setTransForm(INITIAL_TRANS_FORM);
       onTransClose();
-      await fetchAdvances();
+      await fetchC();
       setSelected([]);
     } catch (err) {
       console.error("Add transaction error:", err);
@@ -621,27 +637,24 @@ export default function PrepaidExpenseDashboard() {
   };
 
   // Close advance
-  const closeAdvance = async (advanceId) => {
+  const closeAdvanceA = async (advanceId) => {
     try {
-      const res = await fetch(`${API_BASE}/api/advances/${advanceId}/close`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ remarks: "" }),
-      });
+      const response = await dispatch(
+        closeAdvance({
+          advanceId: advanceId,
+          remarks: "",
+        })
+      ).unwrap();
 
-      const json = await res.json();
-
-      if (!res.ok) {
+      if (!response.success) {
         throw new Error(json.message || "ບໍ່ສາມາດປິດລາຍການໄດ້");
       }
-
       toast({
         title: "ປິດລາຍການສໍາເລັດ",
         status: "success",
         duration: 3000,
       });
-
-      await fetchAdvances();
+      await fetchC();
     } catch (err) {
       console.error("Close advance error:", err);
       toast({
@@ -655,26 +668,20 @@ export default function PrepaidExpenseDashboard() {
   };
 
   // Reopen advance
-  const reopenAdvance = async (advanceId) => {
+  const reopenAdvanceA = async (advanceId) => {
     try {
-      const res = await fetch(`${API_BASE}/api/advances/${advanceId}/reopen`, {
-        method: "POST",
-        headers: authHeaders(),
-      });
+      const response = await dispatch(reopenAdvance(advanceId)).unwrap();
 
-      const json = await res.json();
-
-      if (!res.ok) {
+      if (!response.success) {
         throw new Error(json.message || "ບໍ່ສາມາດເປີດລາຍການໄດ້");
       }
-
       toast({
         title: "ເປີດລາຍການສໍາເລັດ",
         status: "success",
         duration: 3000,
       });
 
-      await fetchAdvances();
+      await fetchC();
     } catch (err) {
       console.error("Reopen advance error:", err);
       toast({
@@ -804,7 +811,7 @@ export default function PrepaidExpenseDashboard() {
         duration: 3000,
       });
 
-      await fetchAdvances();
+      await fetchC();
       onTransClose();
     } catch (err) {
       console.error("Reopen advance error:", err);
@@ -816,7 +823,6 @@ export default function PrepaidExpenseDashboard() {
         isClosable: true,
       });
     }
-    // await axios.delete(`/api/transactions/${item._id}`);
   };
 
   const handleStatus = async (data, status) => {
@@ -840,7 +846,7 @@ export default function PrepaidExpenseDashboard() {
       });
 
       if (response.ok) {
-        fetchAdvances();
+        await fetchC();
         toast({
           title: "ສຳເລັດ",
           description: `${status} ສຳເລັດແລ້ວ`,
@@ -1085,9 +1091,106 @@ td {
       font-size: 11px;
       color: #555;
     }
+         .company-logo {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 10px;
+
+        }
+             .company-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 30px;
+        }
+
+        .topHeader{
+          text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            background-clip: text;
+            white-space: nowrap;
+         
+        }
+/* Signatures */
+.signatures {
+  background: #fff;
+  border: 1.5px solid #000;
+  padding: 15px;
+  margin-top: 20px;
+  page-break-inside: avoid;
+}
+
+.signature-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 15px;
+  color: #000;
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.signature-cell {
+  text-align: center;
+  border: 1px solid #000;
+  padding: 15px 10px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
+}
+
+.signature-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #000;
+  line-height: 1.4;
+}
+ .company-details {
+            flex: 1;
+        }
+.signature-area {
+  margin-top: auto;
+}
+
+.signature-line {
+  border-top: 1px solid #000;
+  width: 70%;
+  margin: 50px auto 0;
+  padding-top: 6px;
+}
 
     /* === พิมพ์ === */
     @media print {
+    .signatures {
+    page-break-inside: avoid;
+    border: 1.5px solid #000 !important;
+    padding: 12px;
+  }
+  
+  .signature-grid {
+    gap: 12px;
+  }
+  
+  .signature-cell {
+    border: 1px solid #000 !important;
+    min-height: 110px;
+  }
+  
+  .signature-label {
+    font-size: 10px !important;
+  }
+  
+  .signature-line {
+    margin-top: 40px;
+  }
       @page {
         size: A4 landscape;
         margin: 12mm 10mm;
@@ -1189,10 +1292,17 @@ td {
 
     <!-- ข้อมูลบริษัท -->
       <div class="company-info">
-      <div>
-        <div class="company-name">${user?.companyInfo?.name || ""}</div>
-        <div class="company-address">${user?.companyInfo?.address || ""}</div>
-          <div class="company-address">${user?.companyInfo?.phone || ""}</div>
+      <div class="company-section">
+      <img 
+  class="company-logo" 
+  src="${user?.companyId?.logo || "/default-logo.png"}" 
+  alt="Company Logo"
+    />
+      <div class="company-details">
+      <div class="company-name">${user?.companyId?.name || ""}</div>
+      <div class="company-address">${user?.companyId?.address || ""}</div>
+        <div class="company-address">${user?.companyId?.phone || ""}</div>
+      </div>
       </div>
           <div class="topHeader">ລາຍງານການເງິນ</div>
           <!-- Date Section -->
@@ -1399,22 +1509,43 @@ td {
     </div>
 
     <!-- ลายเซ็น 4 ช่อง -->
-    <div class="signature-grid">
-      <div class="sig-box">
-        <div class="sig-label">CEO & CFO</div>
-        <div class="sig-line">(..................................)</div>
-      </div>
-      <div class="sig-box">
-        <div class="sig-label">ຜູ້ຈັດການ</div>
-        <div class="sig-line">(..................................)</div>
-      </div>
-      <div class="sig-box">
-        <div class="sig-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</div>
-        <div class="sig-line">(..................................)</div>
-      </div>
-      <div class="sig-box">
-        <div class="sig-label">ຜູ້ສັງລວມ</div>
-        <div class="sig-line">(..................................)</div>
+  <div class="signatures">
+      <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
+      <div class="signature-grid">
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ສັງລວມ<br></span>
+          <div class="signature-area">
+            <div class="signature-line">
+          
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</span>
+          <div class="signature-area">
+            <div class="signature-line">
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">ຜູ້ຈັດການ</span>
+          <div class="signature-area">
+            <div class="signature-line">
+
+
+            </div>
+          </div>
+        </div>
+        <div class="signature-cell">
+          <span class="signature-label">CEO & CFO</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name"></div>
+
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1439,6 +1570,44 @@ td {
     });
   };
 
+  const [addCategory, setAddCategory] = useState("");
+  const [addSearch, setAddSearch] = useState("");
+
+  // EDIT
+  const [editCategory, setEditCategory] = useState("");
+  const [editSearch, setEditSearch] = useState("");
+
+  const addFiltered = categories.filter((c) =>
+    c.name.toLowerCase().includes(addSearch.toLowerCase())
+  );
+
+  const editFiltered = categories.filter((c) =>
+    c.name.toLowerCase().includes(editSearch.toLowerCase())
+  );
+  const addSelectedLabel =
+    categories.find((c) => c._id === addCategory)?.name || "ເລືອກ";
+
+  const editSelectedLabel =
+    categories.find((c) => c._id === editCategory)?.name || "ເລືອກ";
+  const laoType = {
+    income: "💰 ລາຍຮັບ",
+    asset: "🏦 ຊັບສິນ",
+    cogs: "📦 ຕົ້ນທຶນຂາຍ",
+    "selling-expense": "🛒 ຄ່າໃຊ້ຈ່າຍຈຳໜ່າຍ",
+    "admin-expense": "🏢 ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
+    expense: "📉 ຄ່າໃຊ້ຈ່າຍອື່ນໆ",
+  };
+
+  const bankOptions = (user?.companyId?.bankAccounts || []).map((b) => ({
+    label: `${b.bankName} (${b.currency})`,
+    value: b._id,
+    currency: b.currency,
+  }));
+  const cashOptions = (user?.companyId?.cashAccounts || []).map((b) => ({
+    label: `${b.name} (${b.currency})`,
+    value: b._id,
+    currency: b.currency,
+  }));
   return (
     <Container maxW="container.xl" py={6}>
       {/* Header */}
@@ -1617,7 +1786,7 @@ td {
           <Flex gap={2}>
             <Button
               leftIcon={<RefreshCw size={16} />}
-              onClick={fetchAdvances}
+              onClick={fetchC}
               isLoading={loading}
               flex={1}
               fontFamily="Noto Sans Lao, sans-serif"
@@ -1887,6 +2056,7 @@ td {
                                       setEditForm({
                                         ...advance,
                                         amounts: advance?.amount_requested,
+                                        categoryId: advance.categoryId, // ⭐ สำคัญมาก
                                       });
                                       onEditOpen();
                                     }}
@@ -1907,7 +2077,7 @@ td {
                                     <MenuItem
                                       fontFamily="Noto Sans Lao, sans-serif"
                                       icon={<ChevronDownIcon />}
-                                      onClick={() => closeAdvance(advance._id)}
+                                      onClick={() => closeAdvanceA(advance._id)}
                                     >
                                       ປິດລາຍການ
                                     </MenuItem>
@@ -1915,7 +2085,9 @@ td {
                                     <MenuItem
                                       fontFamily="Noto Sans Lao, sans-serif"
                                       icon={<ChevronDownIcon />}
-                                      onClick={() => reopenAdvance(advance._id)}
+                                      onClick={() =>
+                                        reopenAdvanceA(advance._id)
+                                      }
                                     >
                                       ເປີດລາຍການ
                                     </MenuItem>
@@ -1923,7 +2095,7 @@ td {
                                   <MenuItem
                                     fontFamily="Noto Sans Lao, sans-serif"
                                     icon={<Trash2 size={16} />}
-                                    onClick={() => deleteAdvance(advance._id)}
+                                    onClick={() => deleteAdvanceA(advance._id)}
                                     color="red.500"
                                   >
                                     ລົບ
@@ -1991,21 +2163,6 @@ td {
           <ModalBody>
             <VStack spacing={4} align="stretch">
               <SimpleGrid columns={2} spacing={4}>
-                {/* <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ປະເພດ
-                  </FormLabel>
-                  <Select
-                    value={addForm.type}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, type: e.target.value })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    placeholder="ເລືອກຜູ້ເບີກ"
-                  >
-                    <option value="employee">ເບີກພະນັກງານ</option>
-                  </Select>
-                </FormControl> */}
                 <FormControl isRequired>
                   <FormLabel fontFamily="Noto Sans Lao, sans-serif">
                     ເລກທີ່
@@ -2033,41 +2190,48 @@ td {
                     }
                     fontFamily="Noto Sans Lao, sans-serif"
                   >
-                    {employees.map((emp) => (
+                    {employees?.map((emp) => (
                       <option key={emp._id} value={emp._id}>
                         {emp.full_name}
                       </option>
                     ))}
                   </Select>
                 </FormControl>
-                {/* 
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ບໍລິສັດ/ຜູ້ຮັບ
-                  </FormLabel>
-                  <Input
-                    value={addForm.company}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, company: e.target.value })
-                    }
-                    placeholder="ຊື່ບໍລິສັດຫຼືຜູ້ຮັບ"
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  />
-                </FormControl> */}
 
-                {/* <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ຜູ້ເບີກ
-                  </FormLabel>
-                  <Input
-                    value={addForm.requester}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, requester: e.target.value })
-                    }
-                    placeholder="ຊື່ຜູ້ເບີກ"
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  />
-                </FormControl> */}
+                <Menu matchWidth>
+                  <MenuButton
+                    as={Button}
+                    rightIcon={<ChevronDownIcon />}
+                    width="100%"
+                  >
+                    {addSelectedLabel}
+                  </MenuButton>
+
+                  <MenuList p={2}>
+                    <Input
+                      placeholder="ຄົ້ນຫາ..."
+                      value={addSearch}
+                      onChange={(e) => setAddSearch(e.target.value)}
+                      mb={2}
+                    />
+
+                    <Box maxH="200px" overflowY="auto">
+                      {addFiltered.map((item) => (
+                        <MenuItem
+                          key={item._id}
+                          onClick={() => {
+                            setValue(item._id);
+                            setAddCategory(item._id);
+                            setAddForm({ ...addForm, categoryId: item._id });
+                            setAddSearch("");
+                          }}
+                        >
+                          {item.name} - {laoType[item.type]}
+                        </MenuItem>
+                      ))}
+                    </Box>
+                  </MenuList>
+                </Menu>
 
                 <FormControl>
                   <FormLabel fontFamily="Noto Sans Lao, sans-serif">
@@ -2162,43 +2326,76 @@ td {
                   </Button>
                 </Flex>
                 <VStack spacing={2} align="stretch">
-                  {addForm.amounts.map((item, index) => (
-                    <HStack key={index} spacing={2}>
-                      <Select
-                        value={item.currency}
-                        onChange={(e) =>
-                          updateCurrencyRow(index, "currency", e.target.value)
-                        }
-                        w="120px"
-                        fontFamily="Noto Sans Lao, sans-serif"
-                      >
-                        {currencies.map((curr) => (
-                          <option key={curr} value={curr}>
-                            {curr}
-                          </option>
-                        ))}
-                      </Select>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.amount}
-                        onChange={(e) =>
-                          updateCurrencyRow(index, "amount", e.target.value)
-                        }
-                        placeholder="0.00"
-                        flex={1}
-                      />
-                      <IconButton
-                        icon={<DeleteIcon />}
-                        onClick={() => removeCurrencyRow(index)}
-                        isDisabled={addForm.amounts.length === 1}
-                        colorScheme="red"
-                        variant="ghost"
-                        size="sm"
-                      />
-                    </HStack>
-                  ))}
+                  {addForm.amounts.map((item, index) => {
+                    const accountOptions =
+                      addForm.paymentMethods === "cash"
+                        ? cashOptions?.filter(
+                            (acc) => acc.currency === item.currency
+                          )
+                        : bankOptions?.filter(
+                            (acc) => acc.currency === item.currency
+                          );
+                    const selectedAccount = accountOptions?.filter(
+                      (acc) => acc.value === item.accountId
+                    );
+                    return (
+                      <HStack key={index} spacing={2}>
+                        <Select
+                          value={item.currency}
+                          onChange={(e) =>
+                            updateCurrencyRow(index, "currency", e.target.value)
+                          }
+                          w="120px"
+                          fontFamily="Noto Sans Lao, sans-serif"
+                        >
+                          {currencies.map((curr) => (
+                            <option key={curr} value={curr}>
+                              {curr}
+                            </option>
+                          ))}
+                        </Select>
+                        <Select
+                          placeholder="ເລືອກ"
+                          value={item.accountId}
+                          onChange={(e) =>
+                            updateCurrencyRow(
+                              index,
+                              "accountId",
+                              e.target.value
+                            )
+                          }
+                          w="120px"
+                          fontFamily="Noto Sans Lao, sans-serif"
+                        >
+                          {accountOptions?.map((acc) => (
+                            <option key={acc.value} value={acc.value}>
+                              {acc.label}
+                            </option>
+                          ))}
+                        </Select>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.amount}
+                          onChange={(e) =>
+                            updateCurrencyRow(index, "amount", e.target.value)
+                          }
+                          placeholder="0.00"
+                          flex={1}
+                        />
+                        <IconButton
+                          icon={<DeleteIcon />}
+                          onClick={() => removeCurrencyRow(index)}
+                          isDisabled={addForm.amounts.length === 1}
+                          colorScheme="red"
+                          variant="ghost"
+                          size="sm"
+                        />
+                      </HStack>
+                    );
+                  })}
                 </VStack>
               </Box>
 
@@ -2282,53 +2479,89 @@ td {
                     </Button>
                   </Flex>
                   <VStack spacing={2} align="stretch">
-                    {editForm?.amounts?.map((item, index) => (
-                      <HStack key={index} spacing={2}>
-                        <Select
-                          value={item.currency}
-                          onChange={(e) =>
-                            updateEditCurrencyRow(
-                              index,
-                              "currency",
-                              e.target.value
+                    {editForm?.amounts?.map((item, index) => {
+                      const accountOptions =
+                        editForm?.paymentMethods === "cash"
+                          ? cashOptions?.filter(
+                              (acc) => acc.currency === item.currency
                             )
-                          }
-                          w="120px"
-                          fontFamily="Noto Sans Lao, sans-serif"
-                        >
-                          {currencies.map((curr) => (
-                            <option key={curr} value={curr}>
-                              {curr}
-                            </option>
-                          ))}
-                        </Select>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.amount}
-                          onChange={(e) =>
-                            updateEditCurrencyRow(
-                              index,
-                              "amount",
-                              e.target.value
-                            )
-                          }
-                          placeholder="0.00"
-                          flex={1}
-                        />
-                        <IconButton
-                          icon={<DeleteIcon />}
-                          onClick={() => removeEditCurrencyRow(index)}
-                          isDisabled={
-                            editForm.amounts && editForm.amounts.length === 1
-                          }
-                          colorScheme="red"
-                          variant="ghost"
-                          size="sm"
-                        />
-                      </HStack>
-                    ))}
+                          : bankOptions?.filter(
+                              (acc) => acc.currency === item.currency
+                            );
+                      // แปลง ObjectId เป็น string ป้องกัน select error
+                      const selectedAccount = accountOptions.filter(
+                        (acc) => acc.value === item.accountId
+                      );
+                      console.log(editForm);
+                      return (
+                        <HStack key={index} spacing={2}>
+                          <Select
+                            value={item.currency}
+                            onChange={(e) =>
+                              updateEditCurrencyRow(
+                                index,
+                                "currency",
+                                e.target.value
+                              )
+                            }
+                            w="120px"
+                            fontFamily="Noto Sans Lao, sans-serif"
+                          >
+                            {currencies.map((curr) => (
+                              <option key={curr} value={curr}>
+                                {curr}
+                              </option>
+                            ))}
+                          </Select>
+                          {/* Account Select */}
+                          <Select
+                            placeholder="ເລືອກ"
+                            value={item.accountId} // ⭐ ensure string always
+                            onChange={(e) =>
+                              updateEditCurrencyRow(
+                                index,
+                                "accountId",
+                                e.target.value
+                              )
+                            }
+                            w="120px"
+                            fontFamily="Noto Sans Lao, sans-serif"
+                          >
+                            {accountOptions.map((acc) => (
+                              <option key={acc.value} value={acc.value}>
+                                {acc.label}
+                              </option>
+                            ))}
+                          </Select>
+
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.amount}
+                            onChange={(e) =>
+                              updateEditCurrencyRow(
+                                index,
+                                "amount",
+                                e.target.value
+                              )
+                            }
+                            placeholder="0.00"
+                            flex={1}
+                          />
+                          <IconButton
+                            icon={<DeleteIcon />}
+                            onClick={() => removeEditCurrencyRow(index)}
+                            isDisabled={
+                              editForm.amounts && editForm.amounts.length === 1
+                            }
+                            colorScheme="red"
+                            variant="ghost"
+                            size="sm"
+                          />
+                        </HStack>
+                      );
+                    })}
                   </VStack>
                 </Box>
                 <FormControl isRequired>
@@ -2390,6 +2623,74 @@ td {
                     fontFamily="Noto Sans Lao, sans-serif"
                   />
                 </FormControl>
+
+                <HStack>
+                  <Menu fontFamily="Noto Sans Lao, sans-serif" matchWidth>
+                    <MenuButton
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      as={Button}
+                      rightIcon={<ChevronDownIcon />}
+                      width="100%"
+                    >
+                      {editSelectedLabel}
+                    </MenuButton>
+
+                    <MenuList p={2}>
+                      <Input
+                        placeholder="ຄົ້ນຫາ..."
+                        value={editSearch}
+                        onChange={(e) => setEditSearch(e.target.value)}
+                        mb={2}
+                      />
+
+                      <Box maxH="200px" overflowY="auto">
+                        {editFiltered.map((item) => (
+                          <MenuItem
+                            key={item._id}
+                            onClick={() => {
+                              setEditCategory(item._id);
+                              setEditForm({
+                                ...editForm,
+                                categoryId: item._id,
+                              });
+                              setEditSearch("");
+                            }}
+                          >
+                            {item.name} - {laoType[item.type]}
+                          </MenuItem>
+                        ))}
+                      </Box>
+                    </MenuList>
+                  </Menu>
+
+                  <Box
+                    minW="180px"
+                    bg="gray.50"
+                    border="1px solid"
+                    borderColor="gray.200"
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                  >
+                    <Text
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      fontSize="sm"
+                      color="gray.600"
+                      mb={1}
+                    >
+                      ທີ່ເລືອກ:
+                    </Text>
+
+                    <Text
+                      fontWeight="bold"
+                      fontFamily="Noto Sans Lao, sans-serif"
+                    >
+                      {editForm?.categoryId?.name} -{" "}
+                      {laoType[editForm?.categoryId?.type]}
+                    </Text>
+                  </Box>
+                </HStack>
+
                 <FormControl isRequired>
                   <FormLabel fontFamily="Noto Sans Lao, sans-serif">
                     ວັນທີ່
@@ -2430,6 +2731,26 @@ td {
                     <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
                   </Select>
                 </FormControl>
+                <FormControl>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ວິທີການຊຳລະ
+                  </FormLabel>
+
+                  <Select
+                    placeholder="ເລືອກວິທີຊຳລະ"
+                    value={editForm.paymentMethods}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        paymentMethods: e.target.value,
+                      })
+                    }
+                    fontFamily="Noto Sans Lao, sans-serif"
+                  >
+                    <option value="cash">ເງິນສົດ</option>
+                    <option value="bank">ເງິນໂອນ</option>
+                  </Select>
+                </FormControl>
                 <FormControl isRequired>
                   <FormLabel fontFamily="Noto Sans Lao, sans-serif">
                     ລາຍລະອຽດ
@@ -2450,7 +2771,7 @@ td {
             <Button
               colorScheme="blue"
               mr={3}
-              onClick={() => updateAdvance(editing._id, editForm)}
+              onClick={() => updateAdvanceA(editing._id, editForm)}
               fontFamily="Noto Sans Lao, sans-serif"
             >
               ບັນທຶກ
@@ -2629,9 +2950,9 @@ td {
                     <option value="refund_to_employee">
                       ຄືນພະນັກງານ (refund_to_employee)
                     </option>
-                    <option value="additional_request">
+                    {/* <option value="additional_request">
                       ເບີກເພີ່ມ (additional_request)
-                    </option>
+                    </option> */}
                   </Select>
                 </FormControl>
 
@@ -2672,7 +2993,7 @@ td {
             <Button
               colorScheme="blue"
               mr={3}
-              onClick={() => addTransaction(transTarget._id, transForm)}
+              onClick={() => addTransactionA(transTarget._id, transForm)}
               fontFamily="Noto Sans Lao, sans-serif"
             >
               ບັນທຶກ
@@ -2768,6 +3089,66 @@ td {
                   ຈຸດປະສົງ: {detail?.purpose}
                 </Text>
               </SimpleGrid>
+              <Box mt={4}>
+                <Text
+                  fontWeight="800"
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  mb={2}
+                >
+                  ຊຳລະຜ່ານ:
+                </Text>
+
+                <VStack align="start" spacing={3}>
+                  {detail?.amount_requested?.map((a, index) => (
+                    <Box
+                      key={index}
+                      borderWidth="1px"
+                      borderRadius="lg"
+                      p={3}
+                      w="100%"
+                      bg="gray.50"
+                      _dark={{ bg: "gray.700" }}
+                      boxShadow="sm"
+                    >
+                      <HStack justify="space-between">
+                        <Box>
+                          <Text  fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" fontWeight="700">
+                            {a?.account?.type === "bank"
+                              ? "💳 ບັນຊີທະນາຄານ"
+                              : "💰 ບັນຊີເງິນສົດ"}
+                          </Text>
+
+                          {/* Bank */}
+                          {a?.account?.type === "bank" && (
+                            <>
+                              <Text fontFamily="Noto Sans Lao, sans-serif"  fontSize="sm">
+                                ທະນາຄານ: {a?.account?.bankName}
+                              </Text>
+                              <Text   fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                                ເລກບັນຊີ: {a?.account?.accountNumber}
+                              </Text>
+                            </>
+                          )}
+
+                          {/* Cash */}
+                          {a?.account?.type === "cash" && (
+                            <Text  fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                              ຊື່ບັນຊີ: {a?.account?.name}
+                            </Text>
+                          )}
+
+                          <Text  fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" mt={1}>
+                            ເງິນ:{" "}
+                            <b>
+                              {a?.amount.toLocaleString()} {a?.currency}
+                            </b>
+                          </Text>
+                        </Box>
+                      </HStack>
+                    </Box>
+                  ))}
+                </VStack>
+              </Box>
             </Box>
 
             {/* 📌 Transactions */}
@@ -2912,11 +3293,11 @@ td {
                         {sum?.total_refund_to_employee?.toLocaleString()}{" "}
                         {currency}
                       </Text>
-                      <Text fontFamily="Noto Sans Lao, sans-serif">
+                      {/* <Text fontFamily="Noto Sans Lao, sans-serif">
                         ເພີ່ມເຕີມ:{" "}
                         {sum?.total_additional_request?.toLocaleString()}{" "}
                         {currency}
-                      </Text>
+                      </Text> */}
 
                       <Text fontFamily="Noto Sans Lao, sans-serif">
                         {(() => {

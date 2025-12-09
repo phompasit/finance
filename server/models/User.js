@@ -38,32 +38,14 @@ const userSchema = new mongoose.Schema(
       default: true,
     },
     companyId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
     },
     isSuperAdmin: {
       type: Boolean,
     },
     companyInfo: {
-      name: {
-        type: String,
-        default: "บริษัท ตัวอย่าง จำกัด",
-      },
-      address: {
-        type: String,
-        default: "123 ถนนตัวอย่าง กรุงเทพฯ 10100",
-      },
-      phone: {
-        type: String,
-        default: "02-123-4567",
-      },
-      email: {
-        type: String,
-        default: "info@example.com",
-      },
-      logo: {
-        type: String,
-        default: "",
-      },
       /////
       loginAttempts: { type: Number, default: 0 },
       lastFailedLogin: { type: Date },
@@ -72,13 +54,10 @@ const userSchema = new mongoose.Schema(
       lastLogin: { type: Date },
       lastLoginIp: { type: String },
       lastLoginUserAgent: { type: String },
-
       twoFactorEnabled: { type: Boolean, default: false },
       twoFactorSecret: { type: String },
-
       refreshToken: { type: String },
       refreshTokenExpiry: { type: Date },
-
       loginHistory: [loginHistorySchema], // Array ของ login history
     },
   },
@@ -96,7 +75,10 @@ userSchema.pre("save", async function (next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  console.log("Comparing password:", await bcrypt.compare(candidatePassword, this.password));
+  console.log(
+    "Comparing password:",
+    await bcrypt.compare(candidatePassword, this.password)
+  );
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

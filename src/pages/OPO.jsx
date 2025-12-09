@@ -135,7 +135,7 @@ const OPOItem = ({ item, onRemove, formData }) => (
         size="sm"
         colorScheme="red"
         variant="ghost"
-        onClick={() => onRemove(item._id)}
+        onClick={() => onRemove(item)}
         aria-label="Delete item"
       />
     </Flex>
@@ -202,8 +202,6 @@ const OPOTable = ({
           isClosable: true,
         });
       }
-
-      fetchOPOs();
       toast({
         title: "ສຳເລັດ",
         description: `${status} ສຳເລັດແລ້ວ`,
@@ -211,6 +209,8 @@ const OPOTable = ({
         duration: 2500,
         isClosable: true,
       });
+      fetchOPOs();
+
       onClose();
     } catch (error) {
       console.error(error);
@@ -526,6 +526,7 @@ const OPOSystem = () => {
     amount: "",
     notes: "",
     reason: "",
+    isLocale: false,
   });
 
   // API Functions with improved error handling
@@ -634,8 +635,8 @@ const OPOSystem = () => {
       onClose();
       resetForm();
       toast({
-        title: "ບັນທຶກໃນທ້ອງຖິ່ນ",
-        description: "ບໍ່ສາມາດເຊື່ອມຕໍ່ເຊີເວີ, ບັນທຶກໄວ້ໃນທ້ອງຖິ່ນແລ້ວ",
+        title: "ມີບາງຢ່າງຜິດພາດ",
+        description: error.message,
         status: "warning",
         duration: 3000,
       });
@@ -656,7 +657,14 @@ const OPOSystem = () => {
           },
         });
 
-        if (!response.ok) throw new Error("Failed to delete");
+        if (!response.ok) {
+          toast({
+            title: "ມີບາງຢ່າງຜິດພາດ",
+            description: response.message,
+            status: "info",
+            duration: 2000,
+          });
+        }
 
         await fetchOPOs();
         toast({
@@ -668,8 +676,8 @@ const OPOSystem = () => {
         console.error("Delete error:", error);
         await fetchOPOs();
         toast({
-          title: "ລຶບສຳເລັດ",
-          description: "ລຶບຈາກທ້ອງຖິ່ນ",
+          title: "ລຶບບໍ່ເລັດ",
+          description: error.message,
           status: "info",
           duration: 2000,
         });
@@ -713,7 +721,10 @@ const OPOSystem = () => {
 
     setFormData({
       ...formData,
-      items: [...formData.items, { ...itemForm, id: Date.now() }],
+      items: [
+        ...formData.items,
+        { ...itemForm, id: Date.now(), isLocale: true },
+      ],
     });
 
     setItemForm({
@@ -725,21 +736,20 @@ const OPOSystem = () => {
       reason: "",
     });
   };
-
-  const removeItem = (id) => {
+  console.log(formData);
+  const removeItem = (item) => {
     try {
-      // if (formData.items.length === 1) {
-      //   toast({
-      //     title: "ບໍ່ສາມາດລົບລາຍການໄດ້ ຕ້ອງມີລາຍການ 1 ລາຍການຄົງໄວ້",
-      //     description: "ບໍ່ອະນຸຍາດໃຫ້ລົບ",
-      //     status: "warning",
-      //     duration: 3000,
-      //   });
-      //   return;
-      // }
+      console.log(item.id);
+      if (item.isLocale) {
+        setFormData({
+          ...formData,
+          items: formData.items.filter((itemLocal) => itemLocal.id !== item.id),
+        });
+        return;
+      }
       const endpoint = `${import.meta.env.VITE_API_URL}/api/opo/opoId/${
         formData.id
-      }/item/${id}`;
+      }/item/${item._id}`;
       const token = localStorage.getItem("token");
       fetch(endpoint, {
         method: "DELETE",
@@ -762,14 +772,14 @@ const OPOSystem = () => {
           fetchOPOs();
           setFormData({
             ...formData,
-            items: formData.items.filter((item) => item._id !== id),
+            items: formData.items.filter((item) => item.id !== item.id),
           });
         })
         .catch((error) => {
           fetchOPOs();
           setFormData({
             ...formData,
-            items: formData.items.filter((item) => item._id !== id),
+            items: formData.items.filter((item) => item.id !== item.id),
           });
           console.error("Remove item error:", error);
         });
@@ -896,7 +906,15 @@ const OPOSystem = () => {
       size: A4 landscape;
       margin: 8mm 10mm;
     }
-
+  .note-section {
+      margin-top: 6px;
+      font-size: 12px;
+      color: red;
+      border-top: 1px dashed #cbd5e0;
+      padding-top: 4px;
+        display: flex;
+      justify-content: flex-end;
+    }
     * {
       margin: 0;
       padding: 0;
@@ -950,19 +968,22 @@ const OPOSystem = () => {
       gap: 10px;
     }
 
-    .company-logo {
-      width: 55px;
-      height: 55px;
-      background: #1a202c;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      color: white;
-      font-weight: bold;
-      border: 2px solid #2d3748;
-    }
+   .company-logo {
+  width: 55px;
+  height: 55px;
+  background-color: #1a202c;       /* เผื่อไม่มีรูป */
+  background-size: cover;           /* ทำให้รูปไม่บี้ */
+  background-position: center;      /* เอากลางภาพ */
+  background-repeat: no-repeat;     /* ไม่ซ้ำรูป */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: white;
+  font-weight: bold;
+}
+
 
     .company-details {
       flex: 1;
@@ -1051,7 +1072,7 @@ const OPOSystem = () => {
       width: 100%;
       border-collapse: collapse;
       border: 2px solid #1a202c;
-      font-size: 7.5pt;
+      font-size: 12px
       page-break-inside: auto;
     }
 
@@ -1069,7 +1090,7 @@ const OPOSystem = () => {
     td {
       padding: 4px 3px;
       border: 1px solid #2d3748;
-      font-size: 7pt;
+      font-size: 12px
     }
 
     tbody tr:nth-child(even) {
@@ -1165,7 +1186,7 @@ const OPOSystem = () => {
 
     .signature-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 8px;
     }
 
@@ -1252,23 +1273,27 @@ const OPOSystem = () => {
     <!-- Title -->
     <div class="company-info">
          <div class="company-section">
-       <!-- <div class="company-logo">C</div> -->
+       <img 
+  class="company-logo" 
+  src="${user?.companyId?.logo || "/default-logo.png"}" 
+  alt="Company Logo"
+/>
+
         <div class="company-details">
         <div class="contact-section">
         <div class="company-name">${
-          user?.companyInfo?.name || "Company Name"
+          user?.companyId?.name || "Company Name"
         }</div>
-        <div>${user?.companyInfo?.address || ""}</div>
-         <div>${user?.companyInfo?.phone || ""}</div>
+        <div>${user?.companyId?.address || ""}</div>
+         <div>${user?.companyId?.phone || ""}</div>
           </div>
         </div>
       </div>
           <div>
-    <div class="document-title">ໃບສະເໜີຊື້</div>
+    <div class="document-title">ໃບສັ່ງຊື້</div>
     <div class="document-subtitle">Purchase Order(PO)</div>
     
     </div>
-
 
       <div class="doc-reference">
       <div class="date-section">
@@ -1285,7 +1310,7 @@ const OPOSystem = () => {
     <div class="doc-info">
       <div class="info-grid">
         <div class="info-row">
-          <div class="info-label">ເລກທີ / No.:</div>
+          <div class="info-label">ເລກທີ /No:</div>
           <div class="info-value"><strong>${
             selectedOpo.serial || selectedOpo.number
           }</strong></div>
@@ -1295,20 +1320,12 @@ const OPOSystem = () => {
           <div class="info-value">${selectedOpo.requester || "-"}</div>
         </div>
         <div class="info-row">
-          <div class="info-label">ວັນທີ / Date:</div>
+          <div class="info-label">ວັນທີ/Date:</div>
           <div class="info-value">${formatDate(selectedOpo.date)}</div>
         </div>
         <div class="info-row">
           <div class="info-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ:</div>
           <div class="info-value">${selectedOpo.manager || "-"}</div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">ສະຖານະ / Status:</div>
-          <div class="info-value">
-            <span class="status-badge">${
-              STATUS_TEXTS[selectedOpo.status_Ap] || selectedOpo.status_Ap
-            }</span>
-          </div>
         </div>
         <div class="info-row">
           <div class="info-label">ຜູ້ຈັດການ:</div>
@@ -1367,7 +1384,7 @@ const OPOSystem = () => {
         )
         .join("")}
     </div>
-
+<div class="note-section" style="color:red">ບິນຮັບໃບ PO ອາທິດໜຶ່ງເທື່ອໜຶ່ງເທົ່ານັ້ນ-ວັນພຸດ 3 ໂມງ</div>
     <!-- Signatures -->
     <div class="signatures">
       <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
@@ -1398,8 +1415,19 @@ const OPOSystem = () => {
             </div>
           </div>
         </div>
+           <div class="signature-cell">
+          <span class="signature-label">ປະທານ ບໍລິສັດ ${
+            user?.companyId?.name
+          }/ຮອງປະທານ<br>Approved By</span>
+          <div class="signature-area">
+            <div class="signature-line">
+              <div class="signature-name"></div>
+
+            </div>
+          </div>
+        </div>
         <div class="signature-cell">
-          <span class="signature-label">CEO & CFO<br>Approved By</span>
+          <span class="signature-label">ປະທານບໍລິສັດ MY/ຮອງປະທານ<br>Approved By</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name"></div>
@@ -1409,13 +1437,9 @@ const OPOSystem = () => {
         </div>
       </div>
     </div>
-
+<div  class="note-section"  style="color:red">ໝາຍເຫດ: ກຳນົດ 15 ວັນ ໃນການເບີກຈ່າຍນັບຈາກມື້ອະນຸມັດ PO ເອກະສານຕິດຄັດ:ໃບສະເໜີລາຄາ ,ໃບແຈ້ງໜີ້,ໃບຮັບສິນຄ້າຈາກຜູ້ຂາຍ ແລະ ເອກະສານອື່ນໆທີ່ຕິດພັນ ມາພ້ອມທຸກຄັ້ງ</div>
     <!-- Footer -->
-    <div class="footer">
-      ເອກະສານນີ້ຖືກສ້າງໂດຍລະບົບ PO | Generated by PO System - ${formatDate(
-        new Date()
-      )}
-    </div>
+
   </div>
 </body>
 </html>

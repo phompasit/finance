@@ -1,9 +1,9 @@
-import express from "express";
 import Transaction from "../models/IncomeExpense.js";
 import OPO from "../models/OPO.js";
 import Debt from "../models/Debt.js";
 import { authenticate } from "../middleware/auth.js";
 
+import express from "express";
 const router = express.Router();
 
 // Generate comprehensive report
@@ -23,13 +23,7 @@ router.get("/", authenticate, async (req, res) => {
 
     // สร้าง date filter ที่ใช้ร่วมกัน
     const dateFilter = {};
-       if (req.user.role === "admin") {
-      dateFilter.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      dateFilter.userId = req.user.companyId;
-    }
+    dateFilter.companyId = req.user.companyId;
     if (startDate || endDate) {
       dateFilter.date = {};
       if (startDate) {
@@ -47,14 +41,10 @@ router.get("/", authenticate, async (req, res) => {
     // ============================================
     if (!type || type === "OPO") {
       try {
-        let opoQuery = { ...dateFilter};
-    if (req.user.role === "admin") {
-       opoQuery.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-       opoQuery.userId = req.user.companyId;
-    }
+        let opoQuery = { ...dateFilter };
+
+        opoQuery.companyId = req.user.companyId;
+
         // Filter by status
         if (status) {
           opoQuery.status = status.toUpperCase();
@@ -89,6 +79,7 @@ router.get("/", authenticate, async (req, res) => {
               date: opo.date,
               type: "OPO", // OPO คือรายจ่าย
               category: "OPO",
+
               status_Ap: opo.status_Ap,
               status: opo.status,
               paymentMethod: opo.paymentMethod,
@@ -114,13 +105,7 @@ router.get("/", authenticate, async (req, res) => {
         let transQuery = {
           ...dateFilter,
         };
-    if (req.user.role === "admin") {
-       transQuery.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-       transQuery.userId = req.user.companyId;
-    }
+        transQuery.companyId = req.user.companyId;
         // Filter by type
         if (type === "income" || type === "expense") {
           transQuery.type = type;
@@ -142,6 +127,7 @@ router.get("/", authenticate, async (req, res) => {
         transQuery.status_Ap = { $ne: "cancel" };
         const transactions = await Transaction.find(transQuery)
           .sort({ date: -1, createdAt: -1 })
+          .populate("categoryId")
           .lean();
 
         // แยก amounts ออกมาเป็นแถวแยก
@@ -153,6 +139,7 @@ router.get("/", authenticate, async (req, res) => {
               sourceId: trans._id,
               serial: trans.serial,
               date: trans.date,
+              categoryId: trans.categoryId,
               description: trans.description,
               type: trans.type,
               category: trans.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ",
@@ -177,13 +164,7 @@ router.get("/", authenticate, async (req, res) => {
     if (!type || type === "receivable" || type === "payable") {
       try {
         let debtQuery = { ...dateFilter };
-    if (req.user.role === "admin") {
-       debtQuery.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-       debtQuery.userId = req.user.companyId;
-    }
+        debtQuery.companyId = req.user.companyId;
         // Filter by debtType
         if (type === "receivable") {
           debtQuery.debtType = "receivable";
@@ -212,6 +193,7 @@ router.get("/", authenticate, async (req, res) => {
 
         const debts = await Debt.find(debtQuery)
           .sort({ date: -1, createdAt: -1 })
+          .populate("categoryId")
           .lean();
         // แยก amounts ออกมาเป็นแถวแยก
         debts.forEach((debt) => {
@@ -220,7 +202,7 @@ router.get("/", authenticate, async (req, res) => {
             sourceType:
               debt.debtType === "receivable" ? "ໜີ້ຕ້ອງຮັບ" : "ໜີ້ຕ້ອງສົ່ງ",
             sourceId: debt._id,
-
+            categoryId: debt.categoryId,
             serial: debt.serial,
             date: debt.date,
             description: debt.description,

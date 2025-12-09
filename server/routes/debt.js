@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 const router = express.Router();
 import employees from "../models/employees.js";
 import IncomeExpense from "../models/IncomeExpense.js";
+import Company from "../models/company.js";
 // Helper function to calculate debt status
 const calculateDebtStatus = (debt) => {
   if (!debt.installments || debt.installments.length === 0) {
@@ -27,15 +28,7 @@ const calculateDebtStatus = (debt) => {
 // ดึง Partner ทั้งหมด
 router.get("/partners", authenticate, async (req, res) => {
   try {
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    const partners = await Partner.find(query);
+    const partners = await Partner.find({ companyId: req.user.companyId });
     res.json({ success: true, data: partners });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -43,15 +36,7 @@ router.get("/partners", authenticate, async (req, res) => {
 });
 router.get("/employees", authenticate, async (req, res) => {
   try {
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    const employeesx = await employees.find(query);
+    const employeesx = await employees.find({ companyId: req.user.companyId });
     res.json({ success: true, data: employeesx });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -70,13 +55,8 @@ router.get("/", authenticate, async (req, res) => {
     } = req.query;
 
     const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
+    query.companyId = req.user.companyId;
+
     if (status) query.status = status;
     if (debtType) query.debtType = debtType;
     if (paymentMethod) query.paymentMethod = paymentMethod;
@@ -91,11 +71,23 @@ router.get("/", authenticate, async (req, res) => {
     const debts = await Debt.find(query)
       .sort({ date: -1, createdAt: -1 })
       .populate("createdBy", "name email")
-      .populate("partnerId");
+      .populate("partnerId")
+      .populate("categoryId");
+    const company = await Company.findById(req.user.companyId).lean();
+    const accountMap = new Map();
 
     const records = debts.map((debt) => {
       const updatedAmounts = debt.amounts.map((amount) => {
-        const { currency, amount: totalAmount } = amount;
+        const { currency, amount: totalAmount, accountId } = amount;
+        // bank accounts
+        company.bankAccounts.forEach((acc) => {
+          accountMap.set(String(acc._id), { ...acc, type: "bank" });
+        });
+
+        // cash accounts
+        company.cashAccounts.forEach((acc) => {
+          accountMap.set(String(acc._id), { ...acc, type: "cash" });
+        });
 
         // รวมยอดที่จ่ายแล้วของสกุลนี้
         const paidTotal =
@@ -111,6 +103,7 @@ router.get("/", authenticate, async (req, res) => {
         return {
           ...amount.toObject(),
           paidAmount: paidTotal,
+          account: accountMap.get(String(accountId)) || null,
           status,
         };
       });
@@ -142,17 +135,24 @@ router.get("/", authenticate, async (req, res) => {
 // Get single debt record
 router.get("/:id", authenticate, async (req, res) => {
   try {
+    if (!validateObjectId(req.params.id))
+      return res.status(400).json({ message: "Invalid ID" });
     const debt = await Debt.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      companyId: req.user._id,
     })
       .populate("createdBy", "name email")
-      .populate("partnerId");
+      .populate("partnerId")
+      .populate("categoryId");
 
     if (!debt) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-
+    if (!["admin", "master", "staff"].includes(req.user.role)) {
+      if (String(debt.userId) !== String(req.user._id)) {
+        return res.status(403).json({ message: "Permission denied" });
+      }
+    }
     res.json(debt);
   } catch (error) {
     console.error("Error fetching debt:", error);
@@ -176,6 +176,7 @@ router.post("/", authenticate, async (req, res) => {
       reason,
       installments,
       partnerId,
+      categoryId,
     } = req.body;
 
     // -------------------------------
@@ -188,23 +189,56 @@ router.post("/", authenticate, async (req, res) => {
       !paymentMethod ||
       !date ||
       !reason ||
-      !partnerId
+      !partnerId ||
+      !categoryId
     ) {
-      return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+      return res.status(400).json({ message: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ" });
     }
 
     if (!Array.isArray(amounts) || amounts.length === 0) {
       return res
         .status(400)
-        .json({ message: "amounts ต้องเป็น array และมีอย่างน้อย 1 รายการ" });
+        .json({ message: "ຈຳນວນເງິນຕ້ອງມີຢ່າງໜ້ອຍ 1 ລາຍການ" });
     }
 
     const duplicate = await Debt.findOne({ serial });
     if (duplicate) {
-      return res.status(400).json({ message: "เลขที่เอกสารซ้ำ" });
+      return res.status(400).json({ message: "ເລກທີ່ເອກະສານຊໍ້າກັນ" });
     }
+    const company = await Company.findById(req.user.companyId).lean();
+
+    const cashAccounts = company.cashAccounts || [];
+    const bankAccounts = company.bankAccounts || [];
     ///ກວດສອບສະກຸນເງິນຕ້ອງມີພຽງສະກຸນເງິນດຽວເທົ່ານັ້ນ
     for (const i of amounts) {
+      if (!i.currency || !i.amount || !i.accountId) {
+        throw new Error(` ກະລຸນາກອກ currency, amount, accountId ໃຫ້ຄົບ`);
+      }
+
+      if (parseFloat(i.amount) <= 0) {
+        throw new Error(` ຈໍານວນເງິນຕ້ອງຫຼາຍກວ່າ 0`);
+      }
+
+      let accounts = [];
+      if (paymentMethod === "ເງິນສົດ") {
+        accounts = cashAccounts;
+      } else if (paymentMethod === "ໂອນ") {
+        accounts = bankAccounts;
+      }
+      const accountMatch = accounts.find(
+        (acc) => acc._id.toString() === i.accountId
+      );
+      if (!accountMatch) {
+        throw new Error(` ບັນຊີນີ້ບໍ່ຢູ່ໃນ ${paymentMethod}`);
+      }
+
+      if (accountMatch.currency !== i.currency) {
+        throw new Error(`ສະກຸນເງິນບໍ່ກົງກັນກັບບັນຊີ`);
+      }
+
+      if (isNaN(Number(i.amount))) {
+        throw new Error(`Amount ບໍ່ຖືກຕ້ອງ`);
+      }
       const countCurrency = amounts.filter(
         (inst) => inst.currency === "USD" || "THB" || "LAK" || "EUR" || "CNY"
       ).length;
@@ -218,10 +252,11 @@ router.post("/", authenticate, async (req, res) => {
     // 2) Validate installments and attach _id
     // -------------------------------
     let formattedInstallments = [];
-
+    // โหลดข้อมูลบริษัทครั้งเดียว
     if (Array.isArray(installments) && installments.length > 0) {
       // validate amount per install
       for (const amt of amounts) {
+        /////
         const instInCurrency = installments.filter(
           (inst) => inst.currency === amt.currency
         );
@@ -231,21 +266,23 @@ router.post("/", authenticate, async (req, res) => {
 
           if (Math.abs(total - amt.amount) > 0.01) {
             return res.status(400).json({
-              message: `ยอดรวมงวดของสกุล ${amt.currency} ไม่ตรงกับยอดหนี้`,
+              message: `ຍອດລວມງວດ ${amt.currency} ບໍ່ກົງກັບຍອດໜີ້`,
             });
           }
         }
       }
 
       // add _id to each installment
-      formattedInstallments = installments.map((inst) => ({
-        _id: new mongoose.Types.ObjectId(),
-        dueDate: inst.dueDate,
-        amount: inst.amount,
-        currency: inst.currency,
-        isPaid: inst.isPaid || false,
-        paidDate: inst.paidDate || null,
-      }));
+      formattedInstallments = installments.map((inst, index) => {
+        return {
+          _id: new mongoose.Types.ObjectId(),
+          dueDate: inst.dueDate,
+          amount: inst.amount,
+          currency: inst.currency,
+          isPaid: inst.isPaid || false,
+          paidDate: inst.paidDate || null,
+        };
+      });
     }
 
     // -------------------------------
@@ -256,6 +293,7 @@ router.post("/", authenticate, async (req, res) => {
         {
           userId: req.user._id,
           serial,
+          companyId: req.user.companyId,
           description,
           debtType,
           paymentMethod,
@@ -263,6 +301,7 @@ router.post("/", authenticate, async (req, res) => {
           amounts,
           note,
           reason,
+          categoryId,
           installments: formattedInstallments,
           status:
             formattedInstallments.length > 0
@@ -283,8 +322,7 @@ router.post("/", authenticate, async (req, res) => {
     const paidInstallments = savedDebt.installments.filter(
       (i) => i.isPaid === true
     );
-    console.log("paidInstallments:", paidInstallments);
-    if (!paidInstallments ) {
+    if (!paidInstallments) {
       let amountList = [];
       if (savedDebt.installments.length > 0) {
         // Use first installment
@@ -309,6 +347,8 @@ router.post("/", authenticate, async (req, res) => {
         serial: `IE-${savedDebt.serial}-${Date.now()}`,
         description: savedDebt.description,
         userId: req.user._id,
+        categoryId: categoryId,
+        companyId: req.user.companyId,
         type: savedDebt.debtType === "payable" ? "expense" : "income",
         paymentMethod: savedDebt.paymentMethod,
         date: new Date(),
@@ -337,7 +377,7 @@ router.post("/", authenticate, async (req, res) => {
     console.error("❌ Error creating debt:", error);
 
     return res.status(500).json({
-      message: "เกิดข้อผิดพลาด",
+      message: "server wrong",
       error: error.message,
     });
   }
@@ -353,7 +393,7 @@ router.patch(
 
       const debt = await Debt.findOne({
         _id: req.params.id,
-        userId: req.user._id,
+        companyId: req.user._id,
       });
 
       if (!debt) {
@@ -401,20 +441,23 @@ router.put("/:id", authenticate, async (req, res) => {
       reason,
       installments,
       partnerId,
+      categoryId,
     } = req.body;
     // -----------------------------------------
     // 1) หา debt เดิม
     // -----------------------------------------
     const oldDebt = await Debt.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      companyId: req.user.companyId,
     }).session(session);
 
     if (!oldDebt) {
       await session.abortTransaction();
-      return res.status(404).json({ message: "ไม่พบข้อมูลหนี้" });
+      return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນໜີ້ສິນ" });
     }
-
+    if (!categoryId) {
+      return res.status(404).json({ message: "ກະລຸນາລະບຸໝວດໝູ່" });
+    }
     // -----------------------------------------
     // 2) เช็ค serial ไม่ให้ซ้ำ
     // -----------------------------------------
@@ -422,7 +465,7 @@ router.put("/:id", authenticate, async (req, res) => {
       const dup = await Debt.findOne({ serial }).session(session);
       if (dup) {
         await session.abortTransaction();
-        return res.status(400).json({ message: "เลขที่เอกสารซ้ำ" });
+        return res.status(400).json({ message: "ເລກທີ່ເອກະສານຊໍ້າກັນ" });
       }
     }
     ///ກວດສອບສະກຸນເງິນຕ້ອງມີພຽງສະກຸນເງິນດຽວເທົ່ານັ້ນ
@@ -440,8 +483,41 @@ router.put("/:id", authenticate, async (req, res) => {
     // -----------------------------------------
     // 3) Validate Installments (ถ้ามี)
     // -----------------------------------------
+    // โหลดข้อมูลบริษัทครั้งเดียว
+    const company = await Company.findById(req.user.companyId).lean();
+
+    const cashAccounts = company.cashAccounts || [];
+    const bankAccounts = company.bankAccounts || [];
     if (Array.isArray(installments) && installments.length > 0) {
       for (const a of amounts) {
+        if (!a.currency || !a.amount || !a.accountId) {
+          throw new Error(` ກະລຸນາກອກ currency, amount, accountId ໃຫ້ຄົບ`);
+        }
+
+        if (parseFloat(a.amount) <= 0) {
+          throw new Error(` ຈໍານວນເງິນຕ້ອງຫຼາຍກວ່າ 0`);
+        }
+
+        let accounts = [];
+        if (paymentMethod === "ເງິນສົດ") {
+          accounts = cashAccounts;
+        } else if (paymentMethod === "ໂອນ") {
+          accounts = bankAccounts;
+        }
+        const accountMatch = accounts.find(
+          (acc) => acc._id.toString() === a.accountId
+        );
+        if (!accountMatch) {
+          throw new Error(` ບັນຊີນີ້ບໍ່ຢູ່ໃນ ${paymentMethod}`);
+        }
+
+        if (accountMatch.currency !== a.currency) {
+          throw new Error(`ສະກຸນເງິນບໍ່ກົງກັນກັບບັນຊີ`);
+        }
+
+        if (isNaN(Number(a.amount))) {
+          throw new Error(`Amount ບໍ່ຖືກຕ້ອງ`);
+        }
         const instGroup = installments.filter((i) => i.currency === a.currency);
         if (instGroup.length > 0) {
           const total = instGroup.reduce((s, i) => s + i.amount, 0);
@@ -472,7 +548,7 @@ router.put("/:id", authenticate, async (req, res) => {
     if (note !== undefined) oldDebt.note = note;
     if (reason) oldDebt.reason = reason;
     if (partnerId) oldDebt.partnerId = partnerId;
-
+    if (categoryId) oldDebt.categoryId = categoryId;
     // format installments ใหม่ (เพิ่ม _id หากไม่มี)
     let newInstallments = [];
     if (Array.isArray(installments)) {
@@ -534,6 +610,7 @@ router.put("/:id", authenticate, async (req, res) => {
                   newInstallments.indexOf(inst) + 1
                 }) ເລກທີ່ ${oldDebt.serial}`,
                 userId: req.user._id,
+                companyId: req.user.companyId,
                 type: oldDebt.debtType === "payable" ? "expense" : "income",
                 paymentMethod: oldDebt.paymentMethod,
                 date: inst.paidDate ? new Date(inst.paidDate) : new Date(), // แก้ไข
@@ -542,6 +619,7 @@ router.put("/:id", authenticate, async (req, res) => {
                 note: `ຊຳລະງວດໃໝ່`,
                 referance: oldDebt._id,
                 createdBy: req.user._id,
+                categoryId: oldDebt.categoryId,
                 amounts: [{ currency: inst.currency, amount: inst.amount }],
                 installmentId: inst._id,
               },
@@ -562,6 +640,8 @@ router.put("/:id", authenticate, async (req, res) => {
                 newInstallments.indexOf(inst) + 1
               } ເລກທີ່ ${oldDebt.serial})`,
               userId: req.user._id,
+              companyId: req.user.companyId,
+              categoryId: oldDebt.categoryId,
               type: oldDebt.debtType === "payable" ? "expense" : "income",
               paymentMethod: oldDebt.paymentMethod,
               date: inst.paidDate ? new Date(inst.paidDate) : new Date(), // แก้ไข
@@ -660,7 +740,7 @@ router.delete("/:id", authenticate, async (req, res) => {
     }
     const record = await Debt.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id,
+      companyId: req.user._id,
     });
 
     if (!record) {
@@ -677,7 +757,7 @@ router.delete("/:id", authenticate, async (req, res) => {
 // Get debt statistics
 router.get("/stats/summary", authenticate, async (req, res) => {
   try {
-    const debts = await Debt.find({ userId: req.user._id });
+    const debts = await Debt.find({ companyId: req.user._id });
 
     const stats = {
       total: debts.length,
@@ -726,18 +806,11 @@ const validateObjectId = (req, res, next) => {
 ///partner
 router.post("/partners", authenticate, async (req, res) => {
   try {
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
     const partnerData = req.body;
     const partner = new Partner({
       ...partnerData,
-      userId: query.userId,
+      userId: req.user._id,
+      companyId: req.user.companyId,
     });
     await partner.save();
     res.status(201).json({ success: true, data: partner });
@@ -807,17 +880,10 @@ router.delete(
 );
 router.post("/employees", authenticate, async (req, res) => {
   try {
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
     const employee = new employees({
       ...req.body,
-      userId: query.userId,
+      userId: req.user._id,
+      companyId: req.user.companyId,
     });
     await employee.save();
     res.json({ success: true, data: employee });

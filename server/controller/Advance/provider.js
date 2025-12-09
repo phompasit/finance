@@ -2,21 +2,40 @@ import AdvanceRequests from "../../models/advanceRequests.js";
 import AdvanceClosure from "../../models/advanceClosure.js";
 import IncomeExpense from "../../models/IncomeExpense.js";
 import mongoose from "mongoose";
+import Company from "../../models/company.js";
 
 // ✅ ดึงรายการเบิกทั้งหมด
 export const getAllAdvances = async (req, res) => {
   try {
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    const advances = await AdvanceRequests.find(query)
+    const advances = await AdvanceRequests.find({
+      companyId: req.user.companyId,
+    })
       .populate("employee_id", "full_name department position")
-      .sort({ createdAt: -1 });
+      .populate("categoryId")
+      .sort({ createdAt: -1 })
+      .lean(); // ⭐ สำคัญ!!
+
+    const company = await Company.findById(req.user.companyId).lean();
+    const accountMap = new Map();
+
+    // bank accounts
+    company.bankAccounts.forEach((acc) => {
+      accountMap.set(String(acc._id), { ...acc, type: "bank" });
+    });
+
+    // cash accounts
+    company.cashAccounts.forEach((acc) => {
+      accountMap.set(String(acc._id), { ...acc, type: "cash" });
+    });
+
+    // เติม account เข้า amounts
+    advances.forEach((r) => {
+      r.amount_requested = r.amount_requested?.map((a) => ({
+        ...a,
+        account: accountMap.get(String(a.accountId)) || null,
+      }));
+    });
+
     res.json({ success: true, data: advances });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -26,31 +45,23 @@ export const getAllAdvances = async (req, res) => {
 // ✅ สร้างใบเบิกล่วงหน้าใหม่ (รองรับหลายสกุลเงิน)
 export const createAdvance = async (req, res) => {
   try {
-    // Validate amounts array
-
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
+    // ---------- SERIAL DUPLICATE CHECK ----------
     const expenses = await IncomeExpense.find();
     const advances = await AdvanceRequests.find();
     const allSerials = [
       ...expenses.map((e) => e.serial),
       ...advances.map((a) => a.serial),
     ];
-    const isDuplicate = allSerials.includes(req.body.serial);
 
-    if (isDuplicate) {
+    if (allSerials.includes(req.body.serial)) {
       return res.status(400).json({
         success: false,
         message:
           "❌ ເລກທີນີ້ມີຢູ່ໃນລະບົບແລ້ວ (ອາດຢູ່ຝັ່ງລາຍຈ່າຍຫຼືລາຍຈ່າຍລ່ວງໜ້າ)",
       });
     }
+
+    // ---------- AMOUNTS VALIDATE ----------
     if (
       !req.body.amounts ||
       !Array.isArray(req.body.amounts) ||
@@ -58,44 +69,100 @@ export const createAdvance = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "amounts must be a non-empty array",
+        message: "ກະລຸນາເພີ່ມຈໍານວນເງິນ amounts",
       });
     }
-    if (req.body.employee_id) {
-      return res.status(400).json({
-        success: false,
-        message: "ກະລຸນາເພີ່ມຊື່ຜູ້ເບີກ",
-      });
-    }
-    // Validate each amount entry
-    const validatedAmounts = req.body.amounts.map((item) => {
-      if (!item.currency || !item.amount) {
-        throw new Error("Each amount must have currency and amount");
+
+    // โหลดข้อมูลบริษัทครั้งเดียว
+    const company = await Company.findById(req.user.companyId).lean();
+
+    const cashAccounts = company.cashAccounts || [];
+    const bankAccounts = company.bankAccounts || [];
+
+    const validatedAmounts = req.body.amounts.map((item, index) => {
+      if (!item.currency || !item.amount || !item.accountId) {
+        throw new Error(
+          `Row ${index + 1}: ກະລຸນາກອກ currency, amount, accountId ໃຫ້ຄົບ`
+        );
       }
+
+      if (parseFloat(item.amount) <= 0) {
+        throw new Error(`Row ${index + 1}: ຈໍານວນເງິນຕ້ອງຫຼາຍກວ່າ 0`);
+      }
+
+      let accounts = [];
+      if (req.body.paymentMethods === "cash") {
+        accounts = cashAccounts;
+      } else if (req.body.paymentMethods === "bank_transfer") {
+        accounts = bankAccounts;
+      }
+
+      const accountMatch = accounts.find(
+        (acc) => acc._id.toString() === item.accountId
+      );
+      if (!accountMatch) {
+        throw new Error(
+          `Row ${index + 1}: ບັນຊີນີ້ບໍ່ຢູ່ໃນ ${req.body.paymentMethods}`
+        );
+      }
+
+      if (accountMatch.currency !== item.currency) {
+        throw new Error(`Row ${index + 1}: ສະກຸນເງິນບໍ່ກົງກັນກັບບັນຊີ`);
+      }
+
+      if (isNaN(Number(item.amount))) {
+        throw new Error(`Row ${index + 1}: Amount ບໍ່ຖືກຕ້ອງ`);
+      }
+
       return {
         currency: item.currency,
-        amount: parseFloat(item.amount),
+        amount: Number(item.amount),
+        accountId: item.accountId,
       };
     });
 
+    // ---------- EMPLOYEE ID VALIDATE ----------
+    if (!req.body.employee_id) {
+      return res.status(400).json({
+        success: false,
+        message: "ກະລຸນາເລືອກຊື່ຜູ້ເບີກ (employee_id)",
+      });
+    }
+    if (!req.body.categoryId) {
+      return res.status(400).json({
+        message: `ກະລຸນາເພີ່ມໝວດໝູ່`,
+      });
+    }
+    // ---------- PURPOSE / DESCRIPTION ----------
+    if (!req.body.purpose || !req.body.purpose.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "ກະລຸນາກອກວັດຖຸປະສົງການເບີກ",
+      });
+    }
+
+    // ---------- PAYMENT METHOD ----------
+    if (!req.body.paymentMethods) {
+      return res.status(400).json({
+        success: false,
+        message: "ກະລຸນາເລືອກວິທີຈ່າຍເງິນ",
+      });
+    }
+
+    // ----------- CREATE DATA -----------
     const newAdvance = await AdvanceRequests.create({
-      userId: query.userId,
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      categoryId: req.body.categoryId,
       type: req.body.type || "employee",
       status_payment: req.body.status_payment,
       status_Ap: "pending",
-      employee_id: req.body.employee_id || null,
+      employee_id: req.body.employee_id,
       purpose: req.body.purpose,
       serial: req.body.serial,
       amount_requested: validatedAmounts,
       request_date: req.body.request_date || new Date(),
       paymentMethods: req.body.paymentMethods,
-      meta: {
-        company: req.body.meta?.company,
-        date_from: req.body.meta?.date_from,
-        date_to: req.body.meta?.date_to,
-        requester: req.body.meta?.requester,
-        note: req.body.meta?.note,
-      },
     });
 
     await newAdvance.populate("employee_id", "full_name department position");
@@ -115,7 +182,12 @@ export const updateAdvance = async (req, res) => {
     if (!advance) {
       return res.status(404).json({ success: false, message: "ບໍ່ພົບຂໍ້ມູນ." });
     }
-
+    if (advance.status_Ap === "approve") {
+      return res.status(400).json({
+        success: false,
+        message: "ທ່ານບໍ່ສິດແກ້ໄຂຂໍ້ມູນ ເພາະໄດ້ຮັບອະນຸມັດແລ້ວ",
+      });
+    }
     // ดึงข้อมูลจากทั้งสอง collection
     const expenses = await IncomeExpense.find();
     const advances = await AdvanceRequests.find();
@@ -147,10 +219,52 @@ export const updateAdvance = async (req, res) => {
     // Update amounts if provided
     if (req.body.amounts && Array.isArray(req.body.amounts)) {
       // 1️⃣ แปลงค่าที่รับมาให้สะอาดก่อน
-      const validatedAmounts = req.body.amounts.map((item) => ({
-        currency: item.currency,
-        amount: parseFloat(item.amount),
-      }));
+      // โหลดข้อมูลบริษัทครั้งเดียว
+      const company = await Company.findById(req.user.companyId).lean();
+
+      const cashAccounts = company.cashAccounts || [];
+      const bankAccounts = company.bankAccounts || [];
+
+      const validatedAmounts = req.body.amounts.map((item, index) => {
+        if (!item.currency || !item.amount || !item.accountId) {
+          throw new Error(
+            `Row ${index + 1}: ກະລຸນາກອກ currency, amount, accountId ໃຫ້ຄົບ`
+          );
+        }
+
+        if (parseFloat(item.amount) <= 0) {
+          throw new Error(`Row ${index + 1}: ຈໍານວນເງິນຕ້ອງຫຼາຍກວ່າ 0`);
+        }
+        let accounts = [];
+        if (req.body.paymentMethods === "cash") {
+          accounts = cashAccounts;
+        } else if (req.body.paymentMethods === "bank") {
+          accounts = bankAccounts;
+        }
+
+        const accountMatch = accounts.find(
+          (acc) => acc._id.toString() === item.accountId
+        );
+        if (!accountMatch) {
+          throw new Error(
+            `Row ${index + 1}: ບັນຊີນີ້ບໍ່ຢູ່ໃນ ${req.body.paymentMethods}`
+          );
+        }
+
+        if (accountMatch.currency !== item.currency) {
+          throw new Error(`Row ${index + 1}: ສະກຸນເງິນບໍ່ກົງກັນກັບບັນຊີ`);
+        }
+
+        if (isNaN(Number(item.amount))) {
+          throw new Error(`Row ${index + 1}: Amount ບໍ່ຖືກຕ້ອງ`);
+        }
+
+        return {
+          currency: item.currency,
+          amount: Number(item.amount),
+          accountId: item.accountId,
+        };
+      });
 
       // 2️⃣ ตรวจว่าใน request เองมีสกุลเงินซ้ำไหม
       const currencies = validatedAmounts.map((a) => a.currency);
@@ -166,8 +280,18 @@ export const updateAdvance = async (req, res) => {
 
       advance.amount_requested = validatedAmounts;
     }
+    if (!req.body.categoryId) {
+      return res.status(400).json({
+        message: `ກະລຸນາເພີ່ມໝວດໝູ່`,
+      });
+    }
+    if (!advance.categoryId) {
+      return res.status(404).json({
+        success: false,
+        message: "ກະລຸນາເພີ່ມໝວດໝູ່",
+      });
+    }
     // Update other fields
-    console.log("req.body.employee_id", req.body);
     if (req.body.purpose) advance.purpose = req.body.purpose;
     if (req.body.request_date) advance.request_date = req.body.request_date;
     if (req.body.serial) advance.serial = req.body.serial;
@@ -176,6 +300,9 @@ export const updateAdvance = async (req, res) => {
       advance.status_payment = req.body.status_payment;
     if (req.body.status_Ap) advance.status_Ap = req.body.status_Ap;
     if (req.body.employee_id) advance.employee_id = req.body.employee_id;
+    if (req.body.paymentMethods)
+      advance.paymentMethods = req.body.paymentMethods;
+    if (req.body.categoryId) advance.categoryId = req.body.categoryId;
     await advance.save();
     await advance.populate("employee_id", "full_name department position");
 
@@ -196,6 +323,12 @@ export const addTransaction = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Advance not found",
+      });
+    }
+    if (advance.status_Ap === "approve") {
+      return res.status(400).json({
+        success: false,
+        message: "ທ່ານບໍ່ສິດແກ້ໄຂຂໍ້ມູນ ເພາະໄດ້ຮັບອະນຸມັດແລ້ວ",
       });
     }
     // Validate transaction data
@@ -362,7 +495,12 @@ export const closeAdvance = async (req, res) => {
         message: "❌ ບໍ່ມີການໃຊ້ຈ່າຍຈິງ ຈຶ່ງປິດບໍ່ໄດ້",
       });
     }
-
+    if (!advance.categoryId) {
+      return res.status(404).json({
+        success: false,
+        message: "ກະລຸນາເພີ່ມໝວດໝູ່",
+      });
+    }
     // 🧩 8. Prepare calculated summary & net
     const summaryDetails = {};
     const remainingAmounts = [];
@@ -398,8 +536,7 @@ export const closeAdvance = async (req, res) => {
     }
 
     // 🧩 9. Determine user id for IncomeExpense linkage
-    const targetUserId =
-      req.user.role === "admin" ? req.user._id : req.user.companyId;
+    const targetUserId = req.user.companyId;
 
     if (!targetUserId) {
       return res.status(400).json({
@@ -411,6 +548,8 @@ export const closeAdvance = async (req, res) => {
     // 🧩 10. Create AdvanceClosure
     const closureData = {
       advance_id: advance._id,
+      companyId: req.user.companyId,
+      userId: req.user._id,
       employee_id: advance.employee_id?._id,
       summary: summaryDetails,
       remarks: req.body.remarks || "",
@@ -430,16 +569,16 @@ export const closeAdvance = async (req, res) => {
     // 🧩 12. Create Income/Expense if needed
     if (remainingAmounts.length > 0) {
       await IncomeExpense.create({
-        userId: targetUserId,
+        companyId: req.user.companyId,
+        userId: req.user._id,
         serial: advance.serial,
         description: `ປິດຍອດເບີກ: ${advance.purpose}`,
         type: "expense",
         paymentMethod: advance.paymentMethods,
+        categoryId: advance.categoryId,
         date: new Date(),
         amounts: remainingAmounts,
-        note: `${advance.meta?.note || ""} | Employee: ${
-          advance.employee_id?.full_name || "Unknown"
-        }`,
+        note: ` Employee: ${advance.employee_id?.full_name || "Unknown"}`,
         createdBy: req.user?._id,
         status: advance.status_payment || "unpaid",
         status_Ap: advance.status_Ap || "pending",
@@ -480,41 +619,53 @@ export const closeAdvance = async (req, res) => {
 export const reopen = async (req, res) => {
   try {
     const advance = await AdvanceRequests.findById(req.params.id);
-
     if (!advance) {
       return res.status(404).json({
         success: false,
         message: "Advance not found",
       });
     }
-
+    if (!advance.categoryId) {
+      return res.status(404).json({
+        success: false,
+        message: "ກະລຸນາເພີ່ມໝວດໝູ່",
+      });
+    }
     if (advance.status !== "closed") {
       return res.status(400).json({
         success: false,
         message: "Advance is not closed",
       });
     }
+    if (req.user.role === "admin" && req.user.isSuperAdmin === true) {
+      // ลบเอกสารปิดยอด
+      await AdvanceClosure.findOneAndDelete({
+        advance_id: req.params.id,
+      });
 
-    // ลบเอกสารปิดยอด
-    await AdvanceClosure.findOneAndDelete({
-      advance_id: req.params.id,
-    });
+      // อัปเดตสถานะ
+      advance.status = "open";
+      advance.closed_at = null;
+      advance.updated_by = req.user?._id;
 
-    // อัปเดตสถานะ
-    advance.status = "open";
-    advance.closed_at = null;
-    advance.updated_by = req.user?._id;
-
-    await advance.save();
-    await advance.populate("employee_id", "full_name employee_code email");
-    await IncomeExpense.findOneAndDelete({
-      referance: req.params.id,
-    });
-    res.json({
-      success: true,
-      message: "Advance reopened successfully",
-      data: advance,
-    });
+      await advance.save();
+      await advance.populate("employee_id", "full_name employee_code email");
+      await IncomeExpense.findOneAndDelete({
+        referance: req.params.id,
+      });
+      res.json({
+        success: true,
+        message: "Advance reopened successfully",
+        data: advance,
+      });
+    } else {
+      if (advance.status_Ap === "approve") {
+        return res.status(400).json({
+          success: false,
+          message: "ທ່ານບໍ່ສິດເປີດລາຍການ ເພາະໄດ້ຮັບອະນຸມັດແລ້ວ",
+        });
+      }
+    }
   } catch (err) {
     console.error("Reopen advance error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -526,7 +677,12 @@ export const deleteAdvance = async (req, res) => {
   try {
     const { id } = req.params;
     const advance = await AdvanceRequests.findById(id);
-
+    if (advance.status_Ap === "approve") {
+      return res.status(400).json({
+        success: false,
+        message: "ທ່ານບໍ່ສິດລົບຂໍ້ມູນ ເພາະໄດ້ຮັບອະນຸມັດແລ້ວ",
+      });
+    }
     if (!advance) {
       return res.status(404).json({
         success: false,
@@ -559,6 +715,7 @@ export const getAdvanceById = async (req, res) => {
     const { id } = req.params;
     const advance = await AdvanceRequests.findById(id)
       .populate("employee_id", "full_name department position email")
+      .populate("categoryId")
       .lean();
 
     if (!advance) {
@@ -567,7 +724,24 @@ export const getAdvanceById = async (req, res) => {
         message: "Advance not found",
       });
     }
+    const company = await Company.findById(req.user.companyId).lean();
+    const accountMap = new Map();
 
+    // bank accounts
+    company.bankAccounts.forEach((acc) => {
+      accountMap.set(String(acc._id), { ...acc, type: "bank" });
+    });
+
+    // cash accounts
+    company.cashAccounts.forEach((acc) => {
+      accountMap.set(String(acc._id), { ...acc, type: "cash" });
+    });
+    advance.forEach((r) => {
+      r.amounts = r.amounts.map((a) => ({
+        ...a,
+        account: accountMap.get(String(a.accountId)) || null,
+      }));
+    });
     res.json({ success: true, data: advance });
   } catch (err) {
     console.error("Get advance error:", err);
@@ -621,7 +795,12 @@ export const deleteAdvance_transactions = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Advance not found" });
     }
-
+    if (advance.status_Ap === "approve") {
+      return res.status(400).json({
+        success: false,
+        message: "ທ່ານບໍ່ສິດແກ້ໄຂຂໍ້ມູນ ເພາະໄດ້ຮັບອະນຸມັດແລ້ວ",
+      });
+    }
     // ตรวจสอบว่ามี transaction นี้ไหม
     const exists = advance.transactions.some(
       (tx) => tx._id.toString() === item
@@ -656,16 +835,18 @@ export const deleteAdvance_transactions = async (req, res) => {
 export const update_status_Ap = async (req, res) => {
   try {
     const id = req.params.id.replace(/^:/, "");
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
+
+    const recordExsing = await AdvanceRequests.findById(id);
+    if (
+      recordExsing.status_Ap === "approve" &&
+      recordExsing.status === "closed"
+    ) {
+      return res
+        .status(404)
+        .json({ message: "ບໍ່ສາມາດປ່ຽນແປງການອະນຸມັດໄດ້ ກະລຸນາເປີດລາຍການກ່ອນ" });
     }
     const record = await AdvanceRequests.findOneAndUpdate(
-      { _id: id, ...query },
+      { _id: id, companyId: req.user.companyId },
       req.body,
       {
         new: true,

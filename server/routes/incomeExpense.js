@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import AdvanceRequests from "../models/advanceRequests.js";
 import Debt from "../models/Debt.js";
+import Company from "../models/company.js";
 const router = express.Router();
 // ✅ Rate Limiting - ป้องกัน DDoS และ Brute Force
 const limiter = rateLimit({
@@ -50,11 +51,12 @@ const sanitizeInput = (req, res, next) => {
 router.get(
   "/",
   authenticate,
-  sanitizeInput, // Sanitize inputs
-  validateQueryParams, // Validate query parameters
+  sanitizeInput,
+  validateQueryParams,
   limiter,
   async (req, res) => {
     try {
+      // Validate express-validator
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({
@@ -62,93 +64,122 @@ router.get(
           errors: errors.array(),
         });
       }
+
       const { type, category, startDate, endDate, search } = req.query;
-      const query = {};
-      if (req.user.role === "admin") {
-        query.userId = req.user._id;
+
+      // 1️⃣ Base query with company
+      const query = { companyId: req.user.companyId };
+
+      // 2️⃣ Type filter
+      if (type && typeof type === "string") {
+        query.type = type;
       }
-      // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-      else {
-        query.userId = req.user.companyId;
+
+      // 3️⃣ Category filter (แก้ชื่อ field ถูกแล้ว)
+      if (category && typeof category === "string") {
+        query.categoryId = category;
       }
-      if (type) {
-        query.type = Array.isArray(type) ? type[0] : type;
-      }
-      if (category) {
-        query.category = Array.isArray(category) ? category[0] : category;
-      }
-      // ✅ Date Range Validation - ป้องกัน Date Injection
+
+      // 4️⃣ Date range
       if (startDate || endDate) {
         query.date = {};
+
         if (startDate) {
-          const start = new Date(startDate);
-          if (isNaN(start.getTime())) {
-            return res.status(400).json({
-              message: "startDate ບໍ່ຖືກຕ້ອງ",
-            });
+          const s = new Date(startDate);
+          if (isNaN(s.getTime())) {
+            return res.status(400).json({ message: "startDate ບໍ່ຖືກຕ້ອງ" });
           }
-          query.date.$gte = start;
-        }
-        if (endDate) {
-          const end = new Date(endDate);
-          if (isNaN(end.getTime())) {
-            return res.status(400).json({
-              message: "endDate ບໍ່ຖືກຕ້ອງ",
-            });
-          }
-          query.date.$lte = end;
+          query.date.$gte = s;
         }
 
-        // ตรวจสอบว่า startDate ต้องไม่มากกว่า endDate
+        if (endDate) {
+          const e = new Date(endDate);
+          if (isNaN(e.getTime())) {
+            return res.status(400).json({ message: "endDate ບໍ່ຖືກຕ້ອງ" });
+          }
+          query.date.$lte = e;
+        }
+
+        // validate range
         if (
           query.date.$gte &&
           query.date.$lte &&
           query.date.$gte > query.date.$lte
         ) {
           return res.status(400).json({
-            message: "startDate ຕ້ອງໜ້ອຍກ່ວາຫຼືເທົ່າກັບ endDate",
+            message: "startDate ຕ້ອງໜ້ອຍກ່ວາ endDate",
           });
         }
       }
-      // ✅ Safe Search - ป้องกัน ReDoS และ Injection
-      if (search) {
-        const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      // 5️⃣ Safe Search
+      if (search && search.length <= 100) {
+        const esc = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
         query.$or = [
-          { description: { $regex: sanitizedSearch, $options: "i" } },
-          { reference: { $regex: sanitizedSearch, $options: "i" } },
+          { description: { $regex: esc, $options: "i" } },
+          { referance: { $regex: esc, $options: "i" } }, // ✔ แก้ชื่อ field ถูกแล้ว
         ];
       }
-      // ✅ Query with Limit - ป้องกัน Resource Exhaustion
-      const limit = Math.min(parseInt(req.query.limit) || 100, 1000);
+
+      // Reject overly long search terms (ReDoS prevention)
+      if (search && search.length > 100) {
+        return res.status(400).json({ message: "search ยาวเกินไป" });
+      }
+
+      // 6️⃣ Pagination
+      const limit = Math.min(
+        Math.max(parseInt(req.query.limit) || 100, 1),
+        1000
+      );
       const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+      const company = await Company.findById(req.user.companyId).lean();
+      const accountMap = new Map();
+
+      // bank accounts
+      company.bankAccounts.forEach((acc) => {
+        accountMap.set(String(acc._id), { ...acc, type: "bank" });
+      });
+
+      // cash accounts
+      company.cashAccounts.forEach((acc) => {
+        accountMap.set(String(acc._id), { ...acc, type: "cash" });
+      });
+
+      // 7️⃣ Fetch records (lean for speed)
       const records = await IncomeExpense.find(query)
         .sort({ date: -1 })
         .limit(limit)
         .skip(skip)
-        .select("-__v") // ไม่ส่ง version key
-        .populate("createdBy", "username email role")
-        .lean() // เพิ่มประสิทธิภาพ
-        .exec();
-      // ✅ Security Headers
+        .select("-__v")
+        .populate("createdBy", "username role") // ❗ ซ่อน email เพื่อ privacy
+        .populate("categoryId", "name type")
+        .lean();
+      records.forEach((r) => {
+        r.amounts = r.amounts.map((a) => ({
+          ...a,
+          account: accountMap.get(String(a.accountId)) || null,
+        }));
+      });
+
+      // 8️⃣ Security Headers
       res.set({
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
       });
-      res.status(200).json(records);
+
+      return res.status(200).json(records);
     } catch (error) {
-      // ✅ Error Logging (ควรใช้ logger จริง เช่น Winston)
       console.error("Error in GET /income-expense:", {
         error: error.message,
         stack: error.stack,
         user: req.user?._id,
-        timestamp: new Date().toISOString(),
       });
 
-      // ✅ ไม่เปิดเผย error details ให้ client
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        message: "เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง",
+        message: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
       });
     }
   }
@@ -159,58 +190,114 @@ router.post("/bulk", authenticate, async (req, res) => {
   try {
     const { transactions } = req.body;
 
-    const expenses = await IncomeExpense.find();
-    const advances = await AdvanceRequests.find();
-    const allSerials = [
-      ...expenses.map((e) => e.serial),
-      ...advances.map((a) => a.serial),
-    ];
-    const isDuplicate = allSerials.includes(transactions.serial);
-
-    if (isDuplicate) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "❌ ເລກທີນີ້ມີຢູ່ໃນລະບົບແລ້ວ (ອາດຢູ່ຝັ່ງລາຍຈ່າຍຫຼືລາຍຈ່າຍລ່ວງໜ້າ)",
-      });
-    }
-    // Insert all records at once
-    // 🔒 Input validation
+    // 1️⃣ Validate request body
     if (!transactions || typeof transactions !== "object") {
       return res.status(400).json({
-        message: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ",
+        success: false,
+        message: "Invalid input format",
       });
     }
 
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    const exists = await IncomeExpense.findOne({
-      serial: transactions.serial,
-    }).lean();
-    if (exists) {
+    // 2️⃣ Escape dangerous characters (prevent XSS stored attack)
+    const sanitize = (str) =>
+      typeof str === "string" ? str.replace(/[<>]/g, "") : str;
+
+    transactions.serial = sanitize(transactions.serial);
+    transactions.description = sanitize(transactions.description);
+    transactions.note = sanitize(transactions.note);
+
+    // 3️⃣ Efficient duplicate serial checking
+    const serial = transactions.serial;
+
+    const existsInExpense = await IncomeExpense.exists({ serial });
+    const existsInAdvance = await AdvanceRequests.exists({ serial });
+
+    if (existsInExpense || existsInAdvance) {
       return res.status(400).json({
-        message: "ເລກທີມີແລ້ວກະລຸນາເລືອກໃໝ່",
+        success: false,
+        message: "❌ ເລກທີ່ນີ້ມີແລ້ວ ກະລຸນາລະບຸເລກທີ່ໃໝ່",
       });
     }
-    ///ກວດສອບສະກຸນເງິນຕ້ອງມີພຽງສະກຸນເງິນດຽວເທົ່ານັ້ນ
-    for (const i of transactions.amounts) {
-      const countCurrency = transactions.amounts.filter(
-        (inst) => inst.currency === "USD" || "THB" || "LAK" || "EUR" || "CNY"
-      ).length;
-      if (countCurrency > 1) {
+
+    // 4️⃣ Validate category
+    if (!transactions.categoryId) {
+      return res.status(400).json({
+        success: false,
+        message: "ກະລຸນາເລືອກໝວດໝູ່",
+      });
+    }
+
+    // 5️⃣ Validate amounts
+    if (
+      !Array.isArray(transactions.amounts) ||
+      transactions.amounts.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "ກະລຸນາລະບຸຈຳນວນເງິນ",
+      });
+    }
+
+    // Validate currency count — FIXED
+    const currencies = transactions.amounts.map((a) => a.currency);
+    const duplicatedCurrency = currencies.filter(
+      (c, i) => currencies.indexOf(c) !== i
+    );
+
+    if (duplicatedCurrency.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `ບໍ່ສາມາດໃຫ້ມີສະກຸນເງິນຄືກັນສອງສະກຸນໄດ້: ${duplicatedCurrency[0]}`,
+      });
+    }
+    // โหลด company ครั้งเดียว
+    const company = await Company.findById(req.user.companyId).lean();
+
+    // แยก list เงินสด และ list ธนาคาร
+    const cashAccounts = company.cashAccounts || []; // เช่น petty cash, cash on hand
+    const bankAccounts = company.bankAccounts || [];
+    // check amount numeric
+    for (const item of transactions.amounts) {
+      // ถ้าเป็นเงินสด → ตรวจใน CashAccounts
+      let isValid = false;
+      let isValidCurrency = false;
+      if (transactions.paymentMethod === "cash") {
+        isValid = cashAccounts.some(
+          (acc) => acc._id.toString() === item.accountId
+        );
+        isValidCurrency = cashAccounts.some(
+          (acc) => acc.currency === item.currency
+        );
+      }
+      // ถ้าเป็นธนาคาร → ตรวจใน BankAccounts
+      if (transactions.paymentMethod === "bank_transfer") {
+        isValid = bankAccounts.some(
+          (acc) => acc._id.toString() === item.accountId
+        );
+        isValidCurrency = bankAccounts.some(
+          (acc) => acc.currency === item.currency
+        );
+      }
+      if (!isValidCurrency) {
         return res.status(400).json({
-          message: `ສະກຸນເງິນ ${i.currency} ສາມາດມີພຽງໄດ້ 1 ລາຍການເທົ່ານັ້ນ`,
+          message: `ສະກຸນເງິນແລະເລກບັນຊີບໍ່ກົງກັນ ກະລຸນາກວດສອບຄືນ`,
+        });
+      }
+      if (!isValid) {
+        return res.status(400).json({
+          message: `ກະລຸນາເລືອກວິທີຊຳລະເງິນໃຫ້ຖືກຕ້ອງກັບບັນຊີທ່ານ`,
+        });
+      }
+      if (isNaN(Number(item.amount))) {
+        return res.status(400).json({
+          message: `ຈຳນວນເງິນຂອງ ${item.currency} ບໍ່ຖືກຕ້ອງ`,
         });
       }
     }
-    const savedRecords = await IncomeExpense.insertMany({
-      userId: query.userId,
+    // 6️⃣ Save (not insertMany because only 1 record)
+    const record = await IncomeExpense.create({
+      userId: req.user._id,
+      companyId: req.user.companyId,
       serial: transactions.serial,
       description: transactions.description,
       type: transactions.type,
@@ -221,17 +308,19 @@ router.post("/bulk", authenticate, async (req, res) => {
       createdBy: req.user._id,
       status: transactions.status,
       status_Ap: transactions.status_Ap,
+      categoryId: transactions.categoryId,
     });
 
-    res.status(201).json({
-      message: `ບັນທຶກ ${savedRecords.length} ລາຍການສຳເລັດ`,
-      count: savedRecords.length,
-      records: savedRecords,
+    return res.status(201).json({
+      success: true,
+      message: "ບັນທຶກສຳເລັດ",
+      data: record,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "เกิดข้อผิดพลาดในการบันทึกหลายรายการ",
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
       error: error.message,
     });
   }
@@ -240,179 +329,393 @@ router.post("/bulk", authenticate, async (req, res) => {
 // Update income/expense record
 router.put("/:id", authenticate, async (req, res) => {
   try {
-    const exiting = await IncomeExpense.findById(req.params.id).lean();
-    if (!exiting) {
+    const id = req.params.id;
+    // 1️⃣ ดึงข้อมูลเดิม
+    const existing = await IncomeExpense.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    }).lean();
+
+    if (!existing) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-    // ดึงข้อมูลจากทั้งสอง collection
-    const expenses = await IncomeExpense.find();
-    const advances = await AdvanceRequests.find();
-    ///ກວດສອບສະກຸນເງິນຕ້ອງມີພຽງສະກຸນເງິນດຽວເທົ່ານັ້ນ
-    for (const i of exiting?.amounts) {
-      const countCurrency = req.body.amounts.filter(
-        (inst) => inst.currency === i.currency
-      ).length;
-      if (countCurrency > 1) {
-        return res.status(400).json({
-          message: `ສະກຸນເງິນ ${i.currency} ສາມາດມີພຽງໄດ້ 1 ລາຍການເທົ່ານັ້ນ`,
-        });
-      }
-    }
-    ///ປ້ອງກິນມາແກ້ໜີ້
-    if (req.body.referance || req.body.installmentId) {
+
+    // 2️⃣ ป้องกันแก้ไขหนี้ (ดูจาก existing ไม่ใช่ req.body)
+    if (existing.referance || existing.installmentId) {
       return res.status(400).json({
-        message: `ບໍ່ສາມາດແກ້ໄຂໄດ້ເພາະເປັນບັນຊີໜີ້`,
+        message: "ບໍ່ສາມາດແກ້ໄຂໄດ້ເພາະເປັນບັນຊີໜີ້",
       });
     }
-    // รวมทั้งหมด
-    const allDocs = [
-      ...expenses.map((e) => ({ id: e._id.toString(), serial: e.serial })),
-      ...advances.map((a) => ({ id: a._id.toString(), serial: a.serial })),
-    ];
 
-    // ตรวจว่ามี serial ซ้ำ และไม่ใช่ของตัวเอง
-    const isDuplicate = allDocs.some(
-      (d) => d.serial === req.body.serial && d.id !== req.params.id
-    );
-
-    if (isDuplicate) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "❌ ເລກທີນີ້ມີຢູ່ໃນລະບົບແລ້ວ (ອາດຢູ່ຝັ່ງລາຍຈ່າຍຫຼືລາຍຈ່າຍລ່ວງໜ້າ)",
-      });
-    }
-    // ถ้าไม่ใช่ admin และ status เป็น approve → block
-    if (req.user.role !== "admin" && exiting.status_Ap === "approve") {
+    // 3️⃣ ถ้าไม่ใช่ admin → ห้ามแก้ข้อมูลที่ approve แล้ว
+    if (req.user.role !== "admin" && existing.status_Ap === "approve") {
       return res.status(403).json({
         message: "ໄດ້ຮັບການອະນຸມັດແລ້ວບໍ່ສາມາດປ່ຽນແປງໄດ້",
       });
     }
 
-    // query สำหรับการ update
-    const query = { _id: req.params.id };
-    if (req.user.role === "admin") {
-      // admin สามารถแก้ไขได้ทุกเรคคอร์ด
-      // ไม่ต้องจำกัด userId
-    } else {
-      // staff / user → เฉพาะเรคคอร์ดของตัวเอง
-      query.userId = req.user.companyId; // หรือ req.user._id ขึ้นกับโครงสร้าง
+    // 4️⃣ ตรวจ serial ซ้ำ (เฉพาะ record อื่น)
+    if (req.body.serial) {
+      const duplicated = await IncomeExpense.exists({
+        serial: req.body.serial,
+        _id: { $ne: id },
+      });
+
+      const duplicatedAdv = await AdvanceRequests.exists({
+        serial: req.body.serial,
+      });
+
+      if (duplicated || duplicatedAdv) {
+        return res.status(400).json({
+          success: false,
+          message: "❌ ເລກທີນີ້ມີຢູ່ໃນລະບົບແລ້ວ",
+        });
+      }
     }
 
-    const record = await IncomeExpense.findOneAndUpdate(query, req.body, {
+    // 5️⃣ Validate categoryId
+    if (!req.body.categoryId) {
+      return res.status(400).json({
+        message: `ກະລຸນາເພີ່ມໝວດໝູ່`,
+      });
+    }
+
+    // 6️⃣ Validate amounts (currency ห้ามซ้ำ)
+    if (req.body.amounts) {
+      const currencies = req.body.amounts.map((a) => a.currency);
+      const dup = currencies.find(
+        (c, index) => currencies.indexOf(c) !== index
+      );
+
+      if (dup) {
+        return res.status(400).json({
+          message: `ສະກຸນເງິນ ${dup} ສາມາດມີພຽງໄດ້ 1 ລາຍການເທົ່ານັ້ນ`,
+        });
+      }
+      // โหลด company ครั้งเดียว
+      const company = await Company.findById(req.user.companyId).lean();
+
+      // แยก list เงินสด และ list ธนาคาร
+      const cashAccounts = company.cashAccounts || []; // เช่น petty cash, cash on hand
+      const bankAccounts = company.bankAccounts || [];
+      // check amount numeric
+      for (const item of req.body.amounts) {
+        // ถ้าเป็นเงินสด → ตรวจใน CashAccounts
+        let isValid = false;
+        let isValidCurrency = false;
+        if (req.body.paymentMethod === "cash") {
+          isValid = cashAccounts.some(
+            (acc) => acc._id.toString() === item.accountId
+          );
+          isValidCurrency = cashAccounts.some(
+            (acc) => acc.currency === item.currency
+          );
+        }
+        // ถ้าเป็นธนาคาร → ตรวจใน BankAccounts
+        if (req.body.paymentMethod === "bank_transfer") {
+          isValid = bankAccounts.some(
+            (acc) => acc._id.toString() === item.accountId
+          );
+          isValidCurrency = bankAccounts.some(
+            (acc) => acc.currency === item.currency
+          );
+        }
+        if (!isValidCurrency) {
+          return res.status(400).json({
+            message: `ສະກຸນເງິນແລະເລກບັນຊີບໍ່ກົງກັນ ກະລຸນາກວດສອບຄືນ`,
+          });
+        }
+        if (!isValid) {
+          return res.status(400).json({
+            message: `ກະລຸນາເລືອກວິທີຊຳລະເງິນໃຫ້ຖືກຕ້ອງກັບບັນຊີທ່ານ`,
+          });
+        }
+        if (isNaN(Number(item.amount))) {
+          return res.status(400).json({
+            message: `Amount ของ ${item.currency} ບໍ່ຖືກຕ້ອງ`,
+          });
+        }
+      }
+    }
+
+    // 7️⃣ Sanitize input
+    const sanitize = (str) =>
+      typeof str === "string" ? str.replace(/[<>]/g, "") : str;
+
+    if (req.body.serial) req.body.serial = sanitize(req.body.serial);
+    if (req.body.description)
+      req.body.description = sanitize(req.body.description);
+    if (req.body.note) req.body.note = sanitize(req.body.note);
+
+    // 8️⃣ จำกัดเฉพาะ field ที่แก้ไขได้ (Whitelist)
+    const allowedFields = [
+      "serial",
+      "description",
+      "type",
+      "paymentMethod",
+      "date",
+      "amounts",
+      "note",
+      "status",
+      "status_Ap",
+      "categoryId",
+    ];
+
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (key in req.body) updateData[key] = req.body[key];
+    }
+
+    // 9️⃣ Update
+    const updated = await IncomeExpense.findByIdAndUpdate(id, updateData, {
       new: true,
     });
 
-    if (!record) {
-      return res.status(404).json({ message: "ไม่พบข้อมูล" });
-    }
-
-    res.json(record);
+    return res.json({
+      success: true,
+      message: "Update สำเร็จ",
+      data: updated,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.error(error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาด",
+      error: error.message,
+    });
   }
 });
 
 // Delete income/expense record
 router.delete("/:id", authenticate, async (req, res) => {
   try {
-    const exiting = await IncomeExpense.findById(req.params.id).lean();
-    if (!exiting) {
+    const id = req.params.id;
+
+    // 1️⃣ โหลดเฉพาะข้อมูลของบริษัทนี้เท่านั้น (ป้องกันข้อมูลรั่ว)
+    const existing = await IncomeExpense.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    }).lean();
+
+    if (!existing) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
 
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    } else {
-      query.userId = req.user.companyId;
-    }
-
-    if (req.user.role !== "admin" && exiting.status_Ap === "approve") {
+    // 2️⃣ ป้องกันลบรายการที่ approve (เฉพาะ admin ลบได้)
+    if (req.user.role !== "admin" && existing.status_Ap === "approve") {
       return res.status(403).json({
-        message: "ໄດ້ຮັບການອະນຸມັດແລ້ວບໍ່ສາມາດປ່ຽນແປງໄດ້",
+        message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດລຶບໄດ້",
       });
     }
 
+    // 3️⃣ user ธรรมดา 👉 อนุญาตลบเฉพาะรายการที่ตัวเองสร้าง
+    if (
+      req.user.role !== "admin" &&
+      String(existing.createdBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({
+        message: "ທ່ານບໍ່ມີສິດລຶບລາຍການນີ້",
+      });
+    }
+
+    // 4️⃣ ลบ record
     const record = await IncomeExpense.findOneAndDelete({
-      _id: req.params.id,
-      ...query,
+      _id: id,
+      companyId: req.user.companyId,
     });
 
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
 
-    // ✅ อัปเดต installments.isPaid = false ใน Debt
-    await Debt.findOneAndUpdate(
-      {
-        _id: record.referance,
-        "installments._id": record.installmentId,
-      },
-      {
-        $set: { "installments.$.isPaid": false },
-      }
-    );
+    // 5️⃣ ถ้าเป็นการลบรายการชำระหนี้ → reset isPaid
+    if (record.referance && record.installmentId) {
+      await Debt.findOneAndUpdate(
+        {
+          _id: record.referance,
+          "installments._id": record.installmentId,
+        },
+        {
+          $set: { "installments.$.isPaid": false },
+        }
+      );
 
-    res.json({ message: "ลบข้อมูลสำเร็จ" });
+      // ❗ Check ถ้ายังมี installment ที่ยังคง isPaid === false ทั้งหมด → debt.status = "unpaid"
+      await Debt.findByIdAndUpdate(record.referance, [
+        {
+          $set: {
+            status: {
+              $cond: [
+                {
+                  $anyElementTrue: "$installments.isPaid",
+                },
+                "partial",
+                "unpaid",
+              ],
+            },
+          },
+        },
+      ]);
+    }
+
+    return res.json({ message: "ລຶບສຳເລັດ" });
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.error(error);
+    return res.status(500).json({
+      message: "ເກີດຂໍ້ຜິດພາດ",
+      error: error.message,
+    });
   }
 });
 
 // deleteAmount
 router.delete("/item/:id/:index", authenticate, async (req, res) => {
   try {
-    const { id, index } = req.params;
+    const amountIndex = Number(req.params.id); // index ของ amounts
+    const docId = req.params.index; // _id ของ IncomeExpense
 
-    // หา document ก่อน
-    const doc = await IncomeExpense.findById(id);
+    // 1️⃣ Validate amount index
+    if (isNaN(amountIndex) || amountIndex < 0) {
+      return res.status(400).json({ message: "index ไม่ถูกต้อง" });
+    }
+
+    // 2️⃣ ค้นหาเฉพาะข้อมูลบริษัทนี้เท่านั้น (ป้องกันข้อมูลรั่ว)
+    const doc = await IncomeExpense.findOne({
+      _id: docId,
+      companyId: req.user.companyId,
+    });
+
     if (!doc) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
 
-    // ตรวจสอบ index ว่ามีอยู่จริง
-    if (!doc.amounts || !doc.amounts[index]) {
-      return res
-        .status(400)
-        .json({ message: "ไม่พบรายการ amounts ตาม index ที่ระบุ" });
+    // 3️⃣ user ธรรมดาแก้ไขเฉพาะรายการที่ตัวเองสร้างเท่านั้น
+    if (
+      req.user.role !== "admin" &&
+      String(doc.createdBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({
+        message: "ທ່ານບໍ່ມີສິດແກ້ໄຂລາຍການນີ້",
+      });
     }
 
-    // ลบ item ตาม index
-    doc.amounts.splice(index, 1);
+    // 4️⃣ ถ้า approve แล้วและไม่ใช่ admin → ห้ามแก้ไข
+    if (req.user.role !== "admin" && doc.status_Ap === "approve") {
+      return res.status(403).json({
+        message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດປ່ຽນແປງໄດ້",
+      });
+    }
+
+    // 5️⃣ ตรวจสอบ amounts index ว่ามีอยู่จริง
+    if (!Array.isArray(doc.amounts) || !doc.amounts[amountIndex]) {
+      return res.status(400).json({
+        message: "ไม่พบ amounts ตาม index ที่ระบุ",
+      });
+    }
+
+    // 6️⃣ ลบ amounts item ตาม index
+    doc.amounts.splice(amountIndex, 1);
+
+    // 7️⃣ Validate currency ห้ามซ้ำ
+    const currencies = doc.amounts.map((a) => a.currency);
+    const dup = currencies.find((c, i) => currencies.indexOf(c) !== i);
+
+    if (dup) {
+      return res.status(400).json({
+        message: `ສະກຸນເງິນ ${dup} ຊ້ຳກັນ`,
+      });
+    }
+
+    // 8️⃣ บันทึกข้อมูล
     await doc.save();
 
-    res.json({ message: "ລົບສຳເລັດ", data: doc });
+    return res.json({
+      message: "ລົບສຳເລັດ",
+      data: doc,
+    });
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.error(error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาด",
+      error: error.message,
+    });
   }
 });
 router.patch("/status/:id", authenticate, async (req, res) => {
   try {
-    const id = req.params.id.replace(/^:/, "");
-    const query = {};
-    if (req.user.role === "admin") {
-      query.userId = req.user._id;
-    }
-    // ✅ ถ้าเป็น staff หรือ user ปกติ ให้ดูเฉพาะของตัวเอง
-    else {
-      query.userId = req.user.companyId;
-    }
-    const record = await IncomeExpense.findOneAndUpdate(
-      { _id: id, ...query },
-      req.body,
-      {
-        new: true,
-      }
-    );
+    const id = req.params.id;
+
+    // 1️⃣ โหลดข้อมูลก่อนแก้ (ป้องกัน bypass)
+    const record = await IncomeExpense.findOne({
+      _id: id,
+      companyId: req.user.companyId,
+    }).lean();
+
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-    res.json(record);
+
+    // 2️⃣ ป้องกัน user ธรรมดาแก้ status approve
+    if (req.user.role !== "admin") {
+      if ("status_Ap" in req.body) {
+        return res.status(403).json({
+          message: "ທ່ານບໍ່ມີສິດປ່ຽນສະຖານະອະນຸມັດ",
+        });
+      }
+    }
+
+    // 3️⃣ ถ้า approve แล้ว user ห้ามเปลี่ยนกลับ
+    if (req.user.role !== "admin" && record.status_Ap === "approve") {
+      return res.status(403).json({
+        message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດປ່ຽນໄດ້",
+      });
+    }
+
+    // 4️⃣ Validate allowed values
+    const allowedStatus = ["active", "void", "pending", "cancel"];
+    const allowedApproval = ["pending", "approve", "rejected", "cancel"];
+
+    if (req.body.status && !allowedStatus.includes(req.body.status)) {
+      return res.status(400).json({
+        message: "สถานะไม่ถูกต้อง",
+      });
+    }
+
+    if (req.body.status_Ap && !allowedApproval.includes(req.body.status_Ap)) {
+      return res.status(400).json({
+        message: "สถานะอนุมัติไม่ถูกต้อง",
+      });
+    }
+
+    // 5️⃣ Whitelist fields ที่ให้แก้ไขได้เท่านั้น
+    const allowedUpdate = {};
+    if ("status" in req.body) allowedUpdate.status = req.body.status;
+    if ("status_Ap" in req.body && req.user.role === "admin") {
+      allowedUpdate.status_Ap = req.body.status_Ap;
+    }
+
+    // ถ้าไม่มี field ที่แก้ได้เลย
+    if (Object.keys(allowedUpdate).length === 0) {
+      return res.status(400).json({
+        message: "ไม่พบข้อมูลที่สามารถแก้ไขได้",
+      });
+    }
+
+    // 6️⃣ update
+    const updated = await IncomeExpense.findByIdAndUpdate(id, allowedUpdate, {
+      new: true,
+    });
+
+    return res.json({
+      message: "อัปเดตสถานะสำเร็จ",
+      data: updated,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.error(error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาด",
+      error: error.message,
+    });
   }
 });
+
 export default router;
