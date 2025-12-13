@@ -69,6 +69,7 @@ import {
 } from "recharts";
 import { DownloadIcon, RepeatIcon } from "@chakra-ui/icons";
 import {
+  AlertCircle,
   AlertTriangle,
   Calendar,
   CheckCircle,

@@ -1,24 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import DOMPurify from "dompurify";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Box,
   Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
   VStack,
   HStack,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Checkbox,
-  IconButton,
+  SimpleGrid,
   Flex,
   Heading,
   Divider,
@@ -30,65 +18,36 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
-  Card,
-  CardBody,
   useColorModeValue,
   Icon,
-  SimpleGrid,
   useDisclosure,
   Badge,
   Text,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
   Container,
-  InputGroup,
-  InputLeftElement,
-  Tooltip,
-  Collapse,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
-  InputRightElement,
 } from "@chakra-ui/react";
 import {
   AddIcon,
-  CloseIcon,
   DeleteIcon,
-  ChevronDownIcon,
   EditIcon,
   DownloadIcon,
-  SettingsIcon,
   ViewIcon,
 } from "@chakra-ui/icons";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import Papa from "papaparse";
-import Select from "react-select";
 import {
-  FilterIcon,
-  SearchIcon,
   TrendingUp,
   TrendingDown,
   DollarSign,
   Calendar,
   FileText,
   CreditCard,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  InfoIcon,
 } from "lucide-react";
+import Select from "react-select";
 import { useAuth } from "../context/AuthContext";
-import { useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCategories } from "../store/reducer/partner";
 import {
@@ -99,69 +58,63 @@ import {
   updateIncomeExpense,
   updateStatusIncomeExpense,
 } from "../store/reducer/incomeExpense";
-import { Wallet } from 'lucide-react';
-export default function IncomeExpense() {
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [views, setViews] = useState();
-  const { user } = useAuth();
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const {
-    isOpen: isEdit,
-    onOpen: onEditOpen,
-    onClose: onEditClose,
-  } = useDisclosure();
-  console.log("user ", user);
-  const [selectedTransactions, setSelectedTransactions] = useState([]);
-  const {
-    isOpen: isViews,
-    onOpen: onOpenViews,
-    onClose: onCloseViews,
-  } = useDisclosure();
-  // Enhanced color scheme
-  const { categoriesRedu: categories } = useSelector((state) => state.partner);
-  const { transactionsRedu: transactions } = useSelector(
-    (state) => state.incomeExpense
-  );
-  const dispatch = useDispatch();
-  const cardBg = useColorModeValue("white", "gray.800");
-  const borderClr = useColorModeValue("gray.200", "gray.700");
-  const labelClr = useColorModeValue("gray.700", "gray.300");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
-  const tableHeaderBg = useColorModeValue("teal.600", "teal.700");
-  const statusColors = {
-    pending: "yellow",
-    approve: "green",
-    cancel: "red",
-    reject: "gray",
-  };
+import PaymentCard from "../components/Income_Expense/PaymentCard";
+import TransactionTable from "../components/Income_Expense/TransactionTable";
+import StatsCard from "../components/Income_Expense/StatsCard";
+import FilterSection from "../components/Income_Expense/FilterSection";
+import exportPDF from "../components/Income_Expense/exportPrint";
+import useStats from "../components/Income_Expense/useStats";
+import {
+  currencyOptions,
+  laoType,
+  PAYMENT_METHOD_LABELS,
+  status_access,
+  statusOptions,
+  statusOptions2,
+  typeOptions,
+} from "../components/Income_Expense/constants";
+import { formatDate, shortDesc } from "../components/Income_Expense/formatter";
+import Pagination from "../components/Income_Expense/Pagination";
+import RenderFields from "../components/Income_Expense/FormFieldsAdd";
 
-  const [formData, setFormData] = useState({
-    serial: "",
-    description: "",
-    type: "income",
-    paymentMethod: "cash",
-    date: "",
-    amounts: [{ currency: "LAK", amount: "", accountId: "" }],
-    note: "",
-    status: "paid",
-    status_Ap: "pending",
-    categoryId: null,
-  });
-  const [formEditData, setFormEditData] = useState({
-    id: null,
-    serial: "",
-    description: "",
-    type: "income",
-    paymentMethod: "cash",
-    date: new Date().toISOString().split("T")[0],
-    amounts: [{ currency: "LAK", amount: "", accountId: "" }],
-    note: "",
-    status: "paid",
-    status_Ap: "pending",
-    categoryId: null,
-  });
+// Custom debounce hook
+function useDebounce(value, delay = 300) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+const IncomeExpense = () => {
+  const [showFilters, setShowFilters] = useState(false);
+  const [views, setViews] = useState(null);
+  const [selectedTransactions, setSelectedTransactions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [deleteId, setDeleteId] = useState(null);
+
+  // Edit state - BUG FIX: Added missing id state
+  const [id, setId] = useState(null);
+
+  // Form states
+  const [serial, setSerial] = useState("");
+  const [type, setType] = useState("income");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
+  const [status, setStatus] = useState("paid");
+  const [categoryId, setCategoryId] = useState(null);
+  const [note, setNote] = useState("");
+  const [status_Ap, setStatusAp] = useState("pending");
+  const [amounts, setAmounts] = useState([
+    { currency: "LAK", amount: "", accountId: "" },
+  ]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -170,274 +123,343 @@ export default function IncomeExpense() {
     type: "",
     currency: "",
     paymentMethod: "",
+    categoryId: "",
     status: "",
     status_Ap: "",
   });
+
+  const { user } = useAuth();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isEdit,
+    onOpen: onEditOpen,
+    onClose: onEditClose,
+  } = useDisclosure();
+  const {
+    isOpen: isViews,
+    onOpen: onOpenViews,
+    onClose: onCloseViews,
+  } = useDisclosure();
+  const {
+    isOpen: isWarningIsOpen,
+    onOpen: onWarningOpen,
+    onClose: onWarningClose,
+  } = useDisclosure();
+
+  const cancelRef = useRef();
+  const dispatch = useDispatch();
   const toast = useToast();
 
-  const fetchC = async () => {
-    try {
-      await Promise.all([
-        dispatch(fetchCategories()).unwrap(),
-        dispatch(fetchTransaction()).unwrap(),
-      ]);
-    } catch (error) {
-      console.error("Fetch failed:", error);
-    }
-  };
+  // Selectors
+  const { categoriesRedu: categories } = useSelector((state) => state.partner);
 
-  useEffect(() => {
-    fetchC();
-  }, []);
-  const pageSize = 100;
-  const [page, setPage] = useState(1);
-  const paymentMethodLabels = {
-    cash: "ເງິນສົດ",
-    bank_transfer: "ໂອນເງິນ",
-  };
-  const paymentOptions = Object.entries(paymentMethodLabels).map(
-    ([key, label]) => ({
-      value: key,
-      label: label,
-    })
+  const { transactionsRedu: transactionData, loader: Loading } = useSelector(
+    (state) => state.incomeExpense
   );
-  const status_Ap = {
-    cancel: "ຍົກເລີກ",
-    approve: "ອະນຸມັດ",
-    success_approve: "ອະນຸມັດແລ້ວ",
-    pending: "ລໍຖ້າ",
-  };
-  const status_income_expense = {
-    income: "ລາຍຮັບ",
-    expense: "ລາຍຈ່າຍ",
-  };
-  function formatDate(dateString) {
-    const d = new Date(dateString);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  }
+  const {
+    records = [],
+    total = 0,
+    totalPages = 1,
+    page: backendPage = 1,
+  } = transactionData;
 
-  const filteredTransactions = useMemo(() => {
-    return transactions?.filter((t) => {
-      const searchLower = filters.search.toLowerCase();
+  // Theme colors
+  const cardBg = useColorModeValue("white", "gray.800");
+  const borderClr = useColorModeValue("gray.200", "gray.700");
+  const labelClr = useColorModeValue("gray.700", "gray.300");
+  const hoverBg = useColorModeValue("gray.50", "gray.700");
+  const tableHeaderBg = useColorModeValue("teal.600", "teal.700");
 
-      const matchesSearch =
-        filters.search === "" ||
-        t.description.toLowerCase().includes(searchLower) ||
-        t.note?.toLowerCase().includes(searchLower) ||
-        t.serial.toLowerCase().includes(searchLower);
-
-      // แปลงทุก date ให้เหลือแค่ yyyy-mm-dd
-      const tDate = new Date(t.date);
-      const tLocal = new Date(
-        tDate.getFullYear(),
-        tDate.getMonth(),
-        tDate.getDate()
-      );
-
-      const startDate = filters.dateStart
-        ? new Date(
-            new Date(filters.dateStart).getFullYear(),
-            new Date(filters.dateStart).getMonth(),
-            new Date(filters.dateStart).getDate()
-          )
-        : null;
-
-      const endDate = filters.dateEnd
-        ? new Date(
-            new Date(filters.dateEnd).getFullYear(),
-            new Date(filters.dateEnd).getMonth(),
-            new Date(filters.dateEnd).getDate()
-          )
-        : null;
-
-      const matchesDate =
-        (!startDate || tLocal >= startDate) && (!endDate || tLocal <= endDate);
-
-      const matchesType = !filters.type || t.type === filters.type;
-      const matchesCurrency =
-        !filters.currency ||
-        t.amounts.some((amt) => amt.currency === filters.currency);
-      const matchesPaymentMethod =
-        !filters.paymentMethod || t.paymentMethod === filters.paymentMethod;
-      const matchesStatus = !filters.status || t.status === filters.status;
-      const matchstatus_Ap =
-        !filters.status_Ap || t.status_Ap === filters.status_Ap;
-
-      return (
-        matchesSearch &&
-        matchesDate &&
-        matchesType &&
-        matchesCurrency &&
-        matchesPaymentMethod &&
-        matchesStatus &&
-        matchstatus_Ap
-      );
-    });
-  }, [transactions, filters]);
-  /////
-  const totalPages = Math.ceil(filteredTransactions.length / pageSize);
-  const offset = (page - 1) * pageSize;
-  ///
-  const pageData = useMemo(() => {
-    const s = (page - 1) * pageSize;
-    return filteredTransactions
-      .slice()
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(s, s + pageSize);
-  }, [filteredTransactions, page]);
-  // Calculate statistics
-  const calculateStats = () => {
-    const totals = {}; // { LAK: 0, THB: 0, USD: 0, CNY: 0, ... }
-
-    filteredTransactions.forEach((t) => {
-      t.amounts.forEach((a) => {
-        const amount = parseFloat(a.amount || 0);
-        if (!totals[a.currency]) totals[a.currency] = { income: 0, expense: 0 };
-
-        // Logic สำหรับแต่ละ type และ status
-        if (t.type === "expense") {
-          if (t.status_Ap !== "cancel") {
-            totals[a.currency].expense += amount;
-          }
-          // ถ้า cancel ไม่บวก
-        } else if (t.type === "income") {
-          totals[a.currency].income += amount; // รายได้บวกตามปกติ
-        }
-      });
-    });
-
-    // สร้างผลรวมรวมทั้งหมด
-    const summary = {};
-    Object.keys(totals).forEach((currency) => {
-      summary[currency] = {
-        income: totals[currency].income,
-        expense: totals[currency].expense,
-        balance: totals[currency].income - totals[currency].expense,
-      };
-    });
-
-    return summary;
+  const statusColors = {
+    pending: "yellow",
+    approve: "green",
+    cancel: "red",
+    reject: "gray",
   };
 
-  const stats = useMemo(() => calculateStats(filteredTransactions), [
-    filteredTransactions,
+  const pageSize = 15;
+  const debouncedSearch = useDebounce(filters.search, 300);
+
+  // Memoized filter parameters
+  const filterParams = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries({
+        page,
+        pageSize,
+        search: debouncedSearch,
+        startDate: filters.dateStart,
+        endDate: filters.dateEnd,
+        type: filters.type,
+        currency: filters.currency,
+        status: filters.status,
+        status_Ap: filters.status_Ap,
+      }).filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+    );
+  }, [
+    page,
+    debouncedSearch,
+    filters.dateStart,
+    filters.dateEnd,
+    filters.type,
+    filters.currency,
+    filters.status,
+    filters.status_Ap,
   ]);
 
-  const addCurrency = (index = null) => {
-    if (index !== null) {
-      // ใช้ formEditData
-      const updated = { ...formEditData };
-      updated.amounts = [
-        ...(updated.amounts || []),
-        { currency: "LAK", amount: "", accountId: "" },
-      ];
-      setFormEditData(updated);
-    } else {
-      // ใช้ formData
-      const updated = { ...formData };
-      updated.amounts = [
-        ...(updated.amounts || []),
-        { currency: "LAK", amount: "", accountId: "" },
-      ];
-      setFormData(updated);
-    }
-  };
-  const removeCurrency = async (currencyIndex, index = null) => {
-    if (index !== null) {
-      // formEditData
-      await dispatch(
-        removeCurrencyFromServer({
-          currencyIndex: currencyIndex,
-          index: index,
-        })
-      ).unwrap();
-      const updated = { ...formEditData };
-      updated.amounts = (updated.amounts || []).filter(
-        (_, i) => i !== currencyIndex
-      );
-      setFormEditData(updated);
-    } else {
-      // formData
-      const updated = { ...formData };
-      updated.amounts = (updated.amounts || []).filter(
-        (_, i) => i !== currencyIndex
-      );
-      setFormData(updated);
-    }
-  };
+  useEffect(() => {
+    dispatch(fetchCategories());
+  }, []); // ลบ dispatch ออกจาก dependencies - fetch ครั้งเดียวตอน mount
 
-  const updateCurrency = (currencyIndex, field, value, index = null) => {
-    if (index !== null) {
-      // formEditData
-      const updated = { ...formEditData };
-      const amounts = [...(updated.amounts || [])];
-      if (amounts[currencyIndex]) amounts[currencyIndex][field] = value;
-      updated.amounts = amounts;
-      setFormEditData(updated);
-    } else {
-      // formData
-      const updated = { ...formData };
-      const amounts = [...(updated.amounts || [])];
-      if (amounts[currencyIndex]) amounts[currencyIndex][field] = value;
-      updated.amounts = amounts;
-      setFormData(updated);
-    }
-  };
+  useEffect(() => {
+    dispatch(fetchTransaction(filterParams));
+  }, [dispatch, filterParams]); // ใช้ filterParams โดยตรง ไม่ต้อง stringify
 
-  const shortDesc = (desc) => {
-    if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
-    return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
-  };
-  const validateForm = () => {
+  // Memoized options
+
+  const paymentOptions = useMemo(
+    () =>
+      Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => ({
+        value: key,
+        label: label,
+      })),
+    [PAYMENT_METHOD_LABELS]
+  );
+
+  const status_income_expense = useMemo(
+    () => ({
+      income: "ລາຍຮັບ",
+      expense: "ລາຍຈ່າຍ",
+    }),
+    []
+  );
+
+  const bankOptions = useMemo(
+    () =>
+      (user?.companyId?.bankAccounts || []).map((b) => ({
+        label: `${b.bankName} (${b.currency})`,
+        value: b._id,
+        currency: b.currency,
+      })),
+    [user?.companyId?.bankAccounts]
+  );
+
+  const cashOptions = useMemo(
+    () =>
+      (user?.companyId?.cashAccounts || []).map((b) => ({
+        label: `${b.name} (${b.currency})`,
+        value: b._id,
+        currency: b.currency,
+      })),
+    [user?.companyId?.cashAccounts]
+  );
+
+  const categoryOptions = useMemo(
+    () =>
+      categories?.map((c) => ({
+        value: c._id,
+        label: `${c.name} (${laoType[c.type] || c.type})`,
+      })),
+    [categories]
+  );
+  // Format date
+  const formatDateString = useCallback((dateString) => {
+    return formatDate(dateString);
+  }, []);
+
+  const offset = (page - 1) * pageSize;
+  const pageData = records || [];
+  const stats = useStats(pageData);
+
+  // Reset form function
+  const resetForm = useCallback(() => {
+    setId(null);
+    setSerial("");
+    setType("income");
+    setPaymentMethod("cash");
+    setDescription("");
+    setDate("");
+    setStatus("paid");
+    setCategoryId(null);
+    setNote("");
+    setStatusAp("pending");
+    setAmounts([{ currency: "LAK", amount: "", accountId: "" }]);
+  }, []);
+ 
+  // Currency operations - BUG FIX: Simplified logic
+  const addCurrency = useCallback(() => {
+    setAmounts((prev) => [
+      ...prev,
+      { currency: "LAK", amount: "", accountId: "" },
+    ]);
+  }, []);
+
+  const removeCurrency = useCallback(
+    async (currencyIndex, transactionId = null) => {
+      if (transactionId) {
+        try {
+          await dispatch(
+            removeCurrencyFromServer({
+              currencyIndex: currencyIndex,
+              index: transactionId,
+            })
+          ).unwrap();
+        } catch (error) {
+          toast({
+            title: "ເກີດຂໍ້ຜິດພາດ",
+            description: error?.message || "ບໍ່ສາມາດລົບສະກຸນເງິນ",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+          return;
+        }
+      }
+      setAmounts((prev) => prev.filter((_, i) => i !== currencyIndex));
+    },
+    [dispatch, toast]
+  );
+
+  const updateCurrency = useCallback((currencyIndex, field, value) => {
+    setAmounts((prev) => {
+      const newArr = [...prev];
+      newArr[currencyIndex] = {
+        ...newArr[currencyIndex],
+        [field]: value,
+      };
+      return newArr;
+    });
+  }, []);
+
+  // Validation
+  const validateForm = useCallback(() => {
     const newErrors = {};
 
-    if (!formData.serial) {
-      newErrors.serial = "ກະລຸນາເລືອກລູກໜີ້/ຜູ້ສະໜອງ";
-    }
+    if (!serial) newErrors.serial = "ກະລຸນາປ້ອນເລກທີ່";
+    if (!description) newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
+    if (!type) newErrors.type = "ກະລຸນາເລືອກປະເພດ";
+    if (!paymentMethod) newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີຈ່າຍ";
+    if (!date) newErrors.date = "ກະລຸນາເລືອກວັນທີ";
+    if (!note) newErrors.note = "ກະລຸນາປ້ອນໝາຍເຫດ";
 
-    if (!formData.description) {
-      newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
-    }
-
-    if (!formData.type) {
-      newErrors.type = "ກະລຸນາເລືອກປະເພດ";
-    }
-
-    if (!formData.paymentMethod) {
-      newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີຈ່າຍ";
-    }
-
-    if (!formData.date) {
-      newErrors.date = "ກະລຸນາເລືອກວັນທີ";
-    }
-
-    if (!formData.note) {
-      newErrors.note = "ກະລຸນາປ້ອນໝາຍເຫດ";
-    }
-
-    const hasValidAmount = (formData.amounts || []).some(
-      (item) => parseFloat(item.amount) > 0
-    );
-
+    const hasValidAmount = amounts.some((item) => parseFloat(item.amount) > 0);
     if (!hasValidAmount) {
       newErrors.amounts = "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
     }
 
     return newErrors;
-  };
+  }, [serial, description, type, paymentMethod, date, note, amounts]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Submit handler
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
 
-    // Validate ก่อน
+      const errors = validateForm();
+      if (Object.keys(errors).length > 0) {
+        toast({
+          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+          description: Object.values(errors).join(", "),
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      try {
+        const response = await dispatch(
+          createIncomeExpense({
+            transactions: {
+              serial,
+              description,
+              type,
+              paymentMethod,
+              date,
+              amounts,
+              note,
+              status,
+              status_Ap: "pending",
+              categoryId,
+            },
+          })
+        ).unwrap();
+
+        if (response?.success) {
+          toast({
+            title: "ສຳເລັດ",
+            description: "ບັນທຶກລາຍການສຳເລັດ",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+
+          resetForm();
+          onClose();
+          setSelectedTransactions([]);
+        } else {
+          toast({
+            title: "ກະລຸນາກວດສອບຄືນ",
+            description: response?.message || "ເກີດຂໍ້ຜິດພາດ",
+            status: "error",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "ເກີດຂໍ້ຜິດພາດ",
+          description: error?.message || "Server error",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    },
+    [
+      validateForm,
+      dispatch,
+      onClose,
+      toast,
+      resetForm,
+      serial,
+      description,
+      type,
+      paymentMethod,
+      date,
+      amounts,
+      note,
+      status,
+      categoryId,
+    ]
+  );
+
+  // Edit handler - BUG FIX: Added proper edit data population
+  const handleEditClick = useCallback(
+    (transaction) => {
+      setId(transaction._id);
+      setSerial(transaction.serial || "");
+      setType(transaction.type || "income");
+      setPaymentMethod(transaction.paymentMethod || "cash");
+      setDescription(transaction.description || "");
+      setDate(transaction.date ? transaction.date.split("T")[0] : "");
+      setStatus(transaction.status || "paid");
+      setCategoryId(transaction.categoryId?._id || null);
+      setNote(transaction.note || "");
+      setStatusAp(transaction.status_Ap || "pending");
+      setAmounts(
+        transaction.amounts || [{ currency: "LAK", amount: "", accountId: "" }]
+      );
+      onEditOpen();
+    },
+    [onEditOpen]
+  );
+
+  const handleEdit = useCallback(async () => {
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       toast({
         title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-        description: Object.values(errors).join(" , "),
+        description: Object.values(errors).join(", "),
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -446,90 +468,24 @@ export default function IncomeExpense() {
     }
 
     try {
-      // ส่งข้อมูลตรงๆ ไม่ต้อง stringify
-      const response = await dispatch(
-        createIncomeExpense({ transactions: formData })
-      ).unwrap();
-      await fetchC();
-
-      // Backend ควรส่ง success: true
-      if (response?.success) {
-        setShowForm(false);
-        setFormData({
-          serial: "",
-          description: "",
-          type: "income",
-          paymentMethod: "cash",
-          date: "",
-          amounts: [{ currency: "LAK", amount: 0, accountId: "" }],
-          note: "",
-          status: "paid",
-        });
-
-        toast({
-          title: "ສຳເລັດ",
-          description: "ບັນທຶກລາຍການສຳເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-
-        onClose();
-        setSelectedTransactions([]);
-      } else {
-        toast({
-          title: "ກະລຸນາກວດສອບຄືນ",
-          description: response?.message || "เกิดข้อผิดพลาด",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິດພາດ",
-        description: error?.message || "Server error",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleEdit = async () => {
-    try {
-      const hasValidAmount = (formEditData.amounts || []).some(
-        (item) => parseFloat(item.amount) > 0
-      );
-
-      if (
-        !hasValidAmount ||
-        !formEditData?.serial ||
-        !formEditData?.description ||
-        !formEditData?.type ||
-        !formEditData?.paymentMethod ||
-        !formEditData?.date ||
-        !formEditData?.note
-      ) {
-        toast({
-          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-          description: "ກະລຸນາປ້ອນຂໍ້ມູນທຸກຊ່ອງໃຫ້ຄົບຖ້ວນ",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-      console.log(formEditData?._id);
-      // ✔ ส่งเป็น object ไม่ stringify
       const response = await dispatch(
         updateIncomeExpense({
-          id: formEditData?.id, // หรือ formEditData.id แล้วแต่ structure
-          Editdata: formEditData,
+          id,
+          Editdata: {
+            serial,
+            description,
+            type,
+            paymentMethod,
+            date,
+            amounts,
+            note,
+            status,
+            status_Ap: "pending",
+            categoryId,
+          },
         })
       ).unwrap();
 
-      // ✔ เช็ค success ไม่ใช่ response.ok
       if (response?.success) {
         toast({
           title: "ສຳເລັດ",
@@ -539,8 +495,7 @@ export default function IncomeExpense() {
           isClosable: true,
         });
 
-        setShowForm(false);
-        await fetchC();
+        resetForm();
         onEditClose();
         setSelectedTransactions([]);
       } else {
@@ -561,1521 +516,121 @@ export default function IncomeExpense() {
         isClosable: true,
       });
     }
-  };
+  }, [
+    validateForm,
+    dispatch,
+    id,
+    serial,
+    description,
+    type,
+    paymentMethod,
+    date,
+    amounts,
+    note,
+    status,
+    categoryId,
+    toast,
+    resetForm,
+    onEditClose,
+  ]);
 
-  const handleDelete = async (id) => {
-    try {
-      const response = await dispatch(deleteIncomeExpense(id)).unwrap();
+  // Delete handlers
+  const handleDelete = useCallback(
+    async (transactionId) => {
+      try {
+        await dispatch(deleteIncomeExpense(transactionId)).unwrap();
 
-      toast({
-        title: "ສຳເລັດ",
-        description: "ລຶບລາຍການສຳເລັດ",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+        toast({
+          title: "ສຳເລັດ",
+          description: "ລຶບລາຍການສຳເລັດ",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
 
-      await fetchC();
-      setShowForm(false);
-    } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິພາດ",
-        description: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
+        await dispatch(fetchTransaction(filterParams));
+      } catch (error) {
+        toast({
+          title: "ເກີດຂໍ້ຜິພາດ",
+          description: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    },
+    [dispatch, filterParams, toast]
+  );
+
+  const onDeleteClick = useCallback(
+    (transactionId) => {
+      setDeleteId(transactionId);
+      onWarningOpen();
+    },
+    [onWarningOpen]
+  );
+
+  const confirmDelete = useCallback(() => {
+    if (deleteId) {
+      handleDelete(deleteId);
+      onWarningClose();
     }
-  };
-
-  // ในคอมโพเนนต์ของคุณ
-  const {
-    isOpen: isWarningIsOpen,
-    onOpen: onWarningOpen,
-    onClose: onWarningClose,
-  } = useDisclosure();
-  const cancelRef = useRef();
-  const [deleteId, setDeleteId] = useState(null);
-
-  const onDeleteClick = useCallback((id) => {
-    setDeleteId(id);
-    onWarningOpen();
-  }, []);
-
-  const confirmDelete = () => {
-    handleDelete(deleteId);
-    onWarningClose();
-  };
-  const handleViews = (data) => {
-    setViews(data);
-    onOpenViews();
-  };
-
-  const handleStatus = async (data, status) => {
-    try {
-      if (data.type === "income") return;
-
-      const response = await dispatch(
-        updateStatusIncomeExpense({
-          id: data._id,
-          status: status,
-        })
-      ).unwrap();
-
-      toast({
-        title: "ສຳເລັດ",
-        description: `${status} ສຳເລັດແລ້ວ`,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
-      await fetchC();
-      onClose();
-    } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິພາດ",
-        description: error?.message || "ກະລຸນາລອງໃໝ່",
-        status: "error",
-        duration: 2000,
-        isClosable: true,
-        position: "top-right",
-      });
-    }
-  };
-
-  const laoType = {
-    income: "💰 ລາຍຮັບ",
-    asset: "🏦 ຊັບສິນ",
-    cogs: "📦 ຕົ້ນທຶນຂາຍ",
-    "selling-expense": "🛒 ຄ່າໃຊ້ຈ່າຍຈຳໜ່າຍ",
-    "admin-expense": "🏢 ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
-    expense: "📉 ຄ່າໃຊ້ຈ່າຍອື່ນໆ",
-  };
-  const typeOptions = [
-    { value: "income", label: "ລາຍຮັບ" },
-    { value: "expense", label: "ລາຍຈ່າຍ" },
-  ];
-  const statusOptions = [
-    { value: "paid", label: "ຊຳລະແລ້ວ" },
-    { value: "unpaid", label: "ຍັງບໍ່ຊຳລະ" },
-  ];
-  const statusOptions2 = { paid: "ຊຳລະແລ້ວ", unpaid: "ຍັງບໍ່ຊຳລະ" };
-
-  const currencyOptions = [
-    { value: "LAK", label: "LAK (₭)" },
-    { value: "THB", label: "THB (฿)" },
-    { value: "USD", label: "USD ($)" },
-    { value: "CNY", label: "CNY (¥)" },
-  ];
-  const bankOptions = (user?.companyId?.bankAccounts || []).map((b) => ({
-    label: `${b.bankName} (${b.currency})`,
-    value: b._id,
-    currency: b.currency,
-  }));
-  const cashOptions = (user?.companyId?.cashAccounts || []).map((b) => ({
-    label: `${b.name} (${b.currency})`,
-    value: b._id,
-    currency: b.currency,
-  }));
-  const exportToPDF = () => {
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <!DOCTYPE html>
-<html lang="lo">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title font-family: 'Noto Sans Lao', sans-serif;>-</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
- * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Noto Sans Lao', sans-serif;
-  background: #f5f5f5;
-  padding: 20px;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  background: white;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-/* Toolbar */
-.toolbar {
-  background: #374151;
-  padding: 15px 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.toolbar h2 {
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.btn-print {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: 'Noto Sans Lao', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.3s;
-}
-
-.btn-print:hover {
-  background: #059669;
-}
-
-/* PDF Content */
-.pdf-content {
-  padding: 25mm 20mm;
-  background: white;
-}
-
-/* Header */
-.header {
-  text-align: center;
-  border-bottom: 3px double #000;
-  padding-bottom: 12px;
-  margin-bottom: 20px;
-}
-
-.header-line1 {
-  font-size: 18px;
-  font-weight: 700;
-  color: #000;
-    font-weight: 700;
-  margin-bottom: 5px;
-}
-
-.header-line2 {
-  font-size: 18px;
-   font-weight: 700;
-   
-  color: #000;
-}
-
-/* Company Info */
-     .company-info {
-            background: white;
-            max-width: 1200px;
-            width: 100%;
-               display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .company-section {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 30px;
-        }
-
-        .company-logo {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 10px;
-
-        }
-
-        .company-details {
-            flex: 1;
-        }
-
-        .contact-section {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .company-name {
-            font-size: 12px;
-            color: #2d3748;
-            padding-right: 10px;
-            font-weight: 500;
-        }
-
-        .company-name:first-child {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1a202c;
-        }
-
-        .topHeader {
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            background-clip: text;
-            white-space: nowrap;
-            padding-left: 150px;
-        }
-/* Date Section */
-.date-section {
-  text-align: right;
-  margin-bottom: 15px;
-  font-size: 12px;
-  color: #000;
-   font-weight: 700;
-}
-
-.date-section input {
-  border: none;
-  border-bottom: 1px dotted #000;
-  padding: 4px 8px;
-  font-family: 'Noto Sans Lao', sans-serif;
-  text-align: center;
-  width: 140px;
-  background: transparent;
-  font-size: 12px;
-   font-weight: 700;
-}
-
-/* Table */
-.table-section {
-  margin: 20px 0 30px 0;
-  overflow: visible;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: 'Noto Sans Lao', sans-serif;
-  border: 1.5px solid #000;
-}
-
-th, td {
-  border: 1px solid #000;
-  padding: 8px 6px;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-th {
-  background: #fff;
-  color: #000;
-  font-weight: 700;
-  font-size: 11px;
-  text-align: center;
-  white-space: normal;
-  line-height: 1.4;
-  vertical-align: middle;
-}
-
-td {
-  font-size: 12px;
-  line-height: 1.5;
-  color: #000;
-  vertical-align: top;
-}
-
-/* จัดแนวตาราง */
-td:nth-child(1), 
-td:nth-child(2), 
-td:nth-child(3),
-td:nth-child(9) {
-  text-align: center;
-  vertical-align: middle;
-}
-
-td:nth-child(4),
-td:nth-child(10) {
-  text-align: left;
-  padding-left: 8px;
-}
-
-td:nth-child(5),
-td:nth-child(6),
-td:nth-child(7),
-td:nth-child(8) {
-  text-align: right;
-  padding-right: 8px;
-  font-family: 'Courier New', monospace;
-}
-
-.summary-row td {
-  background: #f3f4f6;
-  font-weight: 700;
-  font-size: 11px;
-  border: 1.5px solid #000;
-}
-
-/* Signature Date */
-.signature-date {
-  text-align: right;
-  font-size: 12px;
-  color: #000;
-  margin: 25px 0 15px 0;
-}
-
-/* Signatures */
-.signatures {
-  background: #fff;
-  border: 1.5px solid #000;
-  padding: 15px;
-  margin-top: 20px;
-  page-break-inside: avoid;
-}
-
-.signature-title {
-  text-align: center;
-  font-weight: 700;
-  font-size: 12px;
-  margin-bottom: 15px;
-  color: #000;
-}
-
-.signature-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
-}
-
-.signature-cell {
-  text-align: center;
-  border: 1px solid #000;
-  padding: 15px 10px;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: #fff;
-}
-
-.signature-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #000;
-  line-height: 1.4;
-}
-
-.signature-area {
-  margin-top: auto;
-}
-
-.signature-line {
-  border-top: 1px solid #000;
-  width: 70%;
-  margin: 50px auto 0;
-  padding-top: 6px;
-}
-
-/* Print Styles */
-@media print {
-  @page {
-    size: A4 landscape;
-    margin: 12mm 10mm;
-  }
-  
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  
-  body {
-    background: white;
-    padding: 0;
-    margin: 0;
-  }
-  
-  .container {
-    box-shadow: none;
-    max-width: 100%;
-    margin: 0;
-  }
-  
-  .toolbar {
-    display: none !important;
-  }
-  
-  .pdf-content {
-    padding: 0;
-  }
-  
-  table {
-    page-break-inside: auto;
-    border: 1.5px solid #000 !important;
-  }
-  
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
-  }
-  
-  thead {
-    display: table-header-group;
-  }
-  
-  th {
-    background: #ffffff !important;
-    border: 1px solid #000 !important;
-    padding: 6px 5px !important;
-    font-size: 10px !important;
-  }
-  
-  td {
-    border: 1px solid #000 !important;
-    padding: 6px 5px !important;
-    font-size: 9.5px !important;
-  }
-  
-  .summary-row td {
-    background: #e5e7eb !important;
-    border: 1.5px solid #000 !important;
-    font-size: 10px !important;
-  }
-  
-  .signatures {
-    page-break-inside: avoid;
-    border: 1.5px solid #000 !important;
-    padding: 12px;
-  }
-  
-  .signature-grid {
-    gap: 12px;
-  }
-  
-  .signature-cell {
-    border: 1px solid #000 !important;
-    min-height: 110px;
-  }
-  
-  .signature-label {
-    font-size: 10px !important;
-  }
-  
-  .signature-line {
-    margin-top: 40px;
-  }
-  
-  input {
-    border: none !important;
-    border-bottom: 1px dotted #000 !important;
-  }
-}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="toolbar">
-      <h2>📄 ແບບລາຍງານ</h2>
-      <button class="btn-print" onclick="window.print()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 6 2 18 2 18 9"></polyline>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-          <rect x="6" y="14" width="12" height="8"></rect>
-        </svg>
-        ພິມລາຍງານ
-      </button>
-    </div>
-    
-    <div class="pdf-content">
- 
-      
-      <!-- Government Info -->
-      <div class="header">
-        <div class="header-line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
-        <div class="header-line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
-      </div>
-           <!-- Company Info -->
-        <div class="company-info">
-         <div class="company-section">
-           <img 
-          class="company-logo" 
-          src="${user?.companyId?.logo || "/default-logo.png"}" 
-          alt="Company Logo"
-            />
-              <div class="company-details">
-              <div class="contact-section">
-              <div class="company-name">${
-                user?.companyId?.name || "Company Name"
-              }</div>
-                <div class="company-name">${
-                  user?.companyId?.address || ""
-                }</div>
-              <div class="company-name">${user?.companyId?.phone || ""}</div>
-                </div>
-                </div>
-                <!-- Date Section --> 
-          <div class="topHeader">ລາຍງານການເງິນ</div>
-          <!-- Date Section -->
-          </div>
-          <div class="date-section">
-        ວັນທີ: <input type="text" value="${formatDate(new Date())}" readonly>
-           </div>
-                </div>
-
-      
-      <!-- Table Section -->
-      <div class="table-section">
-        <table>
-          <thead>
-            <tr>
-              <th>ລຳດັບ</th>
-              <th>ວັນ/ເດືອນ/ປີ</th>
-              <th>ເລກທີ່</th>
-              <th>ເນື້ອໃນລາຍການ</th>
-              <th>ຈຳນວນ (ກີບ)</th>
-              <th>ຈຳນວນ (ບາດ)</th>
-              <th>ຈຳນວນ (ໂດລາ)</th>
-              <th>ຈຳນວນ (ຍວນ)</th>
-              <th>ປະເພດ</th>
-              <th>ໝາຍເຫດ</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${(() => {
-              // Fallback for empty transactions
-              if (!selectedTransactions || selectedTransactions.length === 0) {
-                return `
-                  <tr>
-                    <td colspan="9" style="text-align: center; padding: 20px;">
-                      ບໍ່ມີຂໍ້ມູນ
-                    </td>
-                  </tr>`;
-              }
-
-              let totalLAK = 0,
-                totalTHB = 0,
-                totalUSD = 0,
-                totalCNY = 0;
-
-              const rows = selectedTransactions
-                .slice()
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .map((item, index) => {
-                  const amountLAK =
-                    item.amounts?.find((a) => a.currency === "LAK")?.amount ||
-                    0;
-                  const amountTHB =
-                    item.amounts?.find((a) => a.currency === "THB")?.amount ||
-                    0;
-                  const amountUSD =
-                    item.amounts?.find((a) => a.currency === "USD")?.amount ||
-                    0;
-                  const amountCNY =
-                    item.amounts?.find((a) => a.currency === "CNY")?.amount ||
-                    0;
-
-                  totalLAK += amountLAK;
-                  totalTHB += amountTHB;
-                  totalUSD += amountUSD;
-                  totalCNY += amountCNY;
-
-                  return `
-                    <tr>
-                      <td>${index + 1}</td>
-                      <td>${formatDate(item.date)}</td>
-                      <td>${item.serial || "-"}</td>
-                      <td>${item.description || "-"}</td>
-                      <td> ${amountLAK.toLocaleString("lo-LA")}</td>
-                      <td> ${amountTHB.toLocaleString("lo-LA")}</td>
-                      <td> ${amountUSD.toLocaleString("lo-LA")}</td>
-                      <td> ${amountCNY.toLocaleString("lo-LA")}</td>
-                      <td>${status_income_expense[item.type] || "-"}</td>
-                      <td>${item.note}</td>
-                    </tr>`;
-                })
-                .join("");
-              const totalRow = `
-                <tr style" class="summary-row">
-                  <td colspan="4" style="text-align: right;">ລວມທັງໝົດ</td>
-                  <td> ${totalLAK.toLocaleString("lo-LA")}</td>
-                  <td> ${totalTHB.toLocaleString("lo-LA")}</td>
-                  <td> ${totalUSD.toLocaleString("lo-LA")}</td>
-                  <td> ${totalCNY.toLocaleString("lo-LA")}</td>
-                  <td></td>
-                  <td></td>
-                </tr>`;
-              return rows + totalRow;
-            })()}
-          </tbody>
-        </table>
-      </div>
-      
-      <!-- Signature Section -->
-      <div class="signature-date">
-        ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
-      </div>
-    <div class="signatures">
-      <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
-      <div class="signature-grid">
-        <div class="signature-cell">
-          <span class="signature-label">ຜູ້ສັງລວມ<br></span>
-          <div class="signature-area">
-            <div class="signature-line">
-          
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</span>
-          <div class="signature-area">
-            <div class="signature-line">
-
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">ຜູ້ຈັດການ</span>
-          <div class="signature-area">
-            <div class="signature-line">
-
-
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">CEO & CFO</span>
-          <div class="signature-area">
-            <div class="signature-line">
-              <div class="signature-name"></div>
-
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-</body>
-</html>`);
-
-    toast({
-      title: "ກຳລັງສ້າງ PDF",
-      description: "ກະລຸນາລໍຖ້າສັກຄູ່...",
-      status: "info",
-      duration: 2000,
-      isClosable: true,
-      position: "top-right",
-    });
-  };
-  const renderFormFields = (data, index) => {
-    const updateField = (field, value) => {
-      setFormData({ ...data, [field]: value });
-    };
-    const categoryOptions = categories?.map((c) => ({
-      value: c._id,
-      label: `${c.name} (${laoType[c.type]})`,
-    }));
-    return (
-      <VStack spacing={5} align="stretch">
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ເລກທີ່
-            </FormLabel>
-            <Input
-              value={data.serial}
-              onChange={(e) => updateField("serial", e.target.value)}
-              placeholder="ເຊັ່ນ INV-001"
-              size="md"
-              rounded="lg"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ປະເພດ
-            </FormLabel>
-            <Select
-              value={typeOptions.find((i) => i.value === data.type)}
-              onChange={(v) => updateField("type", v.value)}
-              options={typeOptions}
-              isSearchable={false}
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ວິທີຊຳລະ
-            </FormLabel>
-
-            <Select
-              value={paymentOptions.find((i) => i.value === data.paymentMethod)}
-              onChange={(v) => updateField("paymentMethod", v.value)}
-              options={paymentOptions}
-              isSearchable={false}
-            />
-          </FormControl>
-        </SimpleGrid>
-
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ລາຍລະອຽດ
-            </FormLabel>
-            <Input
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              value={data.description}
-              onChange={(e) => updateField("description", e.target.value)}
-              placeholder="ເຊັ່ນ ຂາຍສິນຄ້າ, ຄ່າເຊົ່າ"
-              size="md"
-              rounded="lg"
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ວັນທີ່
-            </FormLabel>
-            <Input
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              type="date"
-              value={data.date}
-              onChange={(e) => updateField("date", e.target.value)}
-              size="md"
-              rounded="lg"
-            />
-          </FormControl>
-        </SimpleGrid>
-
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ສະຖານະ
-          </FormLabel>
-          <Select
-            value={statusOptions.find((i) => i.value === data.status)}
-            onChange={(v) => updateField("status", v.value)}
-            options={statusOptions}
-            isSearchable={false}
-          />
-        </FormControl>
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ໝວດໝູ່
-          </FormLabel>
-          <Select
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            value={categoryOptions.find((c) => c.value === data.categoryId)}
-            onChange={(v) => updateField("categoryId", v.value)}
-            options={categories?.map((c) => ({
-              label: `${c.name} (${laoType[c.type]})`,
-              value: c._id,
-            }))}
-            isSearchable
-          />
-        </FormControl>
-        <Divider />
-
-        <Box>
-          <Flex justify="space-between" align="center" mb={3}>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-              mb={0}
-            >
-              ຈຳນວນເງິນ
-            </FormLabel>
-            <Button
-              size="sm"
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              onClick={() => addCurrency(index)}
-              colorScheme="teal"
-              rounded="full"
-              leftIcon={<AddIcon boxSize={3} />}
-            >
-              ເພີ່ມສະກຸນ
-            </Button>
-          </Flex>
-          <VStack spacing={3}>
-            {data.amounts.map((amt, currencyIndex) => {
-              const accountOptions =
-                data.paymentMethod === "cash"
-                  ? cashOptions.filter((acc) => acc.currency === amt.currency)
-                  : bankOptions.filter((acc) => acc.currency === amt.currency);
-
-              const selectedAccount = accountOptions.find(
-                (acc) => acc.currency === amt.accountId
-              );
-
-              return (
-                <VStack key={currencyIndex} spacing={3} w="full">
-                  <Box
-                    w="full"
-                    p={4}
-                    bg="white"
-                    borderWidth="1px"
-                    borderColor="gray.200"
-                    borderRadius="xl"
-                    _hover={{ borderColor: "blue.300", shadow: "sm" }}
-                    transition="all 0.2s"
-                  >
-                    <VStack spacing={3} align="stretch">
-                      {/* Currency and Account Selection Row */}
-                      <HStack spacing={3}>
-                        <FormControl flex={1}>
-                          <FormLabel fontSize="sm" mb={1} color="gray.600">
-                            ສະກຸນເງິນ
-                          </FormLabel>
-                          <Select
-                            value={currencyOptions.find(
-                              (i) => i.value === amt.currency
-                            )}
-                            onChange={(v) =>
-                              updateCurrency(
-                                currencyIndex,
-                                "currency",
-                                v.value,
-                                index
-                              )
-                            }
-                            options={currencyOptions}
-                            isSearchable={false}
-                            size="md"
-                            borderRadius="lg"
-                            focusBorderColor="blue.400"
-                            bg="gray.50"
-                            _hover={{ bg: "white" }}
-                          />
-                        </FormControl>
-
-                        <FormControl flex={1}>
-                          <FormLabel fontSize="sm" mb={1} color="gray.600">
-                            ບັນຊີ
-                          </FormLabel>
-                          <Select
-                            value={selectedAccount}
-                            onChange={(v) =>
-                              updateCurrency(
-                                currencyIndex,
-                                "accountId",
-                                v.value,
-                                index
-                              )
-                            }
-                            options={accountOptions}
-                            isSearchable={false}
-                            size="md"
-                            borderRadius="lg"
-                            focusBorderColor="blue.400"
-                            bg="gray.50"
-                            _hover={{ bg: "white" }}
-                          />
-                        </FormControl>
-                      </HStack>
-
-                      {/* Amount Input */}
-                      <FormControl>
-                        <FormLabel fontSize="sm" mb={1} color="gray.600">
-                          ຈຳນວນເງິນ
-                        </FormLabel>
-                        <InputGroup size="md">
-                          <Input
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            type="number"
-                            step="0.01"
-                            value={amt.amount}
-                            onChange={(e) =>
-                              updateCurrency(
-                                currencyIndex,
-                                "amount",
-                                e.target.value,
-                                index
-                              )
-                            }
-                            placeholder="0.00"
-                            isRequired
-                            borderRadius="lg"
-                            focusBorderColor="blue.400"
-                            bg="gray.50"
-                            _hover={{ bg: "white" }}
-                            fontSize="lg"
-                            fontWeight="medium"
-                          />
-                          <InputRightElement>
-                            <Icon as={InfoIcon} color="gray.400" />
-                          </InputRightElement>
-                        </InputGroup>
-                      </FormControl>
-
-                      {/* Remove Button */}
-                      {data.amounts.length > 1 && (
-                        <IconButton
-                          icon={<CloseIcon />}
-                          colorScheme="red"
-                          variant="ghost"
-                          rounded="full"
-                          size="sm"
-                          onClick={() => removeCurrency(currencyIndex, index)}
-                        />
-                      )}
-                    </VStack>
-                  </Box>
-                </VStack>
-              );
-            })}
-          </VStack>
-        </Box>
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ໝາຍເຫດ
-          </FormLabel>
-          <Textarea
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            value={data.note}
-            onChange={(e) => updateField("note", e.target.value)}
-            placeholder="ໝາຍເຫດເພີ່ມເຕີມ (ຖ້າມີ)"
-            rows={3}
-            size="md"
-            rounded="lg"
-          />
-        </FormControl>
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-          >
-            ສະຖານະ
-          </FormLabel>
-          <Input
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            type="text"
-            isDisabled
-            value={data?.status_Ap}
-            onChange={(e) => updateField("status_Ap", e.target.value)}
-            placeholder=""
-            isRequired
-            size="md"
-            rounded="lg"
-          />
-        </FormControl>
-      </VStack>
-    );
-  };
-  // form edit
-  const PaymentCard = ({ amount, views }) => {
-    const bgColor = useColorModeValue("white", "gray.800");
-    const borderColor = useColorModeValue("gray.200", "gray.600");
-    const labelColor = useColorModeValue("gray.600", "gray.400");
-    const accountBg = useColorModeValue("gray.50", "gray.700");
-    const hoverBg = useColorModeValue("gray.50", "gray.750");
-
-    const isIncome = views?.type === "income";
-    const isCash =
-      amount?.account?.type === "cash" || !amount?.account?.accountNumber;
-
-    const amountColor = isIncome ? "green.500" : "red.500";
-    const iconColor = isIncome ? "green.400" : "red.400";
-    const badgeColor = isIncome ? "green" : "red";
-    const accountIcon = isCash ? Wallet : CreditCard;
-    const accountTypeLabel = isCash ? "ເງິນສົດ" : "ບັນຊີທະນາຄານ";
-
-    return (
-      <Box
-        p={5}
-        bg={bgColor}
-        rounded="xl"
-        border="1px solid"
-        borderColor={borderColor}
-        shadow="sm"
-        transition="all 0.2s"
-        _hover={{
-          shadow: "md",
-          bg: hoverBg,
-          transform: "translateY(-2px)",
-        }}
-      >
-        <VStack align="stretch" spacing={4}>
-          {/* Header with icon and badge */}
-          <Flex justify="space-between" align="center">
-            <HStack spacing={2}>
-              <Box p={2} bg={accountBg} rounded="md">
-                <Icon as={accountIcon} boxSize={5} color={iconColor} />
-              </Box>
-              <VStack align="start" spacing={0}>
-                <Text   fontFamily={"Noto Sans Lao, sans-serif"} fontSize="xs" color={labelColor} fontWeight="medium">
-                  {accountTypeLabel}
-                </Text>
-                <Badge
-                  colorScheme={badgeColor}
-                  fontSize="xs"
-                  px={2}
-                  py={0.5}
-                  rounded="md"
-                    fontFamily={"Noto Sans Lao, sans-serif"}
-                >
-                  {isIncome ? "ລາຍຮັບ" : "ລາຍຈ່າຍ"}
-                </Badge>
-              </VStack>
-            </HStack>
-            <Icon
-              as={isIncome ? TrendingUp : TrendingDown}
-              boxSize={6}
-              color={amountColor}
-            />
-          </Flex>
-
-          <Divider />
-
-          {/* Account Details */}
-          <VStack align="stretch" spacing={2}>
-            <HStack justify="space-between">
-              <Text
-                fontSize="sm"
-                color={labelColor}
-                fontFamily="Noto Sans Lao, sans-serif"
-              >
-                ຊຳລະຜ່ານ:
-              </Text>
-              <Text
-                fontSize="sm"
-                fontWeight="semibold"
-                fontFamily="Noto Sans Lao, sans-serif"
-              >
-                {amount?.account?.name || amount?.account?.bankName}
-              </Text>
-            </HStack>
-
-            {!isCash && amount?.account?.accountNumber && (
-              <HStack justify="space-between">
-                <Text
-                  fontSize="sm"
-                  color={labelColor}
-                  fontFamily="Noto Sans Lao, sans-serif"
-                >
-                  ເລກບັນຊີ:
-                </Text>
-                <Text   fontFamily={"Noto Sans Lao, sans-serif"} fontSize="sm" fontWeight="mono">
-                  {amount?.account?.accountNumber}
-                </Text>
-              </HStack>
-            )}
-
-            <HStack justify="space-between">
-              <Text
-                fontSize="sm"
-                color={labelColor}
-                fontFamily="Noto Sans Lao, sans-serif"
-              >
-                ສະກຸນເງິນ:
-              </Text>
-              <Badge   fontFamily={"Noto Sans Lao, sans-serif"} colorScheme="blue" fontSize="sm">
-                {amount?.account?.currency || amount?.currency}
-              </Badge>
-            </HStack>
-          </VStack>
-
-          <Divider />
-
-          {/* Amount Display */}
-          <HStack justify="space-between" align="baseline">
-            <Text
-              fontSize="sm"
-              color={labelColor}
-              fontWeight="medium"
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ຈຳນວນເງິນ:
-            </Text>
-            <HStack spacing={2} align="baseline">
-              <Text
-                fontSize="2xl"
-                fontWeight="bold"
-                color={amountColor}
-                fontFamily="Noto Sans Lao, sans-serif"
-              >
-                {amount.amount.toLocaleString("lo-LA")}
-              </Text>
-              <Text fontSize="lg" fontWeight="semibold" color={labelColor}>
-                {amount?.currency}
-              </Text>
-            </HStack>
-          </HStack>
-        </VStack>
-      </Box>
-    );
-  };
-
-  const renderFormFieldsEdit = (data, index) => {
-    const updateField = (field, value) => {
-      setFormEditData({ ...data, [field]: value });
-    };
-    const categoryOptions = categories.map((c) => ({
-      value: c._id,
-      label: `${c.name} (${laoType[c.type]})`,
-    }));
-    console.log(
-      categoryOptions?.find((c) => c.value === data?.categoryId?._id)
-    );
-    return (
-      <VStack spacing={5} align="stretch">
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ເລກທີ່
-            </FormLabel>
-            <Input
-              value={data.serial}
-              onChange={(e) => updateField("serial", e.target.value)}
-              placeholder="ເຊັ່ນ INV-001"
-              size="md"
-              rounded="lg"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ປະເພດ
-            </FormLabel>
-            <Select
-              value={typeOptions.find((i) => i.value === data.type)}
-              onChange={(v) => updateField("type", v.value)}
-              options={typeOptions}
-              isSearchable={false}
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ວິທີຊຳລະ
-            </FormLabel>
-
-            <Select
-              value={paymentOptions.find((i) => i.value === data.paymentMethod)}
-              onChange={(v) => updateField("paymentMethod", v.value)}
-              options={paymentOptions}
-              isSearchable={false}
-            />
-          </FormControl>
-        </SimpleGrid>
-
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ລາຍລະອຽດ
-            </FormLabel>
-            <Input
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              value={data.description}
-              onChange={(e) => updateField("description", e.target.value)}
-              placeholder="ເຊັ່ນ ຂາຍສິນຄ້າ, ຄ່າເຊົ່າ"
-              size="md"
-              rounded="lg"
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ວັນທີ່
-            </FormLabel>
-            <Input
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              type="date"
-              value={data.date}
-              onChange={(e) => updateField("date", e.target.value)}
-              size="md"
-              rounded="lg"
-            />
-          </FormControl>
-        </SimpleGrid>
-
-        <SimpleGrid>
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ສະຖານະ
-            </FormLabel>
-            <Select
-              value={statusOptions.find((i) => i.value === data.status)}
-              onChange={(v) => updateField("status", v.value)}
-              options={statusOptions}
-              isSearchable={false}
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ໝວດໝູ່
-            </FormLabel>
-            <Select
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              value={categoryOptions?.find(
-                (c) => c?.value === data?.categoryId?._id
-              )}
-              onChange={(v) => updateField("categoryId", v.value)}
-              options={categoryOptions}
-              isSearchable={false}
-            />
-          </FormControl>
-        </SimpleGrid>
-        <Divider />
-
-        <Box>
-          <Flex justify="space-between" align="center" mb={3}>
-            <FormLabel
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-              mb={0}
-            >
-              ຈຳນວນເງິນ
-            </FormLabel>
-            <Button
-              size="sm"
-              fontFamily={"Noto Sans Lao, sans-serif"}
-              onClick={() => addCurrency(index)}
-              colorScheme="teal"
-              rounded="full"
-              leftIcon={<AddIcon boxSize={3} />}
-            >
-              ເພີ່ມສະກຸນ
-            </Button>
-          </Flex>
-          <VStack spacing={3}>
-            {data.amounts.map((amt, currencyIndex) => {
-              const accountOptions =
-                data.paymentMethod === "cash"
-                  ? cashOptions.filter((acc) => acc.currency === amt.currency)
-                  : bankOptions.filter((acc) => acc.currency === amt.currency);
-
-              const selectedAccount = accountOptions.find(
-                (acc) => acc.value === amt.accountId
-              );
-              console.log("selectedAccount", selectedAccount);
-              console.log("amt", amt);
-              return (
-                <VStack key={currencyIndex} spacing={3} w="full">
-                  <Box
-                    w="full"
-                    p={4}
-                    bg="white"
-                    borderWidth="1px"
-                    borderColor="gray.200"
-                    borderRadius="xl"
-                    _hover={{ borderColor: "blue.300", shadow: "sm" }}
-                    transition="all 0.2s"
-                  >
-                    <VStack spacing={3} align="stretch">
-                      {/* Currency + Account */}
-                      <HStack spacing={3}>
-                        {/* Currency */}
-                        <FormControl flex={1}>
-                          <FormLabel fontSize="sm" color="gray.600">
-                            ສະກຸນເງິນ
-                          </FormLabel>
-                          <Select
-                            value={currencyOptions.find(
-                              (i) => i.value === amt.currency
-                            )}
-                            options={currencyOptions}
-                            onChange={(v) => {
-                              updateCurrency(
-                                currencyIndex,
-                                "currency",
-                                v.value,
-                                index
-                              );
-                              // 🔧 Reset accountId when currency changes
-                              updateCurrency(
-                                currencyIndex,
-                                "accountId",
-                                "",
-                                index
-                              );
-                            }}
-                            isSearchable={false}
-                          />
-                        </FormControl>
-
-                        {/* Account */}
-                        <FormControl flex={1} isInvalid={!selectedAccount}>
-                          <FormLabel fontSize="sm" color="gray.600">
-                            ບັນຊີ
-                          </FormLabel>
-                          <Select
-                            value={selectedAccount}
-                            options={accountOptions}
-                            placeholder="ກະລຸນາເລືອກບັນຊີ"
-                            isSearchable={false}
-                            onChange={(v) =>
-                              updateCurrency(
-                                currencyIndex,
-                                "accountId",
-                                v.value,
-                                index
-                              )
-                            }
-                          />
-                        </FormControl>
-                      </HStack>
-
-                      {/* Amount */}
-                      <FormControl isInvalid={Number(amt.amount) <= 0}>
-                        <FormLabel fontSize="sm" color="gray.600">
-                          ຈຳນວນເງິນ
-                        </FormLabel>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={amt.amount}
-                          placeholder="0.00"
-                          onChange={(e) =>
-                            updateCurrency(
-                              currencyIndex,
-                              "amount",
-                              e.target.value,
-                              index
-                            )
-                          }
-                        />
-                      </FormControl>
-
-                      {/* Remove */}
-                      {data.amounts.length > 1 && (
-                        <IconButton
-                          icon={<CloseIcon />}
-                          colorScheme="red"
-                          variant="ghost"
-                          onClick={() => removeCurrency(currencyIndex, index)}
-                        />
-                      )}
-                    </VStack>
-                  </Box>
-                </VStack>
-              );
-            })}
-          </VStack>
-        </Box>
-
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ໝາຍເຫດ
-          </FormLabel>
-          <Textarea
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            value={data.note}
-            onChange={(e) => updateField("note", e.target.value)}
-            placeholder="ໝາຍເຫດເພີ່ມເຕີມ (ຖ້າມີ)"
-            rows={3}
-            size="md"
-            rounded="lg"
-          />
-        </FormControl>
-
-        <FormControl>
-          <FormLabel
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            color={labelClr}
-            fontSize="sm"
-          >
-            ສະຖານະ
-          </FormLabel>
-          <Input
-            fontFamily={"Noto Sans Lao, sans-serif"}
-            type="text"
-            isDisabled
-            value={data?.status_Ap}
-            onChange={(e) => updateField("status_Ap", e.target.value)}
-            placeholder=""
-            isRequired
-            size="md"
-            rounded="lg"
-          />
-        </FormControl>
-      </VStack>
-    );
-  };
-
+  }, [deleteId, handleDelete, onWarningClose]);
+
+  // View handler
+  const handleViews = useCallback(
+    (data) => {
+      setViews(data);
+      onOpenViews();
+    },
+    [onOpenViews]
+  );
+
+  // Status update handler
+  const handleStatus = useCallback(
+    async (data, newStatus) => {
+      try {
+        if (data.type === "income") return;
+
+        await dispatch(
+          updateStatusIncomeExpense({
+            id: data._id,
+            status: newStatus,
+          })
+        ).unwrap();
+
+        toast({
+          title: "ສຳເລັດ",
+          description: `${newStatus} ສຳເລັດແລ້ວ`,
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+
+        await dispatch(fetchTransaction(filterParams));
+      } catch (error) {
+        toast({
+          title: "ເກີດຂໍ້ຜິພາດ",
+          description: error?.message || "ກະລຸນາລອງໃໝ່",
+          status: "error",
+          duration: 2000,
+          isClosable: true,
+        });
+      }
+    },
+    [dispatch, filterParams, toast]
+  );
+
+  // Modal close handlers with reset
+  const handleModalClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [resetForm, onClose]);
+
+  const handleEditModalClose = useCallback(() => {
+    resetForm();
+    onEditClose();
+  }, [resetForm, onEditClose]);
   return (
     <Box>
       <Container maxW="container.xl">
@@ -2084,7 +639,7 @@ td:nth-child(8) {
           <HStack spacing={4}>
             <Icon as={DollarSign} boxSize={8} color="teal.500" />
             <Heading
-              fontFamily={"Noto Sans Lao, sans-serif"}
+              fontFamily="Noto Sans Lao, sans-serif"
               size="xl"
               bgGradient="linear(to-r, teal.400, blue.500)"
               bgClip="text"
@@ -2094,7 +649,7 @@ td:nth-child(8) {
           </HStack>
           <HStack spacing={3}>
             <Button
-              fontFamily={"Noto Sans Lao, sans-serif"}
+              fontFamily="Noto Sans Lao, sans-serif"
               colorScheme="teal"
               leftIcon={<AddIcon />}
               onClick={onOpen}
@@ -2110,323 +665,23 @@ td:nth-child(8) {
 
         {/* Statistics Cards */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={6}>
-          {Object.entries(stats).map(([currency, data], idx) => {
-            const symbolMap = {
-              LAK: "₭",
-              USD: "$",
-              THB: "฿",
-              CNY: "¥",
-              EUR: "€",
-            };
-            const symbol = symbolMap[currency] || currency;
-            const colorBalance = data.balance >= 0 ? "blue.500" : "orange.500";
-
-            return (
-              <Card
-                key={idx}
-                bg="white"
-                rounded="lg"
-                shadow="sm"
-                border="1px solid"
-                borderColor="gray.200"
-                fontFamily="Noto Sans Lao, sans-serif"
-                transition="all 0.2s"
-                _hover={{ shadow: "md" }}
-              >
-                <CardBody>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontWeight="bold"
-                    fontSize="md"
-                    mb={2}
-                  >
-                    {currency}
-                  </Text>
-                  <Flex justify="space-between" mb={1}>
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      color="green.500"
-                    >
-                      ລາຍຮັບ
-                    </Text>
-                    <Text fontFamily="Noto Sans Lao, sans-serif">
-                      {symbol}
-                      {data.income.toLocaleString()}
-                    </Text>
-                  </Flex>
-                  <Flex justify="space-between" mb={1}>
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      color="red.500"
-                    >
-                      ລາຍຈ່າຍ
-                    </Text>
-                    <Text fontFamily="Noto Sans Lao, sans-serif">
-                      {symbol}
-                      {data.expense.toLocaleString()}
-                    </Text>
-                  </Flex>
-                  <Flex justify="space-between">
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      color={colorBalance}
-                      fontWeight="semibold"
-                    >
-                      ຄົງເຫຼືອ
-                    </Text>
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      color={colorBalance}
-                      fontWeight="semibold"
-                    >
-                      {symbol}
-                      {data.balance.toLocaleString()}
-                    </Text>
-                  </Flex>
-                </CardBody>
-              </Card>
-            );
-          })}
+          {Object.entries(stats).map(([currency, data]) => (
+            <StatsCard key={currency} currency={currency} data={data} />
+          ))}
         </SimpleGrid>
 
         {/* Search and Filter */}
-        <Card
-          bg={cardBg}
-          rounded="2xl"
-          shadow="md"
-          border="1px"
-          borderColor={borderClr}
-          mb={6}
-        >
-          <CardBody>
-            <VStack spacing={4} align="stretch">
-              <Flex justify="space-between" align="center">
-                <HStack>
-                  <Icon as={SearchIcon} color="teal.500" />
-                  <Text
-                    fontFamily={"Noto Sans Lao, sans-serif"}
-                    fontWeight="600"
-                    color={labelClr}
-                  >
-                    ຄົ້ນຫາ ແລະ ກັ່ນຕອງ
-                  </Text>
-                </HStack>
-                <Button
-                  size="sm"
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  variant="ghost"
-                  onClick={() => setShowFilters(!showFilters)}
-                  rightIcon={
-                    <ChevronDownIcon
-                      transform={showFilters ? "rotate(180deg)" : ""}
-                      transition="0.2s"
-                    />
-                  }
-                >
-                  {showFilters ? "ເຊື່ອງ" : "ສະແດງ"}ຕົວກັ່ນຕອງ
-                </Button>
-              </Flex>
-
-              <InputGroup size="lg">
-                <InputLeftElement>
-                  <Icon as={SearchIcon} color="gray.400" />
-                </InputLeftElement>
-                <Input
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  placeholder="ຄົ້ນຫາລາຍລະອຽດ ຫຼື ໝາຍເຫດ..."
-                  value={filters.search}
-                  onChange={(e) =>
-                    setFilters({ ...filters, search: e.target.value })
-                  }
-                  rounded="xl"
-                  bg={hoverBg}
-                />
-              </InputGroup>
-
-              <Collapse in={showFilters}>
-                <VStack spacing={4} pt={4}>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ວັນທີ່ເລີ່ມຕົ້ນ
-                      </FormLabel>
-                      <Input
-                        type="date"
-                        value={filters.dateStart}
-                        onChange={(e) =>
-                          setFilters({ ...filters, dateStart: e.target.value })
-                        }
-                        rounded="lg"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ວັນທີ່ສິ້ນສຸດ
-                      </FormLabel>
-                      <Input
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        type="date"
-                        value={filters.dateEnd}
-                        onChange={(e) =>
-                          setFilters({ ...filters, dateEnd: e.target.value })
-                        }
-                        rounded="lg"
-                      />
-                    </FormControl>
-                  </SimpleGrid>
-
-                  <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4} w="full">
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ປະເພດ
-                      </FormLabel>
-                      <Select
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        value={filters.type}
-                        onChange={(e) =>
-                          setFilters({ ...filters, type: e.target.value })
-                        }
-                        rounded="lg"
-                      >
-                        <option value="">ທັງໝົດ</option>
-                        <option value="income">ລາຍຮັບ</option>
-                        <option value="expense">ລາຍຈ່າຍ</option>
-                      </Select>
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ເລືອກສະຖານະ
-                      </FormLabel>
-                      <Select
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        value={filters.status_Ap}
-                        onChange={(e) =>
-                          setFilters({ ...filters, status_Ap: e.target.value })
-                        }
-                        rounded="lg"
-                      >
-                        <option value="">ທັງໝົດ</option>
-                        <option value="approve">ອະນຸມັດ</option>
-                        <option value="cancel">ຍົກເລີກ</option>
-                        <option value="pending">ລໍຖ້າ</option>
-                      </Select>
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ສະກຸນເງິນ
-                      </FormLabel>
-                      <Select
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        value={filters.currency}
-                        onChange={(e) =>
-                          setFilters({ ...filters, currency: e.target.value })
-                        }
-                        rounded="lg"
-                      >
-                        <option value="">ທັງໝົດ</option>
-                        <option value="LAK">LAK</option>
-                        <option value="THB">THB</option>
-                        <option value="USD">USD</option>
-                      </Select>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ວິທີຊຳລະ
-                      </FormLabel>
-                      <Select
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        value={filters.paymentMethod}
-                        onChange={(e) =>
-                          setFilters({
-                            ...filters,
-                            paymentMethod: e.target.value,
-                          })
-                        }
-                        rounded="lg"
-                      >
-                        <option value="">ທັງໝົດ</option>
-                        {Object.entries(paymentMethodLabels).map(
-                          ([key, label]) => (
-                            <option key={key} value={key}>
-                              {label}
-                            </option>
-                          )
-                        )}
-                      </Select>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="sm"
-                      >
-                        ສະຖານະ
-                      </FormLabel>
-                      <Select
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        value={filters.status}
-                        onChange={(e) =>
-                          setFilters({ ...filters, status: e.target.value })
-                        }
-                        rounded="lg"
-                      >
-                        <option value="">ທັງໝົດ</option>
-                        <option value="paid">ຊຳລະແລ້ວ</option>
-                        <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-                      </Select>
-                    </FormControl>
-                  </SimpleGrid>
-
-                  <HStack justify="flex-end" w="full">
-                    <Button
-                      fontFamily={"Noto Sans Lao, sans-serif"}
-                      variant="ghost"
-                      onClick={() =>
-                        setFilters({
-                          search: "",
-                          dateStart: "",
-                          dateEnd: "",
-                          type: "",
-                          currency: "",
-                          paymentMethod: "",
-                          status: "",
-                        })
-                      }
-                    >
-                      ລ້າງຕົວກັ່ນ
-                    </Button>
-                  </HStack>
-                </VStack>
-              </Collapse>
-            </VStack>
-          </CardBody>
-        </Card>
+        <FilterSection
+          filters={filters}
+          setFilters={setFilters}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          cardBg={cardBg}
+          borderClr={borderClr}
+          labelClr={labelClr}
+          hoverBg={hoverBg}
+          paymentMethodLabels={PAYMENT_METHOD_LABELS}
+        />
 
         {/* Export Buttons */}
         <HStack mb={4} spacing={3}>
@@ -2434,7 +689,15 @@ td:nth-child(8) {
             leftIcon={<DownloadIcon />}
             colorScheme="teal"
             variant="outline"
-            onClick={exportToPDF}
+            onClick={() =>
+              exportPDF({
+                selectedTransactions,
+                user,
+                formatDate,
+                status_income_expense,
+                toast,
+              })
+            }
             isDisabled={selectedTransactions.length === 0}
             rounded="lg"
           >
@@ -2442,7 +705,7 @@ td:nth-child(8) {
           </Button>
 
           <Text
-            fontFamily={"Noto Sans Lao, sans-serif"}
+            fontFamily="Noto Sans Lao, sans-serif"
             fontSize="sm"
             color={labelClr}
           >
@@ -2451,787 +714,36 @@ td:nth-child(8) {
         </HStack>
 
         {/* Transactions Table */}
-
         <Box overflowX="auto">
-          <Table variant="simple">
-            <Thead bg={tableHeaderBg}>
-              <Tr>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"}>
-                  <Checkbox
-                    fontFamily={"Noto Sans Lao, sans-serif"}
-                    colorScheme="teal"
-                    isChecked={
-                      selectedTransactions.length === pageData.length &&
-                      pageData.length > 0
-                    }
-                    onChange={(e) =>
-                      setSelectedTransactions(e.target.checked ? pageData : [])
-                    }
-                  />
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ລຳດັບ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ເລກທີ່
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ວັນທີ່
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ປະເພດ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ລາຍລະອຽດ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ວິທີຊຳລະ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ຈຳນວນເງິນ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ສະຖານະຊຳລະ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ຜູ້ສ້າງ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ສະຖານະ
-                </Th>
-                <Th fontFamily={"Noto Sans Lao, sans-serif"} color="white">
-                  ການກະທຳ
-                </Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {pageData.length === 0 ? (
-                <Tr>
-                  <Td colSpan={9} textAlign="center" py={12}>
-                    <VStack spacing={3}>
-                      <Icon as={FileText} boxSize={12} color="gray.400" />
-                      <Text
-                        fontFamily={"Noto Sans Lao, sans-serif"}
-                        color={labelClr}
-                        fontSize="lg"
-                      >
-                        ບໍ່ມີລາຍການທີ່ຕົງກັບເງື່ອນໄຂການຄົ້ນຫາ
-                      </Text>
-                    </VStack>
-                  </Td>
-                </Tr>
-              ) : (
-                pageData
-                  .slice() // สร้างสำเนา array เพื่อไม่แก้ตัวต้นฉบับ
-                  .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
-                  .map((transaction, idx) => (
-                    <Tr
-                      key={transaction._id}
-                      _hover={{ bg: hoverBg }}
-                      transition="all 0.2s"
-                    >
-                      <Td>
-                        <Checkbox
-                          colorScheme="teal"
-                          isChecked={selectedTransactions.includes(transaction)}
-                          onChange={(e) =>
-                            setSelectedTransactions(
-                              e.target.checked
-                                ? [...selectedTransactions, transaction]
-                                : selectedTransactions.filter(
-                                    (t) => t._id !== transaction._id
-                                  )
-                            )
-                          }
-                        />
-                      </Td>
-                      <Td>
-                        <Text fontWeight="600" color={labelClr}>
-                          {offset + idx + 1 || "-"}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <Text fontWeight="600" color={labelClr}>
-                          {transaction.serial || "-"}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <HStack spacing={2}>
-                          <Icon as={Calendar} boxSize={4} color="gray.400" />
-                          <Text color={labelClr}>
-                            {formatDate(new Date(transaction.date))}
-                          </Text>
-                        </HStack>
-                      </Td>
-                      <Td>
-                        <Badge
-                          px={3}
-                          py={1}
-                          borderRadius="full"
-                          colorScheme={
-                            transaction.type === "income" ? "green" : "red"
-                          }
-                          fontSize="sm"
-                          fontWeight="600"
-                          fontFamily={"Noto Sans Lao, sans-serif"}
-                        >
-                          {transaction.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ"}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Tooltip label={transaction.note} placement="top">
-                          <Text
-                            fontFamily={"Noto Sans Lao, sans-serif"}
-                            color={labelClr}
-                            fontWeight="500"
-                          >
-                            {shortDesc(transaction.description) || "-"}
-                          </Text>
-                        </Tooltip>
-                      </Td>
-                      <Td>
-                        <Badge
-                          variant="outline"
-                          colorScheme="blue"
-                          rounded="md"
-                          fontFamily={"Noto Sans Lao, sans-serif"}
-                        >
-                          {paymentMethodLabels[transaction?.paymentMethod] ||
-                            transaction?.paymentMethod}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <VStack spacing={1} align="start">
-                          {transaction.amounts.map((amt, i) => (
-                            <HStack key={i} spacing={1}>
-                              <Text
-                                color={
-                                  transaction.type === "income"
-                                    ? "green.500"
-                                    : "red.500"
-                                }
-                                fontWeight="bold"
-                                fontSize="md"
-                              >
-                                {transaction.type === "income" ? "+" : "-"}
-                                {amt.currency === "LAK" && "₭"}
-                                {amt.currency === "THB" && "฿"}
-                                {amt.currency === "USD" && "$"}
-                                {amt.currency === "CNY" && "¥"}
-                                {parseFloat(amt.amount).toLocaleString()}
-                              </Text>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </Td>
-                      <Td>
-                        <Badge
-                          fontFamily={"Noto Sans Lao, sans-serif"}
-                          px={3}
-                          py={1}
-                          borderRadius="full"
-                          colorScheme={
-                            transaction.status === "paid" ? "green" : "orange"
-                          }
-                          variant="subtle"
-                        >
-                          {transaction.status === "paid"
-                            ? "✓ ຊຳລະແລ້ວ"
-                            : "⏳ ຍັງບໍ່ຊຳລະ"}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Badge
-                          fontFamily={"Noto Sans Lao, sans-serif"}
-                          px={3}
-                          py={1}
-                          borderRadius="full"
-                          colorScheme={
-                            transaction.status === "paid" ? "green" : "orange"
-                          }
-                          variant="subtle"
-                        >
-                          {transaction?.createdBy?.username}
-                        </Badge>
-                      </Td>
-
-                      {transaction.type !== "income" ? (
-                        <Td>
-                          <Badge
-                            rounded="lg"
-                            colorScheme={
-                              statusColors[transaction?.status_Ap] || "blue"
-                            }
-                            fontFamily={"Noto Sans Lao, sans-serif"}
-                            px={4}
-                            py={2}
-                            fontWeight="bold"
-                            fontSize={"22px"}
-                            textTransform="capitalize"
-                            variant="solid" // ใช้แบบทึบจะเด่นกว่า outline
-                            boxShadow="0px 2px 10px rgba(0,0,0,0.25)" // เพิ่มเงาให้ลอยขึ้น
-                            border="1px solid rgba(255,255,255,0.6)" // ขอบจาง ๆ ให้ดูมีชั้น
-                            letterSpacing="0.5px"
-                          >
-                            {status_Ap[transaction?.status_Ap] || "ບໍ່ມີຂໍ້ມູນ"}
-                          </Badge>
-                        </Td>
-                      ) : (
-                        <Td>-</Td>
-                      )}
-                      <Td>
-                        <HStack spacing={1}>
-                          {user?.role === "admin" &&
-                            transaction.advance !== "advance" &&
-                            transaction.type !== "income" && (
-                              <HStack spacing={2}>
-                                <Button
-                                  fontSize={"20"}
-                                  size="sm"
-                                  rounded="lg"
-                                  fontFamily="Noto Sans Lao, sans-serif"
-                                  colorScheme={
-                                    transaction.status_Ap === "pending"
-                                      ? "yellow"
-                                      : "gray"
-                                  }
-                                  variant={
-                                    transaction.status_Ap === "pending"
-                                      ? "solid"
-                                      : "outline"
-                                  }
-                                  onClick={() =>
-                                    handleStatus(transaction, "pending")
-                                  }
-                                >
-                                  ລໍຖ້າ
-                                </Button>
-
-                                <Button
-                                  fontSize={"20"}
-                                  size="sm"
-                                  rounded="lg"
-                                  fontFamily="Noto Sans Lao, sans-serif"
-                                  colorScheme={
-                                    transaction.status_Ap === "approve"
-                                      ? "green"
-                                      : "gray"
-                                  }
-                                  variant={
-                                    transaction.status_Ap === "approve"
-                                      ? "solid"
-                                      : "outline"
-                                  }
-                                  onClick={() =>
-                                    handleStatus(transaction, "approve")
-                                  }
-                                >
-                                  ອະນຸມັດ
-                                </Button>
-
-                                <Button
-                                  fontSize={"20"}
-                                  size="sm"
-                                  rounded="lg"
-                                  fontFamily="Noto Sans Lao, sans-serif"
-                                  colorScheme={
-                                    transaction.status_Ap === "cancel"
-                                      ? "red"
-                                      : "gray"
-                                  }
-                                  variant={
-                                    transaction.status_Ap === "cancel"
-                                      ? "solid"
-                                      : "outline"
-                                  }
-                                  onClick={() =>
-                                    handleStatus(transaction, "cancel")
-                                  }
-                                >
-                                  ຍົກເລີກ
-                                </Button>
-                              </HStack>
-                            )}
-
-                          <Tooltip label="ແກ້ໄຂ" placement="top">
-                            <IconButton
-                              icon={<EditIcon />}
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="blue"
-                              rounded="lg"
-                              isDisabled={
-                                (!(user.role === "admin") &&
-                                  (transaction?.status_Ap === "approve" ||
-                                    transaction?.status_Ap === "cancel")) ||
-                                transaction.referance
-                              }
-                              onClick={() => {
-                                setFormEditData({
-                                  serial: transaction.serial || "",
-                                  type: transaction.type,
-                                  description: transaction.description,
-                                  date: transaction.date.slice(0, 10),
-                                  paymentMethod: transaction.paymentMethod,
-                                  status: transaction.status,
-                                  status_Ap: transaction.status_Ap,
-                                  amounts: transaction.amounts.map((amt) => ({
-                                    currency: amt.currency,
-                                    amount: amt.amount,
-                                    accountId: amt.accountId,
-                                  })),
-                                  categoryId: transaction.categoryId,
-                                  note: transaction.note || "",
-                                  id: transaction._id,
-                                });
-                                onEditOpen();
-                              }}
-                            />
-                          </Tooltip>
-                          <Tooltip label="ເບີງລາຍລະອຽດ" placement="top">
-                            <IconButton
-                              onClick={() => handleViews(transaction)}
-                              icon={<ViewIcon />}
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="red"
-                              rounded="lg"
-                            />
-                          </Tooltip>
-
-                          <Tooltip label="ລຶບ" placement="top">
-                            <IconButton
-                              onClick={() => onDeleteClick(transaction._id)}
-                              icon={<DeleteIcon />}
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="red"
-                              rounded="lg"
-                              isDisabled={
-                                !["admin"].includes(user?.role) &&
-                                ["approve", "cancel"].includes(
-                                  transaction?.status_Ap
-                                )
-                              }
-                            />
-                          </Tooltip>
-
-                          <AlertDialog
-                            isOpen={isWarningIsOpen}
-                            leastDestructiveRef={cancelRef}
-                            onClose={onWarningClose}
-                          >
-                            <AlertDialogOverlay>
-                              <AlertDialogContent>
-                                <AlertDialogHeader
-                                  fontSize="lg"
-                                  fontWeight="bold"
-                                  fontFamily={"Noto Sans Lao, sans-serif"}
-                                >
-                                  ລຶບລາຍການ
-                                </AlertDialogHeader>
-
-                                <AlertDialogBody
-                                  fontFamily={"Noto Sans Lao, sans-serif"}
-                                >
-                                  ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລຶບລາຍການນີ້?
-                                  ການກະທຳນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.
-                                </AlertDialogBody>
-
-                                <AlertDialogFooter>
-                                  <Button
-                                    fontFamily={"Noto Sans Lao, sans-serif"}
-                                    ref={cancelRef}
-                                    onClick={onWarningClose}
-                                  >
-                                    ຍົກເລີກ
-                                  </Button>
-                                  <Button
-                                    fontFamily={"Noto Sans Lao, sans-serif"}
-                                    colorScheme="red"
-                                    onClick={confirmDelete}
-                                    ml={3}
-                                  >
-                                    ລຶບ
-                                  </Button>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialogOverlay>
-                          </AlertDialog>
-                        </HStack>
-                      </Td>
-                    </Tr>
-                  ))
-              )}
-            </Tbody>
-          </Table>
+          {!Loading && (
+            <TransactionTable
+              tableHeaderBg={tableHeaderBg}
+              hoverBg={hoverBg}
+              labelClr={labelClr}
+              pageData={pageData}
+              offset={offset}
+              selectedTransactions={selectedTransactions}
+              setSelectedTransactions={setSelectedTransactions}
+              paymentMethodLabels={PAYMENT_METHOD_LABELS}
+              status_Ap={status_access}
+              statusColors={statusColors}
+              shortDesc={shortDesc}
+              formatDate={formatDateString}
+              user={user}
+              handleStatus={handleStatus}
+              handleViews={handleViews}
+              onDeleteClick={onDeleteClick}
+              handleEditClick={handleEditClick}
+              EditIcon={EditIcon}
+              ViewIcon={ViewIcon}
+              DeleteIcon={DeleteIcon}
+              FileText={FileText}
+              Calendar={Calendar}
+            />
+          )}
         </Box>
-        {/* </Card> */}
 
-        {/* Add/Edit Modal */}
-        <Modal
-          isOpen={isOpen}
-          onClose={onClose}
-          size="4xl"
-          isCentered
-          motionPreset="slideInBottom"
-        >
-          <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
-          <ModalContent
-            bg={cardBg}
-            rounded="2xl"
-            shadow="2xl"
-            border="1px solid"
-            borderColor={borderClr}
-          >
-            <ModalHeader borderBottom="1px" borderColor={borderClr}>
-              <HStack spacing={3}>
-                <Icon as={DollarSign} boxSize={6} color="teal.500" />
-                <Heading
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  size="md"
-                  bgGradient="linear(to-r, teal.400, blue.500)"
-                  bgClip="text"
-                >
-                  ເພີ່ມລາຍຮັບ / ລາຍຈ່າຍ
-                </Heading>
-              </HStack>
-            </ModalHeader>
-            <ModalCloseButton rounded="full" top={4} right={4} />
-
-            <ModalBody fontFamily={"Noto Sans Lao, sans-serif"} py={6}>
-              {renderFormFields(formData)}
-            </ModalBody>
-
-            <ModalFooter borderTop="1px" borderColor={borderClr}>
-              <Button
-                fontFamily={"Noto Sans Lao, sans-serif"}
-                colorScheme="teal"
-                mr={3}
-                onClick={handleSubmit}
-                rounded="xl"
-                px={8}
-                shadow="md"
-                _hover={{ shadow: "lg" }}
-              >
-                ບັນທຶກ
-              </Button>
-              <Button
-                fontFamily={"Noto Sans Lao, sans-serif"}
-                variant="ghost"
-                onClick={onClose}
-                rounded="xl"
-              >
-                ຍົກເລີກ
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-        {/* //////edit form */}
-        <Modal
-          isOpen={isEdit}
-          onClose={onEditClose}
-          size="4xl"
-          isCentered
-          motionPreset="slideInBottom"
-        >
-          <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
-          <ModalContent
-            bg={cardBg}
-            rounded="2xl"
-            shadow="2xl"
-            border="1px solid"
-            borderColor={borderClr}
-          >
-            <ModalHeader borderBottom="1px" borderColor={borderClr}>
-              <HStack spacing={3}>
-                <Icon as={DollarSign} boxSize={6} color="teal.500" />
-                <Heading
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  size="md"
-                  bgGradient="linear(to-r, teal.400, blue.500)"
-                  bgClip="text"
-                >
-                  ເພີ່ມລາຍຮັບ / ລາຍຈ່າຍ
-                </Heading>
-              </HStack>
-            </ModalHeader>
-            <ModalCloseButton rounded="full" top={4} right={4} />
-
-            <ModalBody fontFamily={"Noto Sans Lao, sans-serif"} py={6}>
-              {renderFormFieldsEdit(formEditData, formEditData.id)}
-            </ModalBody>
-
-            <ModalFooter borderTop="1px" borderColor={borderClr}>
-              <Button
-                fontFamily={"Noto Sans Lao, sans-serif"}
-                colorScheme="teal"
-                mr={3}
-                onClick={handleEdit}
-                rounded="xl"
-                px={8}
-                shadow="md"
-                _hover={{ shadow: "lg" }}
-              >
-                ບັນທຶກ
-              </Button>
-              <Button
-                fontFamily={"Noto Sans Lao, sans-serif"}
-                variant="ghost"
-                onClick={onEditClose}
-                rounded="xl"
-              >
-                ຍົກເລີກ
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-        {/* ///views */}
-        {/* //////edit form */}
-        <Modal
-          isOpen={isViews}
-          onClose={onCloseViews}
-          size="4xl"
-          isCentered
-          motionPreset="slideInBottom"
-        >
-          <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
-          <ModalContent>
-            <ModalBody fontFamily={"Noto Sans Lao, sans-serif"} py={6}>
-              <VStack spacing={6} align="stretch">
-                {/* Transaction Type Badge */}
-                <HStack
-                  w="100%"
-                  p={4}
-                  bg="white"
-                  shadow="md"
-                  rounded="lg"
-                  spacing={6}
-                  align="center"
-                  fontFamily="Noto Sans Lao, sans-serif"
-                >
-                  {/* Type */}
-                  <HStack spacing={2}>
-                    <Icon
-                      as={views?.type === "income" ? TrendingUp : TrendingDown}
-                      color={views?.type === "income" ? "green.500" : "red.500"}
-                    />
-                    <Badge
-                      px={3}
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      py={1}
-                      rounded="full"
-                      colorScheme={views?.type === "income" ? "green" : "red"}
-                      fontSize="sm"
-                    >
-                      {views?.type === "income" ? "📈 ລາຍຮັບ" : "📉 ລາຍຈ່າຍ"}
-                    </Badge>
-                  </HStack>
-
-                  <Divider orientation="vertical" />
-
-                  {/* Serial */}
-                  <VStack spacing={1} align="start">
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontSize="sm"
-                      color="gray.500"
-                    >
-                      ເລກທີ່
-                    </Text>
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontWeight="semibold"
-                    >
-                      {views?.serial || "-"}
-                    </Text>
-                  </VStack>
-
-                  <Divider orientation="vertical" />
-
-                  <Divider orientation="vertical" />
-
-                  {/* Payment Method */}
-                  <VStack spacing={1} align="start">
-                    <HStack spacing={1}>
-                      <Icon as={CreditCard} boxSize={4} color="blue.500" />
-                      <Text
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        fontSize="sm"
-                        color="gray.500"
-                      >
-                        ວິທີການຊຳລະ
-                      </Text>
-                    </HStack>
-                    <Badge
-                      px={3}
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      py={1}
-                      rounded="md"
-                      colorScheme="blue"
-                      fontSize="sm"
-                    >
-                      {views?.paymentMethod === "cash"
-                        ? "💵 ເງິນສົດ"
-                        : views?.paymentMethod === "transfer"
-                        ? "🏦 ໂອນເງິນ"
-                        : views?.paymentMethod}
-                    </Badge>
-                  </VStack>
-
-                  <Divider orientation="vertical" />
-
-                  {/* Date */}
-                  <VStack spacing={1} align="start">
-                    <HStack spacing={1}>
-                      <Icon as={Calendar} boxSize={4} color="purple.500" />
-                      <Text
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        fontSize="sm"
-                        color="gray.500"
-                      >
-                        ວັນທີ່
-                      </Text>
-                    </HStack>
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontSize="sm"
-                      fontWeight="medium"
-                    >
-                      {formatDate(new Date(views?.date))}
-                    </Text>
-                  </VStack>
-
-                  <VStack spacing={1} align="start">
-                    <HStack spacing={1}>
-                      <Icon as={CreditCard} boxSize={4} color="blue.500" />
-                      <Text
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        fontSize="sm"
-                        color="gray.500"
-                      >
-                        ໝວດໝູ່
-                      </Text>
-                    </HStack>
-                    <Badge
-                      px={3}
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      py={1}
-                      rounded="md"
-                      colorScheme="blue"
-                      fontSize="sm"
-                    >
-                      {views?.categoryId?.name}-{" "}
-                      {laoType[views?.categoryId?.type]}
-                    </Badge>
-                  </VStack>
-                </HStack>
-
-                {/* Description */}
-                <VStack spacing={1} align="start" flex={1}>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontSize="sm"
-                    color="gray.500"
-                  >
-                    ລາຍລະອຽດ
-                  </Text>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontWeight="medium"
-                  >
-                    {views?.description || "-"}
-                  </Text>
-                </VStack>
-                <VStack spacing={1} align="start" flex={1}>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontSize="sm"
-                    color="gray.500"
-                  >
-                    ສະຖານະການຊຳລະເງິນ
-                  </Text>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontWeight="medium"
-                  >
-                    {statusOptions2[views?.status]}
-                  </Text>
-                </VStack>
-                <Divider />
-
-                {/* Amounts */}
-                <Box>
-                  <HStack spacing={2} mb={3}>
-                    <Icon as={DollarSign} boxSize={4} color="teal.500" />
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontSize="sm"
-                      color="gray.500"
-                      fontWeight="medium"
-                    >
-                      ຈຳນວນເງິນ
-                    </Text>
-                  </HStack>
-                  <VStack spacing={3} align="stretch">
-                    {views?.amounts?.map((amount, index) => (
-                      <PaymentCard amount={amount} index={index} />
-                    ))}
-                  </VStack>
-                </Box>
-
-                {/* Note */}
-                {views?.note && (
-                  <>
-                    <Divider />
-                    <Box>
-                      <HStack spacing={2} mb={2}>
-                        <Icon as={FileText} boxSize={4} color="orange.500" />
-                        <Text
-                          fontFamily="Noto Sans Lao, sans-serif"
-                          fontSize="sm"
-                          color="gray.500"
-                          fontWeight="medium"
-                        >
-                          ໝາຍເຫດ
-                        </Text>
-                      </HStack>
-                      <Box
-                        p={4}
-                        bg={useColorModeValue("orange.50", "orange.900")}
-                        rounded="lg"
-                        border="1px solid"
-                        borderColor="orange.200"
-                      >
-                        <Text
-                          fontFamily="Noto Sans Lao, sans-serif"
-                          fontSize="md"
-                        >
-                          {views?.note}
-                        </Text>
-                      </Box>
-                    </Box>
-                  </>
-                )}
-
-                {/* Created Date */}
-                <Box pt={2}>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontSize="xs"
-                    color="gray.400"
-                    textAlign="center"
-                  >
-                    ສ້າງເມື່ອ:{" "}
-                    {new Date(views?.createdAt).toLocaleString("lo-LA")}
-                  </Text>
-                </Box>
-              </VStack>
-            </ModalBody>
-          </ModalContent>
-        </Modal>
         {/* Footer info */}
-
         <Flex
           justify="space-between"
           align="center"
@@ -3241,51 +753,19 @@ td:nth-child(8) {
           borderColor={borderClr}
         >
           <Text
-            fontFamily={"Noto Sans Lao, sans-serif"}
+            fontFamily="Noto Sans Lao, sans-serif"
             fontSize="sm"
             color={labelClr}
           >
-            ສະແດງ {pageData.length} ລາຍການຈາກທັງໝົດ {transactions.length} ລາຍການ
+            ສະແດງ {pageData.length} ລາຍການຈາກທັງໝົດ {total} ລາຍການ
           </Text>
-          <HStack spacing={2} justify="center">
-            <IconButton
-              icon={<ChevronLeftIcon />}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              isDisabled={page === 1}
-              colorScheme="purple"
-              variant="outline"
-              borderRadius="full"
-              aria-label="Previous page"
-              _hover={{
-                transform: "scale(1.1)",
-              }}
-            />
-
-            <Badge
-              colorScheme="purple"
-              fontSize="md"
-              px={4}
-              py={2}
-              borderRadius="full"
-            >
-              {page} / {totalPages}
-            </Badge>
-
-            <IconButton
-              icon={<ChevronRightIcon />}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              isDisabled={page === totalPages}
-              colorScheme="purple"
-              variant="outline"
-              borderRadius="full"
-              aria-label="Next page"
-              _hover={{
-                transform: "scale(1.1)",
-              }}
-            />
-          </HStack>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            setPage={(p) => setPage(p)}
+          />
           <Text
-            fontFamily={"Noto Sans Lao, sans-serif"}
+            fontFamily="Noto Sans Lao, sans-serif"
             fontSize="sm"
             color={labelClr}
           >
@@ -3293,6 +773,483 @@ td:nth-child(8) {
           </Text>
         </Flex>
       </Container>
+
+      {/* Add Modal */}
+      <Modal
+        isOpen={isOpen}
+        onClose={handleModalClose}
+        size="4xl"
+        isCentered
+        motionPreset="slideInBottom"
+      >
+        <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
+        <ModalContent
+          bg={cardBg}
+          rounded="2xl"
+          shadow="2xl"
+          border="1px solid"
+          borderColor={borderClr}
+        >
+          <ModalHeader borderBottom="1px" borderColor={borderClr}>
+            <HStack spacing={3}>
+              <Icon as={DollarSign} boxSize={6} color="teal.500" />
+              <Heading
+                fontFamily="Noto Sans Lao, sans-serif"
+                size="md"
+                bgGradient="linear(to-r, teal.400, blue.500)"
+                bgClip="text"
+              >
+                ເພີ່ມລາຍຮັບ / ລາຍຈ່າຍ
+              </Heading>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton rounded="full" top={4} right={4} />
+
+          <ModalBody fontFamily="Noto Sans Lao, sans-serif" py={6}>
+            {isOpen && (
+              <RenderFields
+                labelClr={labelClr}
+                cardBg={cardBg}
+                borderClr={borderClr}
+                serial={serial}
+                setSerial={setSerial}
+                type={type}
+                setType={setType}
+                paymentMethod={paymentMethod}
+                setPaymentMethod={setPaymentMethod}
+                description={description}
+                setDescription={setDescription}
+                date={date}
+                setDate={setDate}
+                status={status}
+                setStatus={setStatus}
+                categoryId={categoryId}
+                setCategoryId={setCategoryId}
+                note={note}
+                setNote={setNote}
+                status_Ap={status_Ap}
+                typeOptions={typeOptions}
+                paymentOptions={paymentOptions}
+                statusOptions={statusOptions}
+                categoryOptions={categoryOptions}
+                currencyOptions={currencyOptions}
+                cashOptions={cashOptions}
+                bankOptions={bankOptions}
+                amounts={amounts}
+                addCurrency={addCurrency}
+                removeCurrency={removeCurrency}
+                updateCurrency={updateCurrency}
+                id={id}
+              />
+            )}
+          </ModalBody>
+
+          <ModalFooter borderTop="1px" borderColor={borderClr}>
+            <Button
+              fontFamily="Noto Sans Lao, sans-serif"
+              colorScheme="teal"
+              mr={3}
+              onClick={handleSubmit}
+              rounded="xl"
+              px={8}
+              shadow="md"
+              _hover={{ shadow: "lg" }}
+            >
+              ບັນທຶກ
+            </Button>
+            <Button
+              fontFamily="Noto Sans Lao, sans-serif"
+              variant="ghost"
+              onClick={handleModalClose}
+              rounded="xl"
+            >
+              ຍົກເລີກ
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={isEdit}
+        onClose={handleEditModalClose}
+        size="4xl"
+        isCentered
+        motionPreset="slideInBottom"
+      >
+        <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
+        <ModalContent
+          bg={cardBg}
+          rounded="2xl"
+          shadow="2xl"
+          border="1px solid"
+          borderColor={borderClr}
+        >
+          <ModalHeader borderBottom="1px" borderColor={borderClr}>
+            <HStack spacing={3}>
+              <Icon as={DollarSign} boxSize={6} color="teal.500" />
+              <Heading
+                fontFamily="Noto Sans Lao, sans-serif"
+                size="md"
+                bgGradient="linear(to-r, teal.400, blue.500)"
+                bgClip="text"
+              >
+                ແກ້ໄຂລາຍຮັບ / ລາຍຈ່າຍ
+              </Heading>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton rounded="full" top={4} right={4} />
+
+          <ModalBody fontFamily="Noto Sans Lao, sans-serif" py={6}>
+            <RenderFields
+              labelClr={labelClr}
+              cardBg={cardBg}
+              borderClr={borderClr}
+              serial={serial}
+              setSerial={setSerial}
+              type={type}
+              setType={setType}
+              paymentMethod={paymentMethod}
+              setPaymentMethod={setPaymentMethod}
+              description={description}
+              setDescription={setDescription}
+              date={date}
+              setDate={setDate}
+              status={status}
+              setStatus={setStatus}
+              categoryId={categoryId}
+              setCategoryId={setCategoryId}
+              note={note}
+              setNote={setNote}
+              status_Ap={status_Ap}
+              typeOptions={typeOptions}
+              paymentOptions={paymentOptions}
+              statusOptions={statusOptions}
+              categoryOptions={categoryOptions}
+              currencyOptions={currencyOptions}
+              cashOptions={cashOptions}
+              bankOptions={bankOptions}
+              amounts={amounts}
+              addCurrency={addCurrency}
+              removeCurrency={removeCurrency}
+              updateCurrency={updateCurrency}
+              id={id}
+            />
+          </ModalBody>
+
+          <ModalFooter borderTop="1px" borderColor={borderClr}>
+            <Button
+              fontFamily="Noto Sans Lao, sans-serif"
+              colorScheme="teal"
+              mr={3}
+              onClick={handleEdit}
+              rounded="xl"
+              px={8}
+              shadow="md"
+              _hover={{ shadow: "lg" }}
+            >
+              ບັນທຶກ
+            </Button>
+            <Button
+              fontFamily="Noto Sans Lao, sans-serif"
+              variant="ghost"
+              onClick={handleEditModalClose}
+              rounded="xl"
+            >
+              ຍົກເລີກ
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={isViews}
+        onClose={onCloseViews}
+        size="4xl"
+        isCentered
+        motionPreset="slideInBottom"
+      >
+        <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
+        <ModalContent>
+          <ModalCloseButton rounded="full" top={4} right={4} />
+          <ModalBody fontFamily="Noto Sans Lao, sans-serif" py={6}>
+            <VStack spacing={6} align="stretch">
+              {/* Transaction Type Badge */}
+              <HStack
+                w="100%"
+                p={4}
+                bg="white"
+                shadow="md"
+                rounded="lg"
+                spacing={6}
+                align="center"
+                fontFamily="Noto Sans Lao, sans-serif"
+              >
+                <HStack spacing={2}>
+                  <Icon
+                    as={views?.type === "income" ? TrendingUp : TrendingDown}
+                    color={views?.type === "income" ? "green.500" : "red.500"}
+                  />
+                  <Badge
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    px={3}
+                    py={1}
+                    rounded="full"
+                    colorScheme={views?.type === "income" ? "green" : "red"}
+                    fontSize="sm"
+                  >
+                    {views?.type === "income" ? "📈 ລາຍຮັບ" : "📉 ລາຍຈ່າຍ"}
+                  </Badge>
+                </HStack>
+
+                <Divider orientation="vertical" />
+
+                <VStack spacing={1} align="start">
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    color="gray.500"
+                  >
+                    ເລກທີ່
+                  </Text>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontWeight="semibold"
+                  >
+                    {views?.serial || "-"}
+                  </Text>
+                </VStack>
+
+                <Divider orientation="vertical" />
+
+                <VStack spacing={1} align="start">
+                  <HStack spacing={1}>
+                    <Icon as={CreditCard} boxSize={4} color="blue.500" />
+                    <Text
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      fontSize="sm"
+                      color="gray.500"
+                    >
+                      ວິທີການຊຳລະ
+                    </Text>
+                  </HStack>
+                  <Badge
+                    px={3}
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    py={1}
+                    rounded="md"
+                    colorScheme="blue"
+                    fontSize="sm"
+                  >
+                    {views?.paymentMethod === "cash"
+                      ? "💵 ເງິນສົດ"
+                      : views?.paymentMethod === "bank_transfer"
+                      ? "🏦 ໂອນເງິນ"
+                      : views?.paymentMethod}
+                  </Badge>
+                </VStack>
+
+                <Divider orientation="vertical" />
+
+                <VStack spacing={1} align="start">
+                  <HStack spacing={1}>
+                    <Icon as={Calendar} boxSize={4} color="purple.500" />
+                    <Text
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      fontSize="sm"
+                      color="gray.500"
+                    >
+                      ວັນທີ່
+                    </Text>
+                  </HStack>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    fontWeight="medium"
+                  >
+                    {views?.date ? formatDateString(views.date) : "-"}
+                  </Text>
+                </VStack>
+
+                {views?.categoryId && (
+                  <>
+                    <Divider orientation="vertical" />
+                    <VStack spacing={1} align="start">
+                      <HStack spacing={1}>
+                        <Icon as={FileText} boxSize={4} color="blue.500" />
+                        <Text
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          fontSize="sm"
+                          color="gray.500"
+                        >
+                          ໝວດໝູ່
+                        </Text>
+                      </HStack>
+                      <Badge
+                        px={3}
+                        fontFamily="Noto Sans Lao, sans-serif"
+                        py={1}
+                        rounded="md"
+                        colorScheme="blue"
+                        fontSize="sm"
+                      >
+                        {views?.categoryId?.name} -{" "}
+                        {laoType[views?.categoryId?.type]}
+                      </Badge>
+                    </VStack>
+                  </>
+                )}
+              </HStack>
+
+              {/* Description */}
+              <VStack spacing={1} align="start" flex={1}>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontSize="sm"
+                  color="gray.500"
+                >
+                  ລາຍລະອຽດ
+                </Text>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="medium"
+                >
+                  {views?.description || "-"}
+                </Text>
+              </VStack>
+
+              <VStack spacing={1} align="start" flex={1}>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontSize="sm"
+                  color="gray.500"
+                >
+                  ສະຖານະການຊຳລະເງິນ
+                </Text>
+                <Badge colorScheme={statusColors[views?.status] || "gray"}>
+                  {statusOptions2[views?.status] || views?.status}
+                </Badge>
+              </VStack>
+
+              <Divider />
+
+              {/* Amounts */}
+              <Box>
+                <HStack spacing={2} mb={3}>
+                  <Icon as={DollarSign} boxSize={4} color="teal.500" />
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    color="gray.500"
+                    fontWeight="medium"
+                  >
+                    ຈຳນວນເງິນ
+                  </Text>
+                </HStack>
+                <VStack spacing={3} align="stretch">
+                  {views?.amounts?.map((amount, index) => (
+                    <PaymentCard key={index} amount={amount} index={index} />
+                  ))}
+                </VStack>
+              </Box>
+
+              {/* Note */}
+              {views?.note && (
+                <>
+                  <Divider />
+                  <Box>
+                    <HStack spacing={2} mb={2}>
+                      <Icon as={FileText} boxSize={4} color="orange.500" />
+                      <Text
+                        fontFamily="Noto Sans Lao, sans-serif"
+                        fontSize="sm"
+                        color="gray.500"
+                        fontWeight="medium"
+                      >
+                        ໝາຍເຫດ
+                      </Text>
+                    </HStack>
+                    <Box
+                      p={4}
+                      bg={useColorModeValue("orange.50", "orange.900")}
+                      rounded="lg"
+                      border="1px solid"
+                      borderColor="orange.200"
+                    >
+                      <Text
+                        fontFamily="Noto Sans Lao, sans-serif"
+                        fontSize="md"
+                      >
+                        {views?.note}
+                      </Text>
+                    </Box>
+                  </Box>
+                </>
+              )}
+
+              {/* Created Date */}
+              <Box pt={2}>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontSize="xs"
+                  color="gray.400"
+                  textAlign="center"
+                >
+                  ສ້າງເມື່ອ:{" "}
+                  {views?.createdAt
+                    ? new Date(views.createdAt).toLocaleString("lo-LA")
+                    : "-"}
+                </Text>
+              </Box>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isWarningIsOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onWarningClose}
+        isCentered
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="lg"
+              fontWeight="bold"
+            >
+              ຢືນຢັນການລົບ
+            </AlertDialogHeader>
+
+            <AlertDialogBody fontFamily="Noto Sans Lao, sans-serif">
+              ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການລົບລາຍການນີ້? ການກະທຳນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button
+                fontFamily="Noto Sans Lao, sans-serif"
+                ref={cancelRef}
+                onClick={onWarningClose}
+              >
+                ຍົກເລີກ
+              </Button>
+              <Button
+                fontFamily="Noto Sans Lao, sans-serif"
+                colorScheme="red"
+                onClick={confirmDelete}
+                ml={3}
+              >
+                ລົບ
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
-}
+};
+
+export default IncomeExpense;

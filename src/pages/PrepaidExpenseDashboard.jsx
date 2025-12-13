@@ -76,6 +76,11 @@ import {
   reopenAdvance,
   updateAdvance,
 } from "../store/reducer/advance";
+import exportPrint from "../components/Prepaid_components/exportPrintPrepaid";
+import PrepaidSummary from "../components/Prepaid_components/Summary";
+import PrepaidFilter from "../components/Prepaid_components/PrepaidFilter";
+import PrepaidTable from "../components/Prepaid_components/PrepaidTable";
+import PrepaidHeader from "../components/Prepaid_components/PrepaidHeader";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -120,7 +125,6 @@ const TYPE_CONFIG = {
 export default function PrepaidExpenseDashboard() {
   const toast = useToast();
   const { user } = useAuth();
-  const textColor = useColorModeValue("gray.700", "gray.200");
   // State management
   const [currencies, setCurrencies] = useState(["LAK", "THB", "USD", "CNY"]);
   const [loading, setLoading] = useState(false);
@@ -163,119 +167,16 @@ export default function PrepaidExpenseDashboard() {
   const [transForm, setTransForm] = useState(INITIAL_TRANS_FORM);
   const [detail, setDetail] = useState();
   // Computed values with useMemo
-  console.log(detail);
   const dispatch = useDispatch();
   const { categoriesRedu: categories } = useSelector((state) => state.partner);
   const { advancesList: advances, employees } = useSelector(
     (state) => state.advance
   );
-  console.log("advances", advances);
-  // Filtered advances with useMemo
-  const filteredAdvances = advances?.filter((a) => {
-    // 🔍 กรองตามคำค้นหา
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      const searchFields = [
-        a.purpose,
-        a.meta?.company,
-        a.employee_id?.full_name,
-        a.requester,
-        a.serial,
-      ].filter(Boolean);
-
-      if (
-        !searchFields.some((field) => field.toLowerCase().includes(searchLower))
-      ) {
-        return false;
-      }
-    }
-
-    // 📅 กรองตามวันที่ (request_date)
-    if (filters.dateFrom || filters.dateTo) {
-      // 🕒 Normalize: แปลงทุกวันที่เป็น YYYY-MM-DD เพื่อไม่ให้ timezone มีผล
-      const requestDate = new Date(a.request_date).toISOString().split("T")[0];
-      const from = filters.dateFrom
-        ? new Date(filters.dateFrom).toISOString().split("T")[0]
-        : null;
-      const to = filters.dateTo
-        ? new Date(filters.dateTo).toISOString().split("T")[0]
-        : null;
-
-      if (from && requestDate < from) return false;
-      if (to && requestDate > to) return false;
-    }
-
-    // 🟢 กรองตามสถานะ
-    if (filters.status && a.status !== filters.status) {
-      return false;
-    }
-
-    return true;
-  });
-
-  const pageSize = 100;
+  const filteredAdvances = advances;
   const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(filteredAdvances.length / pageSize);
-  const pageData = useMemo(() => {
-    const s = (page - 1) * pageSize;
-    return filteredAdvances.slice(s, s + pageSize);
-  }, [filteredAdvances, page]);
-  // 🔹 สรุปยอดรวมทุกสกุลเงิน
-  const summary = useMemo(() => {
-    if (!Array.isArray(filteredAdvances)) return [];
-
-    const summaryByCurrency = {};
-
-    filteredAdvances.forEach((adv) => {
-      // รวมยอดเบิก
-      adv.amount_requested?.forEach((req) => {
-        const { currency, amount } = req;
-        if (!summaryByCurrency[currency]) {
-          summaryByCurrency[currency] = {
-            totalRequested: 0,
-            totalSpent: 0,
-            totalReturnCompany: 0,
-            totalRefundEmployee: 0,
-          };
-        }
-        summaryByCurrency[currency].totalRequested += amount || 0;
-      });
-
-      // รวมยอด summary (ใช้, คืนบริษัท, คืนพนักงาน)
-      if (adv.summary) {
-        Object.entries(adv.summary).forEach(([currency, sum]) => {
-          if (!summaryByCurrency[currency]) {
-            summaryByCurrency[currency] = {
-              totalRequested: 0,
-              totalSpent: 0,
-              totalReturnCompany: 0,
-              totalRefundEmployee: 0,
-            };
-          }
-
-          summaryByCurrency[currency].totalSpent += sum.total_spent || 0;
-          summaryByCurrency[currency].totalReturnCompany +=
-            sum.total_return_to_company || 0;
-          summaryByCurrency[currency].totalRefundEmployee +=
-            sum.total_refund_to_employee || 0;
-        });
-      }
-    });
-
-    // สร้าง array สำหรับแสดงผล
-    return Object.entries(summaryByCurrency).map(([currency, totals]) => {
-      const totalNet =
-        totals.totalSpent -
-        totals.totalReturnCompany -
-        totals.totalRefundEmployee;
-
-      return {
-        currency,
-        ...totals,
-        totalNet,
-      };
-    });
-  }, [filteredAdvances]);
+  const { pagination } = useSelector((s) => s.advance);
+  const totalPages = pagination?.totalPages || 1;
+  const pageData = advances;
 
   // Auth headers helper
   const authHeaders = useCallback(() => {
@@ -288,19 +189,36 @@ export default function PrepaidExpenseDashboard() {
 
   // API calls
 
-  const fetchC = async () => {
+  const fetchC = useCallback(async () => {
     try {
-      await dispatch(fetchCategories()).unwrap();
-      await dispatch(fetchAdvances()).unwrap();
-      await dispatch(fetchEmployees()).unwrap();
-    } catch (error) {
-      console.error("Fetch failed:", error);
+      setLoading(true);
+
+      await Promise.all([
+        dispatch(fetchCategories()).unwrap(),
+        dispatch(fetchEmployees()).unwrap(),
+        dispatch(
+          fetchAdvances({
+            search: filters.search,
+            status: filters.status,
+            dateFrom: filters.dateFrom,
+            dateTo: filters.dateTo,
+            page,
+            limit: 20,
+          })
+        ),
+      ]);
+    } catch (err) {
+      console.error(err);
+      setError(err?.message || "Fetch failed");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [dispatch, filters, page]);
+
   // Initial data fetch
   useEffect(() => {
     fetchC();
-  }, []);
+  }, [fetchC]);
 
   // Multi-currency handlers
   const addCurrencyRow = () => {
@@ -455,7 +373,6 @@ export default function PrepaidExpenseDashboard() {
           note: addForm.note,
         },
       };
-      console.log("payload", payload);
       // 👇 ส่งให้ Redux แทน fetch()
       const resultAction = await dispatch(createAdvanceA(payload)).unwrap();
       if (resultAction?.success) {
@@ -719,10 +636,6 @@ export default function PrepaidExpenseDashboard() {
     [filteredAdvances]
   );
 
-  const resetFilters = useCallback(() => {
-    setFilters({ search: "", status: "", type: "" });
-  }, []);
-
   const handleEditClose = useCallback(() => {
     setEditing(null);
     setEditForm({});
@@ -869,707 +782,6 @@ export default function PrepaidExpenseDashboard() {
       console.log(error);
     }
   };
-
-  const exportToPDF = () => {
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-<!DOCTYPE html>
-<html lang="lo">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ລາຍງານການເງິນ</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Noto Sans Lao', sans-serif;
-      background: #fff;
-      color: #000;
-      line-height: 1.5;
-      padding: 15mm 12mm;
-    }
-
-    .container {
-      max-width: 100%;
-      margin: 0 auto;
-    }
-
-    /* === ส่วนหัวราชการ === */
-    .gov-header {
-      text-align: center;
-      border-bottom: 3px double #000;
-      padding-bottom: 10px;
-      margin-bottom: 18px;
-    }
-    .gov-header .line1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-    }
-    .gov-header .line2 {
-      font-size: 18px;
-      font-weight: 700;
-      margin-top: 4px;
-    }
-
-    /* === ข้อมูลบริษัท === */
-    .date-section {
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 12px;
-  color: #000;
-   font-weight: 700;
-
-}
-   .date-section input {
-  border: none;
-  border-bottom: 1px dotted #000;
-  padding: 4px 8px;
-  font-family: 'Noto Sans Lao', sans-serif;
-  text-align: center;
-  width: 140px;
-  background: transparent;
-  font-size: 12px;
-   font-weight: 700;
-}
-.company-info {
- display: flex;
-    justify-content: space-between; /* จัดให้อยู่ตรงกลางแนวนอน */
-    align-items: center;     /* จัดให้อยู่ตรงกลางแนวตั้ง */
-    gap: 20px;               /* ระยะห่างระหว่างแต่ละช่อง */
-  text-align: left;
-  margin-bottom: 15px;
-  line-height: 1.8;
-  font-size:12px;
-    font-weight: 700;
-}
- .company-info div {
-    white-space: nowrap;     /* ไม่ให้ขึ้นบรรทัดใหม่ */
-  }
-
-    /* === หัวเรื่องหลัก === */
-    .main-title {
-      text-align: center;
-      font-size: 18px;
-      font-weight: 700;
-      text-decoration: underline;
-      text-underline-offset: 5px;
-      margin: 20px 0 16px;
-    }
-
-    /* === วันที่ === */
-    .date-print {
-      text-align: right;
-      font-size: 13px;
-      margin-bottom: 20px;
-    }
-    .date-print input {
-      border: none;
-      border-bottom: 1px dotted #000;
-      width: 130px;
-      text-align: center;
-      font-family: inherit;
-      font-size: 13px;
-      background: transparent;
-    }
-
-    /* === ตารางรายการ === */
-    .table-container {
-      margin: 20px 0;
-      page-break-inside: avoid;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-      border: 1.8px solid #000;
-    }
-
-    th {
-      background: #f1f3f5 !important;
-      font-weight: 700;
-      text-align: center;
-      padding: 9px 6px;
-      border: 1px solid #000;
-      font-size: 11.5px;
-      white-space: nowrap;
-    }
-
-td {
-  border: 1px solid #000;
-  padding: 7px 6px;
-  vertical-align: top;
-  font-size: 12px;
-  font-family: 'Courier New', monospace;
-  text-align: left; /* 👈 ให้ข้อความอยู่ชิดซ้าย */
-}
-
-    /* จัดแนวคอลัมน์ */
-    td:nth-child(1), td:nth-child(2), td:nth-child(3) {   font-size: 12px; text-align: left;  center; }
-    td:nth-child(4), td:nth-child(5), td:nth-child(11) {  font-size: 12px; text-align: left; padding-left: 8px; }
-    td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { 
-      text-align: left; 
-      padding-right: 8px; 
-       font-size: 12px;
-      font-family: 'Courier New', monospace;
-    }
-
-    /* สรุปยอดในแต่ละแถว (หลายสกุลเงิน) */
-    .currency-summary {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 10px;
-      line-height: 1.4;
-    }
-    .currency-block {
-      background: #f8f9fa;
-      padding: 6px 8px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-    }
-    .currency-label {
-      font-weight: 600;
-      display: inline-block;
-      margin-bottom: 2px;
-    }
-
-    /* === ตารางสรุปยอดรวม === */
-    .summary-table {
-      margin-top: 25px;
-      page-break-inside: avoid;
-    }
-    .summary-table table {
-      font-size: 12px;
-    }
-    .summary-table th {
-      background: #e5e7eb !important;
-      font-weight: 700;
-      width: 25%;
-    }
-    .summary-table td {
-      text-align: right;
-      padding-right: 12px;
-      font-weight: 600;
-      font-family: 'Courier New', monospace;
-    }
-
-    /* === ลายเซ็น === */
-    .signature-date {
-      text-align: right;
-      font-size: 13px;
-      margin: 35px 0 50px;
-    }
-
-    .signature-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      page-break-inside: avoid;
-      margin-top: 30px;
-    }
-    .sig-box {
-      text-align: center;
-    }
-    .sig-label {
-      font-weight: 600;
-      font-size: 13px;
-      margin-bottom: 55px;
-    }
-    .sig-line {
-      border-top: 1px solid #000;
-      width: 75%;
-      margin: 0 auto;
-      padding-top: 6px;
-      font-size: 11px;
-      color: #555;
-    }
-         .company-logo {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 10px;
-
-        }
-             .company-section {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 30px;
-        }
-
-        .topHeader{
-          text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            background-clip: text;
-            white-space: nowrap;
-         
-        }
-/* Signatures */
-.signatures {
-  background: #fff;
-  border: 1.5px solid #000;
-  padding: 15px;
-  margin-top: 20px;
-  page-break-inside: avoid;
-}
-
-.signature-title {
-  text-align: center;
-  font-weight: 700;
-  font-size: 12px;
-  margin-bottom: 15px;
-  color: #000;
-}
-
-.signature-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
-}
-
-.signature-cell {
-  text-align: center;
-  border: 1px solid #000;
-  padding: 15px 10px;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: #fff;
-}
-
-.signature-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #000;
-  line-height: 1.4;
-}
- .company-details {
-            flex: 1;
-        }
-.signature-area {
-  margin-top: auto;
-}
-
-.signature-line {
-  border-top: 1px solid #000;
-  width: 70%;
-  margin: 50px auto 0;
-  padding-top: 6px;
-}
-
-    /* === พิมพ์ === */
-    @media print {
-    .signatures {
-    page-break-inside: avoid;
-    border: 1.5px solid #000 !important;
-    padding: 12px;
-  }
-  
-  .signature-grid {
-    gap: 12px;
-  }
-  
-  .signature-cell {
-    border: 1px solid #000 !important;
-    min-height: 110px;
-  }
-  
-  .signature-label {
-    font-size: 10px !important;
-  }
-  
-  .signature-line {
-    margin-top: 40px;
-  }
-      @page {
-        size: A4 landscape;
-        margin: 12mm 10mm;
-      }
-
-      body {
-        padding: 0;
-        background: white;
-      }
-
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      table, th, td {
-        border-color: #000 !important;
-      }
-
-      th {
-        background: #f1f3f5 !important;
-        font-size: 10.5px !important;
-        padding: 7px 5px !important;
-      }
-
-      td {
-        font-size: 10px !important;
-        padding: 6px 5px !important;
-      }
-
-      .currency-block {
-        background: #f8f9fa !important;
-      }
-
-      .summary-table th {
-        background: #e5e7eb !important;
-      }
-
-      input {
-        border: none !important;
-        border-bottom: 1px dotted #000 !important;
-      }
-
-      .toolbar { display: none !important; }
-    }
-
-    /* Toolbar (ซ่อนตอนพิมพ์) */
-    .toolbar {
-      background: #1f2937;
-      color: white;
-      padding: 12px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 15px;
-      position: running(toolbar);
-    }
-    .btn-print {
-      background: #059669;
-      color: white;
-      border: none;
-      padding: 8px 20px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-    }
-    .btn-print:hover {
-      background: #047857;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div>📑 ລາຍງານການເງິນ - ພິມອອກເປັນເອກະສານ</div>
-    <button class="btn-print" onclick="window.print()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 9 6 2 18 2 18 9"></polyline>
-        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-        <rect x="6" y="14" width="12" height="8"></rect>
-      </svg>
-      ພິມລາຍງານ
-    </button>
-  </div>
-
-  <div class="container">
-
-    <!-- ส่วนหัวราชการ -->
-    <div class="gov-header">
-      <div class="line1">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
-      <div class="line2">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</div>
-    </div>
-
-    <!-- ข้อมูลบริษัท -->
-      <div class="company-info">
-      <div class="company-section">
-      <img 
-  class="company-logo" 
-  src="${user?.companyId?.logo || "/default-logo.png"}" 
-  alt="Company Logo"
-    />
-      <div class="company-details">
-      <div class="company-name">${user?.companyId?.name || ""}</div>
-      <div class="company-address">${user?.companyId?.address || ""}</div>
-        <div class="company-address">${user?.companyId?.phone || ""}</div>
-      </div>
-      </div>
-          <div class="topHeader">ລາຍງານການເງິນ</div>
-          <!-- Date Section -->
-          <div class="date-section">
-            ວັນທີ: <input type="text" value="${formatDate(
-              new Date()
-            )}" readonly>
-          </div>
-      </div>
-
-    <!-- ตารางรายการ -->
-<div class="table-container">
-  <table border="1" style="border-collapse: collapse; width: 100%; text-align: center; font-family: 'Noto Sans Lao', sans-serif;">
-    <thead style="background-color: #f3f4f6;">
-      <tr>
-        <th>ລຳດັບ</th>
-        <th>ວັນທີ</th>
-        <th>ເລກທີ່</th>
-        <th>ຜູ້ເບີກ</th>
-        <th>ເນື່ອໃນ</th>
-        <th>ຂໍເບີກ</th>
-        <th>ຍອດໃຊ້ຈິງ</th>
-        <th>ຍອດຄືນພະນັກງານ</th>
-        <th>ຍອດຄືນບໍລິສັດ</th>
-        <th>ຍອດຈ່າຍສຸດທິ</th>
-        <th>ໝາຍເຫດ</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${
-        selected
-          ?.map((item, index) => {
-            // ใน template string ของคุณ ให้แทนที่ส่วนคำนวณด้วยโค้ดนี้
-            const requests = item.amount_requested || [];
-            const summaries = item.summary || {};
-
-            // รวมทุกสกุลที่มีใน requested หรือ summary
-            const currencies = [
-              ...new Set([
-                ...requests.map((r) => r.currency),
-                ...Object.keys(summaries),
-              ]),
-            ];
-
-            return currencies
-              .map((cur, i) => {
-                const req = requests.find((r) => r.currency === cur);
-                const sum = summaries[cur] || {};
-
-                const spent = sum.total_spent || 0;
-                const retEmp = sum.total_refund_to_employee || 0;
-                const retCom = sum.total_return_to_company || 0;
-                const requestedAmount = req ? req.amount : 0;
-
-                // เลือกสูตรที่ถูกต้อง:
-                // ถ้ามี total_spent ให้ใช้มันเป็นหลัก (สมมติว่า spent = จำนวนที่ใช้จริง)
-                // ถ้าไม่มี spent ให้ใช้ requested - return_to_company + refund_to_employee
-                const netPaid =
-                  spent > 0
-                    ? spent + (retEmp || 0) // ถ้ามี refund_to_employee ให้บวกเข้า
-                    : requestedAmount - (retCom || 0) + (retEmp || 0);
-
-                // ฟอร์แมตเพื่อแสดงผล (ถ้าอยากให้เป็น '-' เมื่อไม่มีข้อมูล ให้ปรับได้)
-                const displayRequested = requestedAmount
-                  ? requestedAmount.toLocaleString() + " " + cur
-                  : "-";
-                const displaySpent = spent
-                  ? spent.toLocaleString() + " " + cur
-                  : "-";
-                const displayRetEmp = retEmp
-                  ? retEmp.toLocaleString() + " " + cur
-                  : "-";
-                const displayRetCom = retCom
-                  ? retCom.toLocaleString() + " " + cur
-                  : "-";
-                const displayNet = netPaid
-                  ? netPaid.toLocaleString() + " " + cur
-                  : "-";
-
-                if (i === 0) {
-                  return `
-        <tr>
-          <td rowspan="${currencies.length}">${index + 1}</td>
-          <td rowspan="${currencies.length}">${formatDate(
-                    item.request_date
-                  )}</td>
-          <td rowspan="${currencies.length}">${item.serial}</td>
-          <td rowspan="${currencies.length}">${
-                    item.employee_id?.full_name || "-"
-                  }</td>
-          <td style="  font-family: 'Noto Sans Lao', sans-serif" rowspan="${
-            currencies.length
-          }">${item.purpose || "-"}</td>
-          <td>${displayRequested}</td>
-          <td>${displaySpent}</td>
-          <td>${displayRetEmp}</td>
-          <td>${displayRetCom}</td>
-          <td><strong>${displayNet}</strong></td>
-          <td rowspan="${currencies.length}">${item.meta?.note || ""}</td>
-        </tr>`;
-                } else {
-                  return `
-        <tr>
-          <td>${displayRequested}</td>
-          <td>${displaySpent}</td>
-          <td>${displayRetEmp}</td>
-          <td>${displayRetCom}</td>
-          <td><strong>${displayNet}</strong></td>
-        </tr>`;
-                }
-              })
-              .join("");
-          })
-          .join("") || ""
-      }
-    </tbody>
-  </table>
-</div>
-
-
-
-    <!-- ตารางสรุปยอดรวม (ทุกสกุลเงิน) -->
-    <div class="summary-table">
-      <table>
-        <thead>
-          <tr>
-            <th>ສະກຸນເງິນ</th>
-            <th>ຂໍເບີກທັງໝົດ</th>
-            <th>ໃຊ້ຈ່າຍຈິງ</th>
-            <th>ຄືນບໍລິສັດ</th>
-            <th>ຄືນພະນັກງານ</th>
-            <th>ຈ່າຍສຸດທິ</th>
-          </tr>
-        </thead>
-        <tbody>
-         ${(() => {
-           const totalByCurrency = {};
-
-           selected?.forEach((item) => {
-             // รวมยอดเบิกตามสกุล
-             (item.amount_requested || []).forEach((req) => {
-               if (!totalByCurrency[req.currency]) {
-                 totalByCurrency[req.currency] = {
-                   requested: 0,
-                   spent: 0,
-                   returnCo: 0,
-                   refundEm: 0,
-                 };
-               }
-               totalByCurrency[req.currency].requested += req.amount;
-             });
-
-             // รวมยอดสรุป (ใช้จริง / คืน / refund)
-             if (item.summary) {
-               Object.entries(item.summary).forEach(([cur, data]) => {
-                 if (!totalByCurrency[cur])
-                   totalByCurrency[cur] = {
-                     requested: 0,
-                     spent: 0,
-                     returnCo: 0,
-                     refundEm: 0,
-                   };
-                 totalByCurrency[cur].spent += data.total_spent || 0;
-                 totalByCurrency[cur].returnCo +=
-                   data.total_return_to_company || 0;
-                 totalByCurrency[cur].refundEm +=
-                   data.total_refund_to_employee || 0;
-               });
-             }
-           });
-
-           // สร้าง HTML ตารางสรุป
-           return (
-             Object.entries(totalByCurrency)
-               .map(([cur, t]) => {
-                 // ใช้สูตรที่ถูกต้อง
-                 const net =
-                   t.spent > 0
-                     ? t.spent + (t.refundEm || 0) // ถ้ามี refund ให้บวกเข้า
-                     : t.requested - (t.returnCo || 0) + (t.refundEm || 0);
-
-                 return `
-          <tr style="background:#f9fafb; font-weight:600;">
-            <td style="text-align:center;">${cur}</td>
-            <td style="text-align:right;">${t.requested.toLocaleString()}</td>
-            <td style="text-align:right;">${t.spent.toLocaleString()}</td>
-            <td style="text-align:right;">${t.returnCo.toLocaleString()}</td>
-            <td style="text-align:right;">${t.refundEm.toLocaleString()}</td>
-            <td style="text-align:right;"><strong>${net.toLocaleString()}</strong></td>
-          </tr>`;
-               })
-               .join("") ||
-             "<tr><td colspan='6' style='text-align:center;'>ບໍ່ມີຂໍ້ມູນ</td></tr>"
-           );
-         })()}
-
-        </tbody>
-      </table>
-    </div>
-
-    <!-- วันที่ลงนาม -->
-    <div class="signature-date">
-      ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
-    </div>
-
-    <!-- ลายเซ็น 4 ช่อง -->
-  <div class="signatures">
-      <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>
-      <div class="signature-grid">
-        <div class="signature-cell">
-          <span class="signature-label">ຜູ້ສັງລວມ<br></span>
-          <div class="signature-area">
-            <div class="signature-line">
-          
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</span>
-          <div class="signature-area">
-            <div class="signature-line">
-
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">ຜູ້ຈັດການ</span>
-          <div class="signature-area">
-            <div class="signature-line">
-
-
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">CEO & CFO</span>
-          <div class="signature-area">
-            <div class="signature-line">
-              <div class="signature-name"></div>
-
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</body>
-</html>
-`);
-    printWindow.document.close();
-
-    printWindow.onload = function () {
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-      }, 300);
-    };
-
-    toast({
-      title: "ກຳລັງສົ່ງອອກ PDF",
-      description: "ກະລຸນາເລືອກ 'Save as PDF' ໃນໜ້າຕ່າງການພິມ",
-      status: "info",
-      duration: 3000,
-    });
-  };
-
   const [addCategory, setAddCategory] = useState("");
   const [addSearch, setAddSearch] = useState("");
 
@@ -1611,30 +823,20 @@ td {
   return (
     <Container maxW="container.xl" py={6}>
       {/* Header */}
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading size="lg" fontFamily="Noto Sans Lao, sans-serif">
-          ລາຍຈ່າຍລ່ວງໜ້າ
-        </Heading>
-        <Flex gap={2}>
-          <Button
-            leftIcon={<Printer size={16} />}
-            variant="outline"
-            isDisabled={selected.length === 0}
-            fontFamily="Noto Sans Lao, sans-serif"
-            onClick={exportToPDF}
-          >
-            ພິມ ({selected.length})
-          </Button>
-          <Button
-            leftIcon={<AddIcon />}
-            colorScheme="blue"
-            onClick={onAddOpen}
-            fontFamily="Noto Sans Lao, sans-serif"
-          >
-            ເພີ່ມລາຍການ
-          </Button>
-        </Flex>
-      </Flex>
+
+      <PrepaidHeader
+        selected={selected}
+        user={user}
+        onAddOpen={onAddOpen}
+        onPrint={() =>
+          exportPrint({
+            selected,
+            user,
+            formatDate,
+            toast,
+          })
+        }
+      />
 
       {/* Error Alert */}
       {error && (
@@ -1652,506 +854,38 @@ td {
       )}
 
       {/* Summary Cards */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-        {summary.map((item) => (
-          <Box
-            key={item.currency}
-            p={4}
-            borderRadius="lg"
-            boxShadow="md"
-            transition="all 0.2s"
-            _hover={{ transform: "scale(1.02)", boxShadow: "lg" }}
-          >
-            <Text
-              fontSize="lg"
-              fontWeight="bold"
-              mb={3}
-              color="blue.600"
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              {item.currency}
-            </Text>
-
-            <Flex justify="space-between" wrap="wrap" gap={3}>
-              <Stat minW="120px">
-                <StatLabel
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="sm"
-                  color={textColor}
-                >
-                  ຍອດເບີກ
-                </StatLabel>
-                <StatNumber
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="md"
-                >
-                  {item.totalRequested.toLocaleString()}
-                </StatNumber>
-              </Stat>
-
-              <Stat minW="120px">
-                <StatLabel
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="sm"
-                  color={textColor}
-                >
-                  ໃຊ້ຈິງ
-                </StatLabel>
-                <StatNumber
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="md"
-                  color="purple.600"
-                >
-                  {item.totalSpent.toLocaleString()}
-                </StatNumber>
-              </Stat>
-
-              <Stat minW="120px">
-                <StatLabel
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="sm"
-                  color={textColor}
-                >
-                  ຄືນບໍລິສັດ
-                </StatLabel>
-                <StatNumber
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="md"
-                  color="green.600"
-                >
-                  {item.totalReturnCompany.toLocaleString()}
-                </StatNumber>
-              </Stat>
-
-              <Stat minW="120px">
-                <StatLabel
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="sm"
-                  color={textColor}
-                >
-                  ຄືນພະນັກງານ
-                </StatLabel>
-                <StatNumber
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  fontSize="md"
-                  color="green.600"
-                >
-                  {item.totalRefundEmployee.toLocaleString()}
-                </StatNumber>
-              </Stat>
-            </Flex>
-          </Box>
-        ))}
-      </SimpleGrid>
+      <PrepaidSummary advances={advances} />
       {/* Filters */}
-      <Box bg="white" p={4} borderRadius="md" mb={4} boxShadow="sm">
-        <SimpleGrid columns={{ base: 1, md: 4 }} spacing={3}>
-          {/* 🔍 ช่องค้นหา */}
-          <FormControl>
-            <Input
-              placeholder="ຄົ້ນຫາ (ຊື່/ລາຍລະອຽດ)"
-              value={filters.search}
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value })
-              }
-              fontFamily="Noto Sans Lao, sans-serif"
-            />
-          </FormControl>
-
-          {/* 📅 วันที่เริ่มต้น */}
-          <FormControl>
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) =>
-                setFilters({ ...filters, dateFrom: e.target.value })
-              }
-              fontFamily="Noto Sans Lao, sans-serif"
-            />
-          </FormControl>
-
-          {/* 📅 วันที่สิ้นสุด */}
-          <FormControl>
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) =>
-                setFilters({ ...filters, dateTo: e.target.value })
-              }
-              fontFamily="Noto Sans Lao, sans-serif"
-            />
-          </FormControl>
-
-          {/* 🔘 ปุ่ม */}
-          <Flex gap={2}>
-            <Button
-              leftIcon={<RefreshCw size={16} />}
-              onClick={fetchC}
-              isLoading={loading}
-              flex={1}
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ລີເຟຣຊ
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={resetFilters}
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ລ້າງ
-            </Button>
-          </Flex>
-        </SimpleGrid>
-      </Box>
-
+      <PrepaidFilter filters={filters} onChange={setFilters} />
       {/* Table */}
-      <Box bg="white" borderRadius="md" boxShadow="sm" overflowX="auto">
-        {loading && !advances.length ? (
-          <Flex justify="center" align="center" minH="200px">
-            <Spinner size="lg" color="blue.500" />
-          </Flex>
-        ) : filteredAdvances.length === 0 ? (
-          <Flex justify="center" align="center" minH="200px">
-            <Text color="gray.500" fontFamily="Noto Sans Lao, sans-serif">
-              ບໍ່ພົບຂໍ້ມູນ
-            </Text>
-          </Flex>
-        ) : (
-          <Table variant="simple" size="sm">
-            <Thead bg="gray.50">
-              <Tr>
-                <Th>
-                  <Checkbox
-                    isChecked={allChecked}
-                    isIndeterminate={isIndeterminate}
-                    onChange={handleSelectAll}
-                  />
-                </Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ວັນທີ່</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ເລກທີ່</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ຜູ້ເບີກ</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ລາຍລະອຽດ</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ປະເພດ</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
-                  ງົບຂໍເບິກ
-                </Th>
-
-                <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ດຳເນີນການ</Th>
-                <Th fontFamily="Noto Sans Lao, sans-serif">ຈັດການ</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {pageData?.map((advance) => {
-                // 🔹 รวมสกุลเงินจาก summary และ amount_requested ทั้งหมด
-                const currencies = new Set([
-                  ...(advance.amount_requested?.map((a) => a.currency) || []),
-                  ...Object.keys(advance.summary || {}),
-                ]);
-
-                // 🔹 สร้าง rowData รวมทุกสกุลเงิน
-                const rowData = Array.from(currencies).map((currency) => {
-                  const requested =
-                    advance.amount_requested?.find(
-                      (a) => a.currency === currency
-                    )?.amount || 0;
-
-                  return {
-                    id: advance._id,
-                    currency,
-                    summary: advance.summary?.[currency] || {},
-                    requested,
-                    status_Ap: advance.status_Ap,
-                    serial: advance.serial || "-", // ถ้าต้องการโชว์เลข serial ด้วย
-                  };
-                });
-
-                const statusConfig =
-                  STATUS_CONFIG[advance.status] || STATUS_CONFIG.pending;
-                const typeConfig =
-                  TYPE_CONFIG[advance.type] || TYPE_CONFIG.employee;
-
-                return (
-                  <React.Fragment key={advance._id}>
-                    {rowData.map(
-                      (
-                        { currency, summary, requested, serial, status_Ap, id },
-                        idx
-                      ) => (
-                        <Tr
-                          key={`${advance._id}-${currency}`}
-                          _hover={{ bg: "gray.50" }}
-                        >
-                          {/* ✅ Checkbox */}
-                          {idx === 0 && (
-                            <Td
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              rowSpan={rowData.length}
-                            >
-                              <Checkbox
-                                isChecked={selected.some((i) => i.id === id)}
-                                onChange={() => handleToggle(advance)}
-                              />
-                            </Td>
-                          )}
-
-                          {/* ✅ วันที่ */}
-                          {idx === 0 && (
-                            <Td
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              rowSpan={rowData.length}
-                            >
-                              {formatDate(new Date(advance.request_date))}
-                            </Td>
-                          )}
-                          {idx === 0 && (
-                            <Td
-                              rowSpan={rowData.length}
-                              fontFamily="Noto Sans Lao, sans-serif"
-                            >
-                              {serial}
-                            </Td>
-                          )}
-                          {/* ✅ พนักงาน */}
-                          {idx === 0 && (
-                            <Td
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              rowSpan={rowData.length}
-                            >
-                              {advance.employee_id?.full_name || "—"}
-                            </Td>
-                          )}
-
-                          {/* ✅ ຈຸດປະສົງ */}
-                          {idx === 0 && (
-                            <Td rowSpan={rowData.length} maxW="300px">
-                              <Tooltip label={advance.purpose} placement="top">
-                                <Text
-                                  fontFamily="Noto Sans Lao, sans-serif"
-                                  isTruncated
-                                >
-                                  {shortDesc(advance.purpose)}
-                                </Text>
-                              </Tooltip>
-                            </Td>
-                          )}
-
-                          {/* ✅ ประเภท */}
-                          {idx === 0 && (
-                            <Td rowSpan={rowData.length}>
-                              <Badge
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                colorScheme={typeConfig.colorScheme}
-                              >
-                                {typeConfig.label}
-                              </Badge>
-                            </Td>
-                          )}
-
-                          {/* ✅ ยอดเบิก */}
-                          <Td
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            isNumeric
-                            fontWeight="medium"
-                          >
-                            {requested?.toLocaleString()} {currency}
-                          </Td>
-
-                          {/* ✅ สถานะ */}
-                          {idx === 0 && (
-                            <Td rowSpan={rowData.length}>
-                              <Badge
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                colorScheme={statusConfig.colorScheme}
-                              >
-                                {statusConfig.label}
-                              </Badge>
-                            </Td>
-                          )}
-                          {idx === 0 && (
-                            <Td rowSpan={rowData.length}>
-                              {user?.role === "admin" && (
-                                <HStack>
-                                  <Button
-                                    fontSize={"20"}
-                                    size="sm"
-                                    rounded="lg"
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    colorScheme={
-                                      status_Ap === "pending"
-                                        ? "yellow"
-                                        : "gray"
-                                    }
-                                    variant={
-                                      status_Ap === "pending"
-                                        ? "solid"
-                                        : "outline"
-                                    }
-                                    onClick={() => handleStatus(id, "pending")}
-                                  >
-                                    ລໍຖ້າ
-                                  </Button>
-                                  <Button
-                                    fontSize={"20"}
-                                    size="sm"
-                                    rounded="lg"
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    colorScheme={
-                                      status_Ap === "approve" ? "green" : "gray"
-                                    }
-                                    variant={
-                                      status_Ap === "approve"
-                                        ? "solid"
-                                        : "outline"
-                                    }
-                                    onClick={() => handleStatus(id, "approve")}
-                                  >
-                                    ອະນຸມັດ
-                                  </Button>
-                                  <Button
-                                    fontSize={"20"}
-                                    size="sm"
-                                    rounded="lg"
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    colorScheme={
-                                      status_Ap === "cancel" ? "red" : "gray"
-                                    }
-                                    variant={
-                                      status_Ap === "cancel"
-                                        ? "solid"
-                                        : "outline"
-                                    }
-                                    onClick={() => handleStatus(id, "cancel")}
-                                  >
-                                    ຍົກເລີກ
-                                  </Button>
-                                </HStack>
-                              )}
-                            </Td>
-                          )}
-                          {/* ✅ เมนู */}
-                          {idx === 0 && (
-                            <Td rowSpan={rowData.length}>
-                              <Menu>
-                                <MenuButton
-                                  fontFamily="Noto Sans Lao, sans-serif"
-                                  as={IconButton}
-                                  icon={<MoreVertical size={16} />}
-                                  variant="ghost"
-                                  size="sm"
-                                />
-                                <MenuList>
-                                  <MenuItem
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    icon={<Eye size={16} />}
-                                    onClick={() => handleDetail(advance)}
-                                  >
-                                    ເບີ່ງລາຍລະອຽດ
-                                  </MenuItem>
-                                  <MenuItem
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    icon={<Edit size={16} />}
-                                    onClick={() => {
-                                      setEditing(advance);
-                                      setEditForm({
-                                        ...advance,
-                                        amounts: advance?.amount_requested,
-                                        categoryId: advance.categoryId, // ⭐ สำคัญมาก
-                                      });
-                                      onEditOpen();
-                                    }}
-                                  >
-                                    ແກ້ໄຂ
-                                  </MenuItem>
-                                  <MenuItem
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    icon={<RefreshCw size={16} />}
-                                    onClick={() => {
-                                      setTransTarget(advance);
-                                      onTransOpen();
-                                    }}
-                                  >
-                                    ບັນທຶກໃຊ້ຈິງ / ຄືນ
-                                  </MenuItem>
-                                  {advance.status !== "closed" ? (
-                                    <MenuItem
-                                      fontFamily="Noto Sans Lao, sans-serif"
-                                      icon={<ChevronDownIcon />}
-                                      onClick={() => closeAdvanceA(advance._id)}
-                                    >
-                                      ປິດລາຍການ
-                                    </MenuItem>
-                                  ) : (
-                                    <MenuItem
-                                      fontFamily="Noto Sans Lao, sans-serif"
-                                      icon={<ChevronDownIcon />}
-                                      onClick={() =>
-                                        reopenAdvanceA(advance._id)
-                                      }
-                                    >
-                                      ເປີດລາຍການ
-                                    </MenuItem>
-                                  )}
-                                  <MenuItem
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    icon={<Trash2 size={16} />}
-                                    onClick={() => deleteAdvanceA(advance._id)}
-                                    color="red.500"
-                                  >
-                                    ລົບ
-                                  </MenuItem>
-                                </MenuList>
-                              </Menu>
-                            </Td>
-                          )}
-                        </Tr>
-                      )
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </Tbody>
-          </Table>
-        )}
-        <HStack paddingTop={"40px"} spacing={2} justify="center">
-          <IconButton
-            icon={<ChevronLeftIcon />}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            isDisabled={page === 1}
-            colorScheme="purple"
-            variant="outline"
-            borderRadius="full"
-            aria-label="Previous page"
-            _hover={{
-              transform: "scale(1.1)",
-            }}
-          />
-
-          <Badge
-            colorScheme="purple"
-            fontSize="md"
-            px={4}
-            py={2}
-            borderRadius="full"
-          >
-            {page} / {totalPages}
-          </Badge>
-
-          <IconButton
-            icon={<ChevronRightIcon />}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            isDisabled={page === totalPages}
-            colorScheme="purple"
-            variant="outline"
-            borderRadius="full"
-            aria-label="Next page"
-            _hover={{
-              transform: "scale(1.1)",
-            }}
-          />
-        </HStack>
-      </Box>
-
+      <PrepaidTable
+      handleStatus={handleStatus}
+        advances={advances}
+        selected={selected}
+        onSelect={setSelected}
+        loading={loading}
+        page={page}
+        setPage={setPage}
+        totalPages={totalPages}
+        allChecked={allChecked}
+        isIndeterminate={isIndeterminate}
+        handleSelectAll={handleSelectAll}
+        pageData={pageData}
+        STATUS_CONFIG={STATUS_CONFIG}
+        TYPE_CONFIG={TYPE_CONFIG}
+        formatDate={formatDate}
+        shortDesc={shortDesc}
+        user={user}
+        handleDetail={handleDetail}
+        setEditing={setEditing}
+        setEditForm={setEditForm}
+        onEditOpen={onEditOpen}
+        setTransTarget={setTransTarget}
+        onTransOpen={onTransOpen}
+        closeAdvanceA={closeAdvanceA}
+        reopenAdvanceA={reopenAdvanceA}
+        deleteAdvanceA={deleteAdvanceA}
+      />
       {/* Add Modal */}
       <Modal isOpen={isAddOpen} onClose={onAddClose} size="xl">
         <ModalOverlay />
@@ -2335,9 +1069,6 @@ td {
                         : bankOptions?.filter(
                             (acc) => acc.currency === item.currency
                           );
-                    const selectedAccount = accountOptions?.filter(
-                      (acc) => acc.value === item.accountId
-                    );
                     return (
                       <HStack key={index} spacing={2}>
                         <Select
@@ -3112,7 +1843,11 @@ td {
                     >
                       <HStack justify="space-between">
                         <Box>
-                          <Text  fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" fontWeight="700">
+                          <Text
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            fontSize="sm"
+                            fontWeight="700"
+                          >
                             {a?.account?.type === "bank"
                               ? "💳 ບັນຊີທະນາຄານ"
                               : "💰 ບັນຊີເງິນສົດ"}
@@ -3121,10 +1856,16 @@ td {
                           {/* Bank */}
                           {a?.account?.type === "bank" && (
                             <>
-                              <Text fontFamily="Noto Sans Lao, sans-serif"  fontSize="sm">
+                              <Text
+                                fontFamily="Noto Sans Lao, sans-serif"
+                                fontSize="sm"
+                              >
                                 ທະນາຄານ: {a?.account?.bankName}
                               </Text>
-                              <Text   fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                              <Text
+                                fontFamily="Noto Sans Lao, sans-serif"
+                                fontSize="sm"
+                              >
                                 ເລກບັນຊີ: {a?.account?.accountNumber}
                               </Text>
                             </>
@@ -3132,12 +1873,19 @@ td {
 
                           {/* Cash */}
                           {a?.account?.type === "cash" && (
-                            <Text  fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                            <Text
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              fontSize="sm"
+                            >
                               ຊື່ບັນຊີ: {a?.account?.name}
                             </Text>
                           )}
 
-                          <Text  fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" mt={1}>
+                          <Text
+                            fontFamily="Noto Sans Lao, sans-serif"
+                            fontSize="sm"
+                            mt={1}
+                          >
                             ເງິນ:{" "}
                             <b>
                               {a?.amount.toLocaleString()} {a?.currency}
@@ -3293,11 +2041,6 @@ td {
                         {sum?.total_refund_to_employee?.toLocaleString()}{" "}
                         {currency}
                       </Text>
-                      {/* <Text fontFamily="Noto Sans Lao, sans-serif">
-                        ເພີ່ມເຕີມ:{" "}
-                        {sum?.total_additional_request?.toLocaleString()}{" "}
-                        {currency}
-                      </Text> */}
 
                       <Text fontFamily="Noto Sans Lao, sans-serif">
                         {(() => {

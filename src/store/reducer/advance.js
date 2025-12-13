@@ -7,22 +7,36 @@ import api from "../../api/api";
 
 export const fetchAdvances = createAsyncThunk(
   "advances/fetchAdvances",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(
-        `${import.meta.env.VITE_API_URL}/api/advances`,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const {
+        search = "",
+        status = "",
+        dateFrom,
+        dateTo,
+        page = 1,
+        limit = 50,
+      } = params;
+      console.log(params)
+      const { data } = await api.get("/api/advances", {
+        params: {
+          search,
+          status,
+          dateFrom,
+          dateTo,
+          page,
+          limit,
+        },
+        withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-      return data;
+      return data; // { success, data, pagination }
     } catch (error) {
       return rejectWithValue(
-        error?.response?.data || { message: "Server error" }
+        error?.response?.data ?? { message: "Server error" }
       );
     }
   }
@@ -232,6 +246,14 @@ export const advancesSlice = createSlice({
     errorMessage: "",
     advancesList: [],
     employees: [],
+    pagination: {
+      page: 1,
+      limit: 50,
+      total: 0,
+      totalPages: 0,
+      hasNext: false,
+      hasPrev: false,
+    },
   },
   reducers: {
     messageClear: (state) => {
@@ -246,16 +268,17 @@ export const advancesSlice = createSlice({
     builder
       // FETCH advances (โชว์ loader)
       .addCase(fetchAdvances.pending, (state) => {
-        state.loader = true;
+        state.loading = true;
+        state.error = null;
       })
       .addCase(fetchAdvances.fulfilled, (state, action) => {
-        state.loader = false;
-        state.advancesList = action.payload.data;
+        state.loading = false;
+        state.advancesList = action.payload.data || [];
+        state.pagination = action.payload.pagination || initialState.pagination;
       })
       .addCase(fetchAdvances.rejected, (state, action) => {
-        state.loader = false;
-        state.errorMessage =
-          action.payload?.message || "Error loading advances";
+        state.loading = false;
+        state.error = action.payload?.message || "Fetch failed";
       })
 
       // fetchEmployees (ไม่แสดง loader)

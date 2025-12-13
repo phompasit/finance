@@ -659,26 +659,28 @@ router.get("/me", authenticate, async (req, res) => {
 // Get all users (admin only)
 router.get("/users", authenticate, async (req, res) => {
   try {
-    let users;
+    let users = [];
 
-    // MASTER → เห็นทุกคน
+    // SUPER ADMIN → เห็นทุกคนใน company
     if (req.user.role === "admin" && req.user.isSuperAdmin === true) {
-      users = await User.find({ companyId: req.user.companyId })
+      users = await User.find({ companyId: req.user.companyId})
         .select("-password")
         .populate("companyId");
 
-      // SUPERADMIN → เห็นเฉพาะตัวเอง
-    } else if (req.user.role === "master" || req.user.role === "admin") {
-      users = await User.find({
-        _id: req.user._id,
-      })
+      // ADMIN / MASTER → เห็นเฉพาะตัวเอง
+    } else if (["admin", "master"].includes(req.user.role)) {
+      const user = await User.findById(req.user._id)
         .select("-password")
         .populate("companyId");
+
+      if (user) users = [user];
     }
+
 
     res.json(users);
   } catch (error) {
     res.status(500).json({
+      success: false,
       message: "เกิดข้อผิดพลาด",
       error: error.message,
     });

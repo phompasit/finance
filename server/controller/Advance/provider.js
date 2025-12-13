@@ -7,28 +7,82 @@ import Company from "../../models/company.js";
 // ✅ ดึงรายการเบิกทั้งหมด
 export const getAllAdvances = async (req, res) => {
   try {
-    const advances = await AdvanceRequests.find({
-      companyId: req.user.companyId,
-    })
-      .populate("employee_id", "full_name department position")
-      .populate("categoryId")
-      .sort({ createdAt: -1 })
-      .lean(); // ⭐ สำคัญ!!
+    const {
+      search = "",
+      status = "",
+      dateFrom,
+      dateTo,
+      page = 1,
+      limit = 30,
+    } = req.query;
 
+    /* =========================
+       1️⃣ BUILD QUERY
+    ========================= */
+    const query = {
+      companyId: req.user.companyId,
+    };
+    // 🔍 SEARCH
+    if (search) {
+      const esc = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(esc, "i");
+
+      query.$or = [
+        { purpose: regex },
+        { serial: regex },
+        { requester: regex },
+        { "meta.company": regex },
+      ];
+    }
+
+    // 🟢 STATUS
+    if (status) {
+      query.status = status;
+    }
+
+    // 📅 DATE RANGE (request_date)
+    if (dateFrom || dateTo) {
+      query.request_date = {};
+      if (dateFrom) query.request_date.$gte = new Date(dateFrom);
+      if (dateTo) query.request_date.$lte = new Date(dateTo);
+    }
+
+    /* =========================
+       2️⃣ PAGINATION
+    ========================= */
+    const pageNum = Math.max(parseInt(page), 1);
+    const limitNum = Math.min(parseInt(limit), 200); // ป้องกัน limit เกิน
+    const skip = (pageNum - 1) * limitNum;
+
+    /* =========================
+       3️⃣ QUERY DB
+    ========================= */
+    const [advances, total] = await Promise.all([
+      AdvanceRequests.find(query)
+        .populate("employee_id", "full_name department position")
+        .populate("categoryId")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+
+      AdvanceRequests.countDocuments(query),
+    ]);
+
+    /* =========================
+       4️⃣ MAP ACCOUNT
+    ========================= */
     const company = await Company.findById(req.user.companyId).lean();
     const accountMap = new Map();
 
-    // bank accounts
     company.bankAccounts.forEach((acc) => {
       accountMap.set(String(acc._id), { ...acc, type: "bank" });
     });
 
-    // cash accounts
     company.cashAccounts.forEach((acc) => {
       accountMap.set(String(acc._id), { ...acc, type: "cash" });
     });
 
-    // เติม account เข้า amounts
     advances.forEach((r) => {
       r.amount_requested = r.amount_requested?.map((a) => ({
         ...a,
@@ -36,9 +90,26 @@ export const getAllAdvances = async (req, res) => {
       }));
     });
 
-    res.json({ success: true, data: advances });
+    /* =========================
+       5️⃣ RESPONSE
+    ========================= */
+    res.json({
+      success: true,
+      data: advances,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+        hasNext: pageNum * limitNum < total,
+        hasPrev: pageNum > 1,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 

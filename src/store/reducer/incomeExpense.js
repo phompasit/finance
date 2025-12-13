@@ -6,11 +6,12 @@ import api from "../../api/api";
 // ============================
 export const fetchTransaction = createAsyncThunk(
   "income_expense/fetchTransaction",
-  async (_, { rejectWithValue }) => {
+  async (params, { rejectWithValue }) => {
     try {
       const { data } = await api.get(
         `${import.meta.env.VITE_API_URL}/api/income-expense`,
         {
+          params,
           withCredentials: true,
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -159,7 +160,12 @@ export const incomeExpense = createSlice({
     successMessage: "",
     errorMessage: "",
     loader: false,
-    transactionsRedu: [],
+    transactionsRedu: {
+      records: [],
+      total: 0,
+      totalPages: 1,
+      page: 1,
+    },
   },
   reducers: {
     messageClear: (state) => {

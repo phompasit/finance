@@ -65,96 +65,113 @@ router.get(
         });
       }
 
-      const { type, category, startDate, endDate, search } = req.query;
+      let {
+        page = 1,
+        pageSize = 50,
+        search,
+        startDate,
+        endDate,
+        type,
+        currency,
+        status,
+        status_Ap,
+      } = req.query;
+      console.log("search", search);
+      page = parseInt(page);
+      pageSize = parseInt(pageSize);
+
+      if (page < 1) page = 1;
+      if (pageSize < 1) pageSize = 50;
 
       // 1️⃣ Base query with company
       const query = { companyId: req.user.companyId };
 
       // 2️⃣ Type filter
-      if (type && typeof type === "string") {
-        query.type = type;
-      }
+      if (type) query.type = type;
 
-      // 3️⃣ Category filter (แก้ชื่อ field ถูกแล้ว)
-      if (category && typeof category === "string") {
-        query.categoryId = category;
-      }
+      // 3️⃣ Category filter
+      if (req.query.category) query.categoryId = req.query.category;
 
-      // 4️⃣ Date range
+      // 4️⃣ Currency filter
+      if (currency) query["amounts.currency"] = currency;
+
+      // 5️⃣ Status filter
+      if (status) query.status = status;
+      if (status_Ap) query.status_Ap = status_Ap;
+
+      // 3️⃣ Category filter
+
+      // 4️⃣ Date filter
       if (startDate || endDate) {
         query.date = {};
 
         if (startDate) {
           const s = new Date(startDate);
-          if (isNaN(s.getTime())) {
+          if (isNaN(s))
             return res.status(400).json({ message: "startDate ບໍ່ຖືກຕ້ອງ" });
-          }
           query.date.$gte = s;
         }
 
         if (endDate) {
           const e = new Date(endDate);
-          if (isNaN(e.getTime())) {
+          if (isNaN(e))
             return res.status(400).json({ message: "endDate ບໍ່ຖືກຕ້ອງ" });
-          }
           query.date.$lte = e;
         }
 
-        // validate range
         if (
           query.date.$gte &&
           query.date.$lte &&
           query.date.$gte > query.date.$lte
         ) {
-          return res.status(400).json({
-            message: "startDate ຕ້ອງໜ້ອຍກ່ວາ endDate",
-          });
+          return res
+            .status(400)
+            .json({ message: "startDate ຕ້ອງໜ້ອຍກ່ວາ endDate" });
         }
       }
 
       // 5️⃣ Safe Search
-      if (search && search.length <= 100) {
+      if (search) {
+        if (search.length > 100) {
+          return res.status(400).json({ message: "search ຍາວເກີນໄປ" });
+        }
+
         const esc = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
         query.$or = [
-          { description: { $regex: esc, $options: "i" } },
-          { referance: { $regex: esc, $options: "i" } }, // ✔ แก้ชื่อ field ถูกแล้ว
+          { serial: new RegExp(esc, "i") },
+          { description: new RegExp(esc, "i") },
         ];
       }
 
-      // Reject overly long search terms (ReDoS prevention)
-      if (search && search.length > 100) {
-        return res.status(400).json({ message: "search ยาวเกินไป" });
-      }
+      // 6️⃣ Pagination ต้องมาจาก page/pageSize
+      const skip = (page - 1) * pageSize;
 
-      // 6️⃣ Pagination
-      const limit = Math.min(
-        Math.max(parseInt(req.query.limit) || 100, 1),
-        1000
-      );
-      const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+      // 7️⃣ Load company account map
       const company = await Company.findById(req.user.companyId).lean();
       const accountMap = new Map();
 
-      // bank accounts
-      company.bankAccounts.forEach((acc) => {
+      company.bankAccounts?.forEach((acc) => {
         accountMap.set(String(acc._id), { ...acc, type: "bank" });
       });
-
-      // cash accounts
-      company.cashAccounts.forEach((acc) => {
+      company.cashAccounts?.forEach((acc) => {
         accountMap.set(String(acc._id), { ...acc, type: "cash" });
       });
 
-      // 7️⃣ Fetch records (lean for speed)
+      // 8️⃣ Count total records (before pagination)
+      const total = await IncomeExpense.countDocuments(query);
+
+      // 9️⃣ Fetch paginated records
       const records = await IncomeExpense.find(query)
         .sort({ date: -1 })
-        .limit(limit)
         .skip(skip)
+        .limit(pageSize)
         .select("-__v")
-        .populate("createdBy", "username role") // ❗ ซ่อน email เพื่อ privacy
+        .populate("createdBy", "username role")
         .populate("categoryId", "name type")
         .lean();
+
+      // Map account details
       records.forEach((r) => {
         r.amounts = r.amounts.map((a) => ({
           ...a,
@@ -162,20 +179,23 @@ router.get(
         }));
       });
 
-      // 8️⃣ Security Headers
+      // 10️⃣ Security headers
       res.set({
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
       });
 
-      return res.status(200).json(records);
-    } catch (error) {
-      console.error("Error in GET /income-expense:", {
-        error: error.message,
-        stack: error.stack,
-        user: req.user?._id,
+      return res.status(200).json({
+        success: true,
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+        records,
       });
+    } catch (error) {
+      console.error("Error in GET /income-expense:", error);
 
       return res.status(500).json({
         success: false,
