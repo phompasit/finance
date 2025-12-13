@@ -50,6 +50,25 @@ function App() {
 
     return () => clearInterval(interval);
   }, []);
+  useEffect(() => {
+    let deferredPrompt;
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      // แสดงปุ่ม "ติดตั้งแอป"
+      setShowInstall(true);
+    });
+
+    const installApp = async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <Routes>

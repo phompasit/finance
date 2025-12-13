@@ -56,6 +56,7 @@ app.use(cors(corsOptions));
 // 4. Body parsing with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.static("dist"));
 
 // 5. Prevent NoSQL injection
 
@@ -129,7 +130,10 @@ app.get("/health", (req, res) => {
   };
   res.status(200).json(healthCheck);
 });
-
+app.use((req, res, next) => {
+  res.setHeader("Service-Worker-Allowed", "/");
+  next();
+});
 // ============================================
 // 🔒 RATE LIMITING
 // ============================================

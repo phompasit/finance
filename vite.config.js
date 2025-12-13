@@ -1,15 +1,48 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { VitePWA } from "vite-plugin-pwa";
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+
+      // ⭐ สำคัญมาก สำหรับ localhost
+      devOptions: {
+        enabled: true,
+      },
+
+      manifest: {
+        name: "Finance System",
+        short_name: "Finance",
+        start_url: "/",
+        display: "standalone",
+        theme_color: "#0d9488",
+        background_color: "#ffffff",
+        icons: [
+          {
+            src: "./public/Purple and Blue Modern Finance Logo.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "./public/Purple and Blue Modern Finance Logo.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
+      },
+    }),
+  ],
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
 
-  // ✅ ใช้ port ปกติสำหรับ dev
   server: {
     port: 5173,
     proxy: {
@@ -19,6 +52,7 @@ export default defineConfig({
       },
     },
   },
+
   base: "/",
 
   build: {
