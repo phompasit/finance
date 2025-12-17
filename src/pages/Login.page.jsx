@@ -97,9 +97,6 @@ export default function Login() {
             <Text fontFamily="Noto Sans Lao, sans-serif" color="gray.300">
               ເຂົ້າສູ່ລະບົບ
             </Text>
-            <Text fontFamily="Noto Sans Lao, sans-serif" color="gray.300">
-              ກະລຸນາຢ່າເຂົ້າລະບົບເກີນ 5 ຄັ້ງ{" "}
-            </Text>
           </Box>
 
           {error && (

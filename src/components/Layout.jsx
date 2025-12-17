@@ -40,6 +40,7 @@ import {
   FiMenu,
   FiChevronDown,
 } from "react-icons/fi";
+import PWAInstallBanner from "./PWAInstallBanner";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -159,6 +160,7 @@ export default function Layout() {
         zIndex={1000}
         boxShadow="sm"
       >
+        <PWAInstallBanner />
         <Container maxW="7xl">
           <Flex h={16} alignItems="center" justifyContent="space-between">
             {/* Logo & Title */}
@@ -279,7 +281,7 @@ export default function Layout() {
                   </VStack>
                 </MenuItem>
                 <MenuDivider />
-                <MenuItem
+                {/* <MenuItem
                   fontFamily={"Noto Sans Lao, sans-serif"}
                   icon={<FiLogOut />}
                   onClick={() => navigate("/chartAccount")}
@@ -335,17 +337,17 @@ export default function Layout() {
                 >
                   ໃບລາຍງານຖານະການເງິນ-ຊັບສິນ
                 </MenuItem>
-                      <MenuItem
+                <MenuItem
                   fontFamily={"Noto Sans Lao, sans-serif"}
                   icon={<FiLogOut />}
                   onClick={() => navigate("/income-statement")}
                   color="blue"
                 >
                   ໃບລາຍງານຜົນດຳເນີນງານ
-                </MenuItem>
+                </MenuItem> */}
 
                 <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
+                  fontFamily="Noto Sans Lao, sans-serif"
                   icon={<FiLogOut />}
                   onClick={handleLogout}
                   color="red.500"

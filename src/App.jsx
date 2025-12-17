@@ -1,6 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
+import Layout from "./components/Layout";
+
+// pages
 import Login from "./pages/Login.page";
 import Dashboard from "./pages/Dashboard";
 import IncomeExpense from "./pages/IncomeExpense";
@@ -8,13 +11,12 @@ import OPO from "./pages/OPO";
 import Debt from "./pages/Debt";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
-import Layout from "./components/Layout";
-import axios from "axios";
-import { useEffect } from "react";
-import ChartOfAccounts from "./accounting/ChartOfAccounts";
-import PrepaidExpenseDashboard from "./pages/PrepaidExpenseDashboard";
 import Partner from "./pages/Partner";
+import PrepaidExpenseDashboard from "./pages/PrepaidExpenseDashboard";
 import RegisterForm from "./pages/RegisterForSuperAdmin";
+import "./index.css";
+// accounting
+import ChartOfAccounts from "./accounting/ChartOfAccounts";
 import OpeningBalancePage from "./accounting/OpeningBalancePage";
 import JournalEntryPage from "./accounting/Journal/JournalEntryPage";
 import JournalDetailPage from "./accounting/Journal/JournalDetailPage";
@@ -24,48 +26,24 @@ import BalanceSheetPage from "./accounting/BalanceSheetPage";
 import GeneralLedgerPage from "./accounting/GeneralLedgerPage";
 import StatementOfFinancialPosition from "./accounting/StatementOfFinancialPosition";
 import AssetsPage from "./accounting/AssetsPage";
+import RoleRoute from "./context/RoleRoute";
+import NotFound from "./components/NotFound";
+import RenderFields from "./components/Income_Expense/FormFieldsAdd";
+import FormIncomeExpense from "./pages/FormIncomeExpense";
+import RenderFieldPrepaid from "./components/Prepaid_components/RenderFieldPrepaid";
+import EditForm from "./components/Prepaid_components/EditForm";
+import RenderOpoForm from "./components/Opo_components/RenderOpoForm";
+import RenderForm_Debt from "./components/Debt/RenderForm_Debt";
 
 function App() {
-  const refreshToken = async () => {
-    const storedRefreshToken = localStorage.getItem("refreshToken");
-    if (!storedRefreshToken) return null;
-
-    try {
-      const res = await axios.post("/api/refresh-token", {
-        refreshToken: storedRefreshToken,
-      });
-
-      const { token } = res.data;
-      localStorage.setItem("token", token);
-      return token;
-    } catch (err) {
-      console.error("Refresh token failed:", err);
-      return null;
-    }
-  };
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      await refreshToken();
-    }, 10 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-  useEffect(() => {
-    let deferredPrompt;
-
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-
-      // แสดงปุ่ม "ติดตั้งแอป"
-      setShowInstall(true);
-    });
-  }, []);
-
   return (
     <AuthProvider>
       <Routes>
+        {/* ================= PUBLIC ================= */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<RegisterForm />} />
+
+        {/* ================= PRIVATE ================= */}
         <Route
           path="/"
           element={
@@ -75,26 +53,44 @@ function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
+
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="income-expense" element={<IncomeExpense />} />
           <Route path="opo" element={<OPO />} />
+          <Route path="opo_form" element={<RenderOpoForm />} />
           <Route path="debt" element={<Debt />} />
+          <Route path="debt_form" element={<RenderForm_Debt />} />
+          <Route path="fields" element={<RenderFields />} />
+          <Route path="form_income_expense" element={<FormIncomeExpense />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="form_prepaid_add" element={<RenderFieldPrepaid />} />
           <Route path="prepaid" element={<PrepaidExpenseDashboard />} />
+          <Route path="prepaid_form_edit" element={<EditForm />} />
           <Route path="partner" element={<Partner />} />
-          <Route path="users" element={<Users />} />
-          <Route path="chartAccount" element={<ChartOfAccounts />} />
-          <Route path="openingBalance" element={<OpeningBalancePage />} />
+          <Route
+            path="users"
+            element={
+              <RoleRoute allow={["admin", "master", "staff"]}>
+                <Users />
+              </RoleRoute>
+            }
+          />
+
+          {/* accounting */}
+          <Route path="chart-account" element={<ChartOfAccounts />} />
+          <Route path="opening-balance" element={<OpeningBalancePage />} />
           <Route path="journal" element={<JournalEntryPage />} />
           <Route path="journal/:id" element={<JournalDetailPage />} />
           <Route path="journal/print" element={<PrintJournalPage />} />
           <Route path="income-statement" element={<IncomeStatementPage />} />
-          <Route path="balanceSheet" element={<BalanceSheetPage />} />
-          <Route path="leger" element={<GeneralLedgerPage />} />
+          <Route path="balance-sheet" element={<BalanceSheetPage />} />
+          <Route path="ledger" element={<GeneralLedgerPage />} />
           <Route path="statement" element={<StatementOfFinancialPosition />} />
           <Route path="statement-assets" element={<AssetsPage />} />
         </Route>
-        <Route path="register" element={<RegisterForm />} />
+
+        {/* ================= FALLBACK ================= */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </AuthProvider>
   );

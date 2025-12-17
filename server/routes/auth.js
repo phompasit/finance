@@ -492,12 +492,18 @@ router.post(
 
       // 15. Calculate response time (เพื่อตรวจสอบ timing attack)
       const responseTime = Date.now() - startTime;
+      // ⭐ set cooki
+      res.cookie("access_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
 
       // 16. Send response
       res.json({
         token,
-        refreshToken,
-        expiresIn: 7 * 24 * 60 * 60, // seconds
+        expiresIn: 7 * 24 * 60 * 60,
         user: {
           id: user._id,
           username: user.username,
@@ -622,25 +628,43 @@ router.post("/refresh-token", async (req, res) => {
 // Endpoint สำหรับ logout
 router.post("/logout", authenticate, async (req, res) => {
   try {
-    const sessionId = req.user.sessionId;
+    const sessionId = req.user?.sessionId;
 
-    // ทำให้ session ไม่ active
-    await Session.updateOne(
-      { sessionId },
-      { isActive: false, logoutAt: new Date() }
-    );
+    // ปิด session ถ้ามี
+    if (sessionId) {
+      await Session.updateOne(
+        { sessionId },
+        {
+          isActive: false,
+          logoutAt: new Date(),
+        }
+      );
 
-    await AuditLog.create({
-      action: "LOGOUT",
-      userId: req.user._id,
-      sessionId,
-      ipAddress: req.ip,
-      timestamp: new Date(),
+      await AuditLog.create({
+        action: "LOGOUT",
+        userId: req.user._id,
+        sessionId,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+        timestamp: new Date(),
+      });
+    }
+
+    // ⭐ สำคัญ: clear httpOnly cookie
+    res.clearCookie("token", {
+      httpOnly: true,
+      sameSite: "lax", // หรือ "lax" ตาม env
+      secure: false,
     });
 
-    res.json({ message: "ออกจากระบบสำเร็จ" });
+    return res.status(200).json({
+      message: "ออกจากระบบสำเร็จ",
+    });
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+    console.error("Logout error:", error);
+    return res.status(500).json({
+      message: "เกิดข้อผิดพลาดระหว่างออกจากระบบ",
+    });
   }
 });
 
@@ -663,7 +687,7 @@ router.get("/users", authenticate, async (req, res) => {
 
     // SUPER ADMIN → เห็นทุกคนใน company
     if (req.user.role === "admin" && req.user.isSuperAdmin === true) {
-      users = await User.find({ companyId: req.user.companyId})
+      users = await User.find({ companyId: req.user.companyId })
         .select("-password")
         .populate("companyId");
 
@@ -675,7 +699,6 @@ router.get("/users", authenticate, async (req, res) => {
 
       if (user) users = [user];
     }
-
 
     res.json(users);
   } catch (error) {

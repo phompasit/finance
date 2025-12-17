@@ -156,7 +156,9 @@ router.post("/", authenticate, async (req, res) => {
       totalAmount,
       userId: req.user._id,
       companyId: req.user.companyId,
-      createdBy: req.user.username || "N/A",
+      manager: req.body.manager,
+      requester: req.body.requester,
+      createdBy: req.body.createdBy,
       createdAt: new Date(),
       staff: req.user._id,
       status_Ap: "PENDING",
@@ -245,6 +247,9 @@ router.put("/:id", authenticate, async (req, res) => {
       status: req.body.status,
       items: req.body.items,
       note: req.body.note || "",
+      manager: req.body.manager,
+      requester: req.body.requester,
+      createdBy: req.body.createdBy,
       updatedBy: req.user.username,
       updatedAt: new Date(),
     };
@@ -351,7 +356,6 @@ router.patch("/:id/status", authenticate, async (req, res) => {
 router.delete("/:id", authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-
     // 1️⃣ หาเฉพาะเอกสารของบริษัทนี้ + ID ต้องตรง
     const opo = await OPO.findOne({
       _id: id,
@@ -382,12 +386,12 @@ router.delete("/:id", authenticate, async (req, res) => {
     }
 
     // 4️⃣ ตรวจว่ามีการเชื่อมโยงกับ Invoice หรือ Payment ไหม
-    const linked = await Invoice.findOne({ opoId: id });
-    if (linked) {
-      return res.status(400).json({
-        message: "OPO ຖືກນຳໃຊ້ໃນ Invoice ແລ້ວ ບໍ່ສາມາດລຶບ",
-      });
-    }
+    // const linked = await Invoice.findOne({ opoId: id });
+    // if (linked) {
+    //   return res.status(400).json({
+    //     message: "OPO ຖືກນຳໃຊ້ໃນ Invoice ແລ້ວ ບໍ່ສາມາດລຶບ",
+    //   });
+    // }
 
     // TODO: เพิ่มตรวจใน Stock, Payment, GRN ถ้ามีระบบนั้น
 

@@ -17,7 +17,6 @@ export const fetchAdvances = createAsyncThunk(
         page = 1,
         limit = 50,
       } = params;
-      console.log(params)
       const { data } = await api.get("/api/advances", {
         params: {
           search,
@@ -26,10 +25,6 @@ export const fetchAdvances = createAsyncThunk(
           dateTo,
           page,
           limit,
-        },
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
 
@@ -47,13 +42,7 @@ export const fetchEmployees = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { data } = await api.get(
-        `${import.meta.env.VITE_API_URL}/api/debt/employees`,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `${import.meta.env.VITE_API_URL}/api/debt/employees`
       );
 
       return data;
@@ -71,13 +60,7 @@ export const createAdvanceA = createAsyncThunk(
     try {
       const { data } = await api.post(
         `${import.meta.env.VITE_API_URL}/api/advances`,
-        payload,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        payload
       );
 
       return data;
@@ -95,13 +78,7 @@ export const updateAdvance = createAsyncThunk(
     try {
       const { data } = await api.put(
         `${import.meta.env.VITE_API_URL}/api/advances/${id}`,
-        editData,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        editData
       );
 
       return data;
@@ -118,15 +95,8 @@ export const deleteAdvance = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const { data } = await api.delete(
-        `${import.meta.env.VITE_API_URL}/api/advances/${id}`,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `${import.meta.env.VITE_API_URL}/api/advances/${id}`
       );
-
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -142,13 +112,7 @@ export const addTransaction = createAsyncThunk(
     try {
       const { data } = await api.post(
         `${import.meta.env.VITE_API_URL}/api/advances/${advanceId}/transaction`,
-        transaction,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        transaction
       );
 
       return data;
@@ -168,13 +132,7 @@ export const deleteTransaction = createAsyncThunk(
         `${
           import.meta.env.VITE_API_URL
         }/api/advances/transation/${advanceId}/${transactionId}`,
-        {},
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        {}
       );
 
       return data;
@@ -192,13 +150,7 @@ export const closeAdvance = createAsyncThunk(
     try {
       const { data } = await api.post(
         `${import.meta.env.VITE_API_URL}/api/advances/${advanceId}/close`,
-        { remarks },
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        { remarks }
       );
 
       return data;
@@ -216,13 +168,7 @@ export const reopenAdvance = createAsyncThunk(
     try {
       const { data } = await api.post(
         `${import.meta.env.VITE_API_URL}/api/advances/${advanceId}/reopen`,
-        {},
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        {}
       );
 
       return data;

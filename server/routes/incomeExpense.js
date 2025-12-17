@@ -605,7 +605,7 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
     });
 
     if (!doc) {
-      return res.status(404).json({ message: "ไม่พบข้อมูล" });
+      return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
 
     // 3️⃣ user ธรรมดาแก้ไขเฉพาะรายการที่ตัวเองสร้างเท่านั้น
@@ -624,7 +624,6 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
         message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດປ່ຽນແປງໄດ້",
       });
     }
-
     // 5️⃣ ตรวจสอบ amounts index ว่ามีอยู่จริง
     if (!Array.isArray(doc.amounts) || !doc.amounts[amountIndex]) {
       return res.status(400).json({

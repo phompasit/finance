@@ -52,17 +52,6 @@ import {
   Stack,
 } from "@chakra-ui/react";
 import { AddIcon, ChevronDownIcon, DeleteIcon } from "@chakra-ui/icons";
-import {
-  MoreVertical,
-  Eye,
-  Edit,
-  Trash2,
-  RefreshCw,
-  Printer,
-  Plus,
-  ChevronRightIcon,
-  ChevronLeftIcon,
-} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { fetchCategories } from "../store/reducer/partner";
 import { useDispatch, useSelector } from "react-redux";
@@ -81,27 +70,9 @@ import PrepaidSummary from "../components/Prepaid_components/Summary";
 import PrepaidFilter from "../components/Prepaid_components/PrepaidFilter";
 import PrepaidTable from "../components/Prepaid_components/PrepaidTable";
 import PrepaidHeader from "../components/Prepaid_components/PrepaidHeader";
-
-const API_BASE = import.meta.env.VITE_API_URL || "";
-
-// Initial form states as constants
-const INITIAL_ADD_FORM = {
-  type: "employee",
-  employee_id: "",
-  company: "",
-  requester: "",
-  account: "",
-  description: "",
-  amounts: [{ currency: "LAK", amount: "", accountId: "" }],
-  date_from: "",
-  date_to: "",
-  serial: "",
-  paymentMethods: "",
-  date: new Date().toISOString().split("T")[0],
-  note: "",
-  status_payment: "",
-  status_Ap: "",
-};
+import api from "../api/api";
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 const INITIAL_TRANS_FORM = {
   type: "spend",
@@ -126,7 +97,6 @@ export default function PrepaidExpenseDashboard() {
   const toast = useToast();
   const { user } = useAuth();
   // State management
-  const [currencies, setCurrencies] = useState(["LAK", "THB", "USD", "CNY"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -136,13 +106,7 @@ export default function PrepaidExpenseDashboard() {
     dateFrom: "",
     dateTo: "",
   });
-  const [selectedEmployee, setSelectedEmployee] = useState();
   // Modal states
-  const {
-    isOpen: isAddOpen,
-    onOpen: onAddOpen,
-    onClose: onAddClose,
-  } = useDisclosure();
   const {
     isOpen: isEditOpen,
     onOpen: onEditOpen,
@@ -160,33 +124,17 @@ export default function PrepaidExpenseDashboard() {
   } = useDisclosure();
 
   // Form states
-  const [editing, setEditing] = useState(null);
   const [transTarget, setTransTarget] = useState(null);
-  const [addForm, setAddForm] = useState(INITIAL_ADD_FORM);
-  const [editForm, setEditForm] = useState({});
   const [transForm, setTransForm] = useState(INITIAL_TRANS_FORM);
   const [detail, setDetail] = useState();
   // Computed values with useMemo
   const dispatch = useDispatch();
-  const { categoriesRedu: categories } = useSelector((state) => state.partner);
-  const { advancesList: advances, employees } = useSelector(
-    (state) => state.advance
-  );
+  const { advancesList: advances } = useSelector((state) => state.advance);
   const filteredAdvances = advances;
   const [page, setPage] = useState(1);
   const { pagination } = useSelector((s) => s.advance);
   const totalPages = pagination?.totalPages || 1;
   const pageData = advances;
-
-  // Auth headers helper
-  const authHeaders = useCallback(() => {
-    const token = localStorage.getItem("token");
-    return {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    };
-  }, []);
-
   // API calls
 
   const fetchC = useCallback(async () => {
@@ -195,7 +143,6 @@ export default function PrepaidExpenseDashboard() {
 
       await Promise.all([
         dispatch(fetchCategories()).unwrap(),
-        dispatch(fetchEmployees()).unwrap(),
         dispatch(
           fetchAdvances({
             search: filters.search,
@@ -219,282 +166,53 @@ export default function PrepaidExpenseDashboard() {
   useEffect(() => {
     fetchC();
   }, [fetchC]);
-
-  // Multi-currency handlers
-  const addCurrencyRow = () => {
-    setAddForm({
-      ...addForm,
-      amounts: [...addForm.amounts, { currency: "LAK", amount: "" }],
-    });
-  };
-
-  const removeCurrencyRow = (index) => {
-    if (addForm.amounts.length > 1) {
-      const newAmounts = addForm.amounts.filter((_, i) => i !== index);
-      setAddForm({ ...addForm, amounts: newAmounts });
-    }
-  };
-
-  const updateCurrencyRow = (index, field, value) => {
-    const newAmounts = [...addForm.amounts];
-    newAmounts[index][field] = value;
-    setAddForm({ ...addForm, amounts: newAmounts });
-  };
-
-  // Edit form multi-currency handlers
-  const addEditCurrencyRow = () => {
-    setEditForm({
-      ...editForm,
-      amounts: [
-        ...(editForm.amounts || []),
-        { currency: "LAK", amount: "", accountId: "" },
-      ],
-    });
-  };
-
-  const removeEditCurrencyRow = (index) => {
-    if (editForm.amounts && editForm.amounts.length > 1) {
-      const newAmounts = editForm.amounts.filter((_, i) => i !== index);
-      setEditForm({ ...editForm, amounts: newAmounts });
-    }
-  };
-
-  const updateEditCurrencyRow = (index, field, value) => {
-    setEditForm((prev) => {
-      const newAmounts = prev.amounts.map((row, i) =>
-        i === index ? { ...row, [field]: value } : row
-      );
-
-      return { ...prev, amounts: newAmounts };
-    });
-  };
-
-  // Form validation
-  const validateAddForm = () => {
-    const {
-      type,
-      employee_id,
-      description,
-      amounts,
-      date_from,
-      date_to,
-      serial,
-      paymentMethods,
-      date,
-      note,
-    } = addForm;
-
-    // 1. description
-    if (!description.trim()) {
-      return toastWarn("ກະລຸນາກອກລາຍລະອຽດ");
-    }
-
-    // 2. amount
-    const hasValidAmount = amounts.some(
-      (a) => a.amount && parseFloat(a.amount) > 0
-    );
-    if (!hasValidAmount) {
-      return toastWarn("ກະລຸນາກອກຈໍານວນເງິນທີ່ຖືກຕ້ອງ");
-    }
-
-    // 3. date
-    if (!date) {
-      return toastWarn("ກະລຸນາເລືອກວັນທີ່");
-    }
-
-    // 4. employee_id
-    if (type === "employee" && !employee_id.trim()) {
-      return toastWarn("ກະລຸນາເລືອກພະນັກງານ");
-    }
-
-    // 8. date_from - date_to
-    if (!date_from || !date_to) {
-      return toastWarn("ກະລຸນາເລືອກວັນທີ່ (From-To)");
-    }
-
-    // ถ้าอยากบังคับว่า date_from <= date_to
-    if (new Date(date_from) > new Date(date_to)) {
-      return toastWarn("ວັນທີ່ From ຕ້ອງນ້ອຍກວ່າ To");
-    }
-
-    // 9. serial
-    if (!serial.trim()) {
-      return toastWarn("ກະລຸນາກອກ Serial");
-    }
-
-    // 10. payment method
-    if (!paymentMethods.trim()) {
-      return toastWarn("ກະລຸນາເລືອກວິທີການຈ່າຍ");
-    }
-
-    return true;
-  };
-
-  // Toast helper
-  const toastWarn = (title) => {
-    toast({
-      title,
-      status: "warning",
-      duration: 3000,
-    });
-    return false;
-  };
-  ///category
-  const [value, setValue] = useState("");
-  // Create advance
-  const createAdvance = async () => {
-    try {
-      if (!validateAddForm()) return;
-
-      const validAmounts = addForm.amounts
-        .filter(({ amount }) => parseFloat(amount) > 0)
-        .map(({ currency, amount, accountId }) => ({
-          currency,
-          amount: parseFloat(amount),
-          accountId,
-        }));
-
-      const payload = {
-        type: addForm.type,
-        employee_id: addForm.employee_id || null,
-        purpose: addForm.description?.trim(),
-        amounts: validAmounts,
-        request_date: addForm.date,
-        serial: addForm.serial?.trim(),
-        status_payment: addForm.status_payment,
-        paymentMethods: addForm.paymentMethods,
-        categoryId: value || null,
-        meta: {
-          company: addForm.company || "",
-          account: addForm.account || "",
-          date_from: addForm.date_from,
-          date_to: addForm.date_to,
-          requester: addForm.requester,
-          note: addForm.note,
-        },
-      };
-      // 👇 ส่งให้ Redux แทน fetch()
-      const resultAction = await dispatch(createAdvanceA(payload)).unwrap();
-      if (resultAction?.success) {
-        toast({
-          title: "ບັນທຶກສໍາເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-
-        onAddClose();
-        setAddForm(INITIAL_ADD_FORM);
-      } else {
-        toast({
-          title: "ບັນທຶກບໍ່ສໍາເລັດ",
-          description: resultAction?.message || "Error",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-      await fetchC(); // โหลดใหม่
-    } catch (error) {
-      // ถ้ามีอะไรผิดพลาด มันจะกระโดดมาที่นี่โดยอัตโนมัติ
-      toast({
-        title: "ມີບາງຢ່າງຜິດພາດ",
-        description: error?.message || "Error",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
-  // Update advance
-  const updateAdvanceA = async (id, data) => {
-    try {
-      // 🔹 1) Validate amounts
-      const validAmounts = (data.amounts || [])
-        .filter((a) => !!a.amount && parseFloat(a.amount) > 0)
-        .map((a) => ({
-          currency: a.currency,
-          amount: parseFloat(a.amount),
-          accountId: a.accountId,
-        }));
-
-      // 🔹 2) Build payload
-      const payload = {
-        amounts: validAmounts,
-        request_date: data.request_date || null,
-        purpose: data.purpose?.trim() || "",
-        serial: data.serial?.trim() || "",
-        status_payment: data.status_payment || "",
-        employee_id: data.employee_id || null,
-        paymentMethods: data.paymentMethods || "",
-        categoryId: data.categoryId || null,
-      };
-
-      // 🔹 3) Dispatch Redux Thunk
-      const response = await dispatch(
-        updateAdvance({ id, data: payload })
-      ).unwrap();
-
-      // 🔹 4) Check success
-      if (!response?.success) {
-        throw new Error(response?.message || "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນໄດ້");
-      }
-
-      // 🔹 5) Toast success
-      toast({
-        title: "ແກ້ໄຂສໍາເລັດ",
-        status: "success",
-        duration: 3000,
-      });
-
-      // 🔹 6) Close modal + refresh
-      onEditClose();
-      await fetchC();
-      setSelected([]);
-    } catch (err) {
-      console.error("Update advance error:", err);
-
-      toast({
-        title: "ແກ້ໄຂບໍ່ສໍາເລັດ",
-        description: err.message || "Error",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
-  // Delete advance
   const deleteAdvanceA = async (id) => {
-    if (!window.confirm("ແນ່ໃຈວ່າຈະລົບລາຍການນີ້ຫຼືບໍ່?")) return;
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການລົບ",
+      text: "ທ່ານແນ່ໃຈວ່າຈະລົບລາຍການນີ້?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e53e3e",
+      cancelButtonColor: "#718096",
+      confirmButtonText: "ລົບ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
+      // optional: loading popup
+      Swal.fire({
+        title: "ກໍາລັງລົບ...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
       const response = await dispatch(deleteAdvance(id)).unwrap();
 
-      if (!response.success) {
-        toast({
-          title: "ລົບສໍາເລັດ",
-          description: response.message || "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້",
-          status: "success",
-          duration: 3000,
-        });
+      if (!response?.success) {
+        throw new Error(response?.message || "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້");
       }
+
+      // update local state
       setSelected((prev) => prev.filter((selId) => selId !== id));
       await fetchC();
-      toast({
+
+      Swal.fire({
         title: "ລົບສໍາເລັດ",
-        status: "success",
-        duration: 3000,
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
       });
     } catch (err) {
       console.error("Delete advance error:", err);
-      toast({
+
+      Swal.fire({
         title: "ລົບບໍ່ສໍາເລັດ",
-        description: err.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        text: err.message || "ເກີດຂໍ້ຜິດພາດ",
+        icon: "error",
       });
     }
   };
@@ -505,10 +223,9 @@ export default function PrepaidExpenseDashboard() {
     { type, amount, note, currency }
   ) => {
     if (!amount || parseFloat(amount) <= 0) {
-      toast({
+      Swal.fire({
         title: "ກະລຸນາກອກຈໍານວນເງິນທີ່ຖືກຕ້ອງ",
-        status: "warning",
-        duration: 3000,
+        icon: "error",
       });
       return;
     }
@@ -529,84 +246,132 @@ export default function PrepaidExpenseDashboard() {
       ).unwrap();
 
       if (!response.success) {
-        throw new Error(json.message || "ບໍ່ສາມາດເພີ່ມລາຍການໄດ້");
+        Swal.fire({
+          title: "ເກີດຂໍ້ຜິດພາດ",
+          text: json.message || "ບໍ່ສາມາດເພີ່ມລາຍການໄດ້",
+          icon: "error",
+        });
       }
-      toast({
+      Swal.fire({
         title: "ເພີ່ມລາຍການສໍາເລັດ",
-        status: "success",
-        duration: 3000,
+        text: "ສຳເລັດ",
+        icon: "success",
       });
-
       setTransForm(INITIAL_TRANS_FORM);
       onTransClose();
       await fetchC();
       setSelected([]);
     } catch (err) {
       console.error("Add transaction error:", err);
-      toast({
+      Swal.fire({
         title: "ບໍ່ສາມາດເພີ່ມລາຍການໄດ້",
-        description: err.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        text: err.message || "ບໍ່ສາມາດປິດລາຍການໄດ້",
+        icon: "error",
       });
     }
   };
 
   // Close advance
   const closeAdvanceA = async (advanceId) => {
+    // 1️⃣ Confirm
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການປິດລາຍການ",
+      text: "ທ່ານແນ່ໃຈວ່າຈະປິດລາຍການນີ້?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e53e3e",
+      cancelButtonColor: "#718096",
+      confirmButtonText: "ປິດລາຍການ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
+      // 2️⃣ Loading
+      Swal.fire({
+        title: "ກໍາລັງປິດລາຍການ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       const response = await dispatch(
         closeAdvance({
-          advanceId: advanceId,
+          advanceId,
           remarks: "",
         })
       ).unwrap();
 
-      if (!response.success) {
-        throw new Error(json.message || "ບໍ່ສາມາດປິດລາຍການໄດ້");
+      if (!response?.success) {
+        throw new Error(response?.message || "ບໍ່ສາມາດປິດລາຍການໄດ້");
       }
-      toast({
-        title: "ປິດລາຍການສໍາເລັດ",
-        status: "success",
-        duration: 3000,
-      });
+
       await fetchC();
+
+      // 3️⃣ Success
+      Swal.fire({
+        title: "ປິດລາຍການສໍາເລັດ",
+        text: "ລາຍການຖືກປິດແລ້ວ",
+        icon: "success",
+        timer: 1800,
+        showConfirmButton: false,
+      });
     } catch (err) {
       console.error("Close advance error:", err);
-      toast({
+
+      // 4️⃣ Error
+      Swal.fire({
         title: "ປິດລາຍການບໍ່ສໍາເລັດ",
-        description: err.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        text: err?.message || "ມີບາງຢ່າງຜິດພາດ",
+        icon: "error",
       });
     }
   };
 
   // Reopen advance
   const reopenAdvanceA = async (advanceId) => {
-    try {
-      const response = await dispatch(reopenAdvance(advanceId)).unwrap();
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການເປີດຄືນ",
+      text: "ທ່ານແນ່ໃຈວ່າຈະເປີດລາຍການນີ້ຄືນ?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3182ce",
+      cancelButtonColor: "#718096",
+      confirmButtonText: "ເປີດຄືນ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
 
-      if (!response.success) {
-        throw new Error(json.message || "ບໍ່ສາມາດເປີດລາຍການໄດ້");
-      }
-      toast({
-        title: "ເປີດລາຍການສໍາເລັດ",
-        status: "success",
-        duration: 3000,
+    if (!result.isConfirmed) return;
+
+    try {
+      // Loading
+      Swal.fire({
+        title: "ກໍາລັງເປີດຄືນ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
       });
 
+      const response = await dispatch(reopenAdvance(advanceId)).unwrap();
+
+      if (!response?.success) {
+        throw new Error(response?.message || "ບໍ່ສາມາດເປີດລາຍການໄດ້");
+      }
+
       await fetchC();
+
+      Swal.fire({
+        title: "ເປີດລາຍການສໍາເລັດ",
+        icon: "success",
+        timer: 1800,
+        showConfirmButton: false,
+      });
     } catch (err) {
       console.error("Reopen advance error:", err);
-      toast({
-        title: "ເປີດລາຍການບໍ່ສໍາເລັດ",
-        description: err.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+
+      Swal.fire({
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        text: err?.message || err?.response?.data?.message || "ມີບາງຢ່າງຜິດພາດ",
+        icon: "error",
       });
     }
   };
@@ -616,15 +381,6 @@ export default function PrepaidExpenseDashboard() {
   // เช็คว่าถูกเลือกหมดไหม
   const allChecked = selected.length === filteredAdvances.length;
   const isIndeterminate = selected.length > 0 && !allChecked;
-  // ✅ เลือก/ยกเลิกรายการเดียว
-  const handleToggle = (item) => {
-    const exists = selected.find((i) => i.id === item.id);
-    if (exists) {
-      setSelected(selected.filter((i) => i.id !== item.id));
-    } else {
-      setSelected([...selected, item]);
-    }
-  };
   const handleSelectAll = useCallback(
     (e) => {
       if (e.target.checked) {
@@ -635,12 +391,6 @@ export default function PrepaidExpenseDashboard() {
     },
     [filteredAdvances]
   );
-
-  const handleEditClose = useCallback(() => {
-    setEditing(null);
-    setEditForm({});
-    onEditClose();
-  }, [onEditClose]);
 
   const handleTransClose = useCallback(() => {
     setTransTarget(null);
@@ -698,128 +448,121 @@ export default function PrepaidExpenseDashboard() {
   );
 
   const handleDeleteTransaction = async (item, id) => {
-    const confirmDelete = window.confirm(
-      `ຢືນຢັນລົບລາຍການ "${getTransactionTypeText(item.type)}" ຫຼືບໍ?`
-    );
-    if (!confirmDelete) return;
-    // ถ้าคุณต้องการส่งไป backend ด้วย:
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການລົບ",
+      text: `ທ່ານແນ່ໃຈວ່າຈະລົບລາຍການ "${getTransactionTypeText(item.type)}" ?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e53e3e",
+      cancelButtonColor: "#718096",
+      confirmButtonText: "ລົບ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
-      const res = await fetch(
-        `${API_BASE}/api/advances/transation/${id}/${item._id}`,
-        {
-          method: "PATCH",
-          headers: authHeaders(),
-        }
+      // Loading
+      Swal.fire({
+        title: "ກໍາລັງລົບ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      const { data } = await api.patch(
+        `/api/advances/transation/${id}/${item._id}`
       );
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || "ບໍ່ສາມາດເປີດລາຍການໄດ້");
+      if (!data?.success) {
+        throw new Error(data?.message || "ບໍ່ສາມາດລົບລາຍການໄດ້");
       }
-
-      toast({
-        title: "ລົບສຳເລັດ",
-        status: "success",
-        duration: 3000,
-      });
 
       await fetchC();
       onTransClose();
+
+      Swal.fire({
+        title: "ລົບສໍາເລັດ",
+        icon: "success",
+        timer: 1800,
+        showConfirmButton: false,
+      });
     } catch (err) {
-      console.error("Reopen advance error:", err);
-      toast({
-        title: "ເປີດລາຍການບໍ່ສໍາເລັດ",
-        description: err.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+      console.error("Delete transaction error:", err);
+
+      Swal.fire({
+        title: "ລົບບໍ່ສໍາເລັດ",
+        text: err.message || "ມີບາງຢ່າງຜິດພາດ",
+        icon: "error",
       });
     }
   };
+  const handleStatus = async (id, status) => {
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການປ່ຽນສະຖານະ",
+      text: `ທ່ານແນ່ໃຈວ່າຈະປ່ຽນສະຖານະເປັນ "${status}" ?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3182ce",
+      cancelButtonColor: "#718096",
+      confirmButtonText: "ຢືນຢັນ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
 
-  const handleStatus = async (data, status) => {
+    if (!result.isConfirmed) return;
+
     try {
-      const endpoint = `${
-        import.meta.env.VITE_API_URL
-      }/api/advances/advance/:${data}`;
-
-      // เตรียม body ให้เป็น JSON string
-      const body = JSON.stringify({
-        status_Ap: status,
+      // Loading state
+      Swal.fire({
+        title: "ກໍາລັງດໍາເນີນການ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
       });
 
-      const response = await fetch(endpoint, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body,
-      });
+      const endpoint = `/api/advances/advance/${id}`;
+      const { data } = await api.patch(endpoint, { status_Ap: status });
 
-      if (response.ok) {
-        await fetchC();
-        toast({
-          title: "ສຳເລັດ",
-          description: `${status} ສຳເລັດແລ້ວ`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-        onClose();
-      } else {
-        const data = await response.json();
-        toast({
-          title: "ກະລຸນາກວດສອບຄືນ",
-          description: data.message,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
+      if (!data?.success) {
+        throw new Error(data?.message || "ປ່ຽນສະຖານະບໍ່ສໍາເລັດ");
       }
+
+      await fetchC();
+
+      Swal.fire({
+        title: "ສໍາເລັດ",
+        text: `ປ່ຽນສະຖານະເປັນ "${status}" ສໍາເລັດແລ້ວ`,
+        icon: "success",
+        timer: 1800,
+        showConfirmButton: false,
+      });
     } catch (error) {
-      console.log(error);
+      console.error("Update status error:", error);
+
+      Swal.fire({
+        title: "ປ່ຽນສະຖານະບໍ່ສໍາເລັດ",
+        text:
+          error?.response?.data?.message ||
+          error.message ||
+          "ບໍ່ສາມາດປ່ຽນສະຖານະໄດ້",
+        icon: "error",
+      });
     }
   };
-  const [addCategory, setAddCategory] = useState("");
-  const [addSearch, setAddSearch] = useState("");
-
-  // EDIT
-  const [editCategory, setEditCategory] = useState("");
-  const [editSearch, setEditSearch] = useState("");
-
-  const addFiltered = categories.filter((c) =>
-    c.name.toLowerCase().includes(addSearch.toLowerCase())
+  const navigate = useNavigate();
+  const handleSend = useCallback(() => {
+    navigate("/form_prepaid_add");
+  }, [navigate]);
+  const handleSendEdit = useCallback(
+    (data) => {
+      console.log(data);
+      navigate("/prepaid_form_edit", {
+        state: {
+          data: data,
+        },
+      });
+    },
+    [navigate]
   );
 
-  const editFiltered = categories.filter((c) =>
-    c.name.toLowerCase().includes(editSearch.toLowerCase())
-  );
-  const addSelectedLabel =
-    categories.find((c) => c._id === addCategory)?.name || "ເລືອກ";
-
-  const editSelectedLabel =
-    categories.find((c) => c._id === editCategory)?.name || "ເລືອກ";
-  const laoType = {
-    income: "💰 ລາຍຮັບ",
-    asset: "🏦 ຊັບສິນ",
-    cogs: "📦 ຕົ້ນທຶນຂາຍ",
-    "selling-expense": "🛒 ຄ່າໃຊ້ຈ່າຍຈຳໜ່າຍ",
-    "admin-expense": "🏢 ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
-    expense: "📉 ຄ່າໃຊ້ຈ່າຍອື່ນໆ",
-  };
-
-  const bankOptions = (user?.companyId?.bankAccounts || []).map((b) => ({
-    label: `${b.bankName} (${b.currency})`,
-    value: b._id,
-    currency: b.currency,
-  }));
-  const cashOptions = (user?.companyId?.cashAccounts || []).map((b) => ({
-    label: `${b.name} (${b.currency})`,
-    value: b._id,
-    currency: b.currency,
-  }));
   return (
     <Container maxW="container.xl" py={6}>
       {/* Header */}
@@ -827,7 +570,7 @@ export default function PrepaidExpenseDashboard() {
       <PrepaidHeader
         selected={selected}
         user={user}
-        onAddOpen={onAddOpen}
+        onAddOpen={handleSend}
         onPrint={() =>
           exportPrint({
             selected,
@@ -859,8 +602,9 @@ export default function PrepaidExpenseDashboard() {
       <PrepaidFilter filters={filters} onChange={setFilters} />
       {/* Table */}
       <PrepaidTable
-      handleStatus={handleStatus}
+        handleStatus={handleStatus}
         advances={advances}
+        handleSendEdit={handleSendEdit}
         selected={selected}
         onSelect={setSelected}
         loading={loading}
@@ -877,8 +621,6 @@ export default function PrepaidExpenseDashboard() {
         shortDesc={shortDesc}
         user={user}
         handleDetail={handleDetail}
-        setEditing={setEditing}
-        setEditForm={setEditForm}
         onEditOpen={onEditOpen}
         setTransTarget={setTransTarget}
         onTransOpen={onTransOpen}
@@ -886,638 +628,6 @@ export default function PrepaidExpenseDashboard() {
         reopenAdvanceA={reopenAdvanceA}
         deleteAdvanceA={deleteAdvanceA}
       />
-      {/* Add Modal */}
-      <Modal isOpen={isAddOpen} onClose={onAddClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-            ເພີ່ມລາຍການລາຍຈ່າຍລ່ວງໜ້າ
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <SimpleGrid columns={2} spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ເລກທີ່
-                  </FormLabel>
-                  <Input
-                    value={addForm?.serial}
-                    onChange={(e) =>
-                      setAddForm({
-                        ...addForm,
-                        serial: e.target.value,
-                      })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ພະນັກງານ
-                  </FormLabel>
-                  <Select
-                    placeholder="ເລືອກພະນັກງານ"
-                    value={addForm.employee_id}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, employee_id: e.target.value })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  >
-                    {employees?.map((emp) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.full_name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <Menu matchWidth>
-                  <MenuButton
-                    as={Button}
-                    rightIcon={<ChevronDownIcon />}
-                    width="100%"
-                  >
-                    {addSelectedLabel}
-                  </MenuButton>
-
-                  <MenuList p={2}>
-                    <Input
-                      placeholder="ຄົ້ນຫາ..."
-                      value={addSearch}
-                      onChange={(e) => setAddSearch(e.target.value)}
-                      mb={2}
-                    />
-
-                    <Box maxH="200px" overflowY="auto">
-                      {addFiltered.map((item) => (
-                        <MenuItem
-                          key={item._id}
-                          onClick={() => {
-                            setValue(item._id);
-                            setAddCategory(item._id);
-                            setAddForm({ ...addForm, categoryId: item._id });
-                            setAddSearch("");
-                          }}
-                        >
-                          {item.name} - {laoType[item.type]}
-                        </MenuItem>
-                      ))}
-                    </Box>
-                  </MenuList>
-                </Menu>
-
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ວິທີການຊຳລະ
-                  </FormLabel>
-
-                  <Select
-                    placeholder="ເລືອກວິທີຊຳລະ"
-                    value={addForm.paymentMethods}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, paymentMethods: e.target.value })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  >
-                    <option value="cash">ເງິນສົດ</option>
-                    <option value="bank">ເງິນໂອນ</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ວັນທີ່ເບີກ
-                  </FormLabel>
-                  <Input
-                    type="date"
-                    value={addForm.date}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, date: e.target.value })
-                    }
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ຕັ້ງແຕ່ວັນທີ່
-                  </FormLabel>
-                  <Input
-                    type="date"
-                    value={addForm.date_from}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, date_from: e.target.value })
-                    }
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ເຖິງວັນທີ່
-                  </FormLabel>
-                  <Input
-                    type="date"
-                    value={addForm.date_to}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, date_to: e.target.value })
-                    }
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ສະຖານະການຊຳລະເງິນ
-                  </FormLabel>
-                  <Select
-                    placeholder="ສະຖານະການຊຳລະເງິນ"
-                    value={addForm.status_payment}
-                    onChange={(e) =>
-                      setAddForm({ ...addForm, status_payment: e.target.value })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  >
-                    <option value="paid">ຊຳລະແລ້ວ</option>
-                    <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-                  </Select>
-                </FormControl>
-              </SimpleGrid>
-
-              {/* Multi-Currency Section */}
-              <Box>
-                <Flex justify="space-between" align="center" mb={2}>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif" mb={0}>
-                    ຈໍານວນເງິນ (ຫຼາຍສະກຸນ)
-                  </FormLabel>
-                  <Button
-                    size="sm"
-                    leftIcon={<Plus size={14} />}
-                    onClick={addCurrencyRow}
-                    colorScheme="green"
-                    variant="outline"
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  >
-                    ເພີ່ມສະກຸນເງິນ
-                  </Button>
-                </Flex>
-                <VStack spacing={2} align="stretch">
-                  {addForm.amounts.map((item, index) => {
-                    const accountOptions =
-                      addForm.paymentMethods === "cash"
-                        ? cashOptions?.filter(
-                            (acc) => acc.currency === item.currency
-                          )
-                        : bankOptions?.filter(
-                            (acc) => acc.currency === item.currency
-                          );
-                    return (
-                      <HStack key={index} spacing={2}>
-                        <Select
-                          value={item.currency}
-                          onChange={(e) =>
-                            updateCurrencyRow(index, "currency", e.target.value)
-                          }
-                          w="120px"
-                          fontFamily="Noto Sans Lao, sans-serif"
-                        >
-                          {currencies.map((curr) => (
-                            <option key={curr} value={curr}>
-                              {curr}
-                            </option>
-                          ))}
-                        </Select>
-                        <Select
-                          placeholder="ເລືອກ"
-                          value={item.accountId}
-                          onChange={(e) =>
-                            updateCurrencyRow(
-                              index,
-                              "accountId",
-                              e.target.value
-                            )
-                          }
-                          w="120px"
-                          fontFamily="Noto Sans Lao, sans-serif"
-                        >
-                          {accountOptions?.map((acc) => (
-                            <option key={acc.value} value={acc.value}>
-                              {acc.label}
-                            </option>
-                          ))}
-                        </Select>
-
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.amount}
-                          onChange={(e) =>
-                            updateCurrencyRow(index, "amount", e.target.value)
-                          }
-                          placeholder="0.00"
-                          flex={1}
-                        />
-                        <IconButton
-                          icon={<DeleteIcon />}
-                          onClick={() => removeCurrencyRow(index)}
-                          isDisabled={addForm.amounts.length === 1}
-                          colorScheme="red"
-                          variant="ghost"
-                          size="sm"
-                        />
-                      </HStack>
-                    );
-                  })}
-                </VStack>
-              </Box>
-
-              <FormControl isRequired>
-                <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                  ລາຍລະອຽດ
-                </FormLabel>
-                <Textarea
-                  value={addForm.description}
-                  onChange={(e) =>
-                    setAddForm({ ...addForm, description: e.target.value })
-                  }
-                  placeholder="ອະທິບາຍວັດຖຸປະສົງການເບີກເງິນ"
-                  rows={3}
-                  fontFamily="Noto Sans Lao, sans-serif"
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                  ໝາຍເຫດ
-                </FormLabel>
-                <Textarea
-                  value={addForm.note}
-                  onChange={(e) =>
-                    setAddForm({ ...addForm, note: e.target.value })
-                  }
-                  placeholder="ໝາຍເຫດເພີ່ມເຕີມ (ຖ້າມີ)"
-                  rows={2}
-                  fontFamily="Noto Sans Lao, sans-serif"
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              colorScheme="blue"
-              mr={3}
-              onClick={createAdvance}
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ບັນທຶກ
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onAddClose}
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ຍົກເລີກ
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal isOpen={isEditOpen} onClose={handleEditClose} size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-            ແກ້ໄຂລາຍການ
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {editing && (
-              <VStack spacing={4} align="stretch">
-                {/* Multi-Currency Edit Section */}
-                <Box>
-                  <Flex justify="space-between" align="center" mb={2}>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif" mb={0}>
-                      ຈໍານວນເງິນ (ຫຼາຍສະກຸນ)
-                    </FormLabel>
-                    <Button
-                      size="sm"
-                      leftIcon={<Plus size={14} />}
-                      onClick={addEditCurrencyRow}
-                      colorScheme="green"
-                      variant="outline"
-                      fontFamily="Noto Sans Lao, sans-serif"
-                    >
-                      ເພີ່ມສະກຸນເງິນ
-                    </Button>
-                  </Flex>
-                  <VStack spacing={2} align="stretch">
-                    {editForm?.amounts?.map((item, index) => {
-                      const accountOptions =
-                        editForm?.paymentMethods === "cash"
-                          ? cashOptions?.filter(
-                              (acc) => acc.currency === item.currency
-                            )
-                          : bankOptions?.filter(
-                              (acc) => acc.currency === item.currency
-                            );
-                      // แปลง ObjectId เป็น string ป้องกัน select error
-                      const selectedAccount = accountOptions.filter(
-                        (acc) => acc.value === item.accountId
-                      );
-                      console.log(editForm);
-                      return (
-                        <HStack key={index} spacing={2}>
-                          <Select
-                            value={item.currency}
-                            onChange={(e) =>
-                              updateEditCurrencyRow(
-                                index,
-                                "currency",
-                                e.target.value
-                              )
-                            }
-                            w="120px"
-                            fontFamily="Noto Sans Lao, sans-serif"
-                          >
-                            {currencies.map((curr) => (
-                              <option key={curr} value={curr}>
-                                {curr}
-                              </option>
-                            ))}
-                          </Select>
-                          {/* Account Select */}
-                          <Select
-                            placeholder="ເລືອກ"
-                            value={item.accountId} // ⭐ ensure string always
-                            onChange={(e) =>
-                              updateEditCurrencyRow(
-                                index,
-                                "accountId",
-                                e.target.value
-                              )
-                            }
-                            w="120px"
-                            fontFamily="Noto Sans Lao, sans-serif"
-                          >
-                            {accountOptions.map((acc) => (
-                              <option key={acc.value} value={acc.value}>
-                                {acc.label}
-                              </option>
-                            ))}
-                          </Select>
-
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.amount}
-                            onChange={(e) =>
-                              updateEditCurrencyRow(
-                                index,
-                                "amount",
-                                e.target.value
-                              )
-                            }
-                            placeholder="0.00"
-                            flex={1}
-                          />
-                          <IconButton
-                            icon={<DeleteIcon />}
-                            onClick={() => removeEditCurrencyRow(index)}
-                            isDisabled={
-                              editForm.amounts && editForm.amounts.length === 1
-                            }
-                            colorScheme="red"
-                            variant="ghost"
-                            size="sm"
-                          />
-                        </HStack>
-                      );
-                    })}
-                  </VStack>
-                </Box>
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ປະເພດ
-                  </FormLabel>
-                  <Select
-                    value={editForm.employee_id || ""}
-                    onChange={(e) => {
-                      const selectedId = e.target.value;
-                      const emp = employees.find(
-                        (emp) => emp._id === selectedId
-                      );
-
-                      setEditForm({
-                        ...editForm,
-                        employee_id: selectedId, // ✅ เก็บแค่ ID
-                      });
-
-                      setSelectedEmployee(emp || null); // ✅ แสดงชื่อ
-                    }}
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    placeholder="ເລືອກພະນັກງານ"
-                  >
-                    {employees.map((emp) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.full_name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ຜູ້ເບີກ
-                  </FormLabel>
-                  <Input
-                    readOnly
-                    value={
-                      selectedEmployee?.full_name ||
-                      editForm?.employee_id?.full_name ||
-                      ""
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  />
-                </FormControl>
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ເລກທີ່
-                  </FormLabel>
-                  <Input
-                    value={editForm?.serial}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        serial: e.target.value,
-                      })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  />
-                </FormControl>
-
-                <HStack>
-                  <Menu fontFamily="Noto Sans Lao, sans-serif" matchWidth>
-                    <MenuButton
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      as={Button}
-                      rightIcon={<ChevronDownIcon />}
-                      width="100%"
-                    >
-                      {editSelectedLabel}
-                    </MenuButton>
-
-                    <MenuList p={2}>
-                      <Input
-                        placeholder="ຄົ້ນຫາ..."
-                        value={editSearch}
-                        onChange={(e) => setEditSearch(e.target.value)}
-                        mb={2}
-                      />
-
-                      <Box maxH="200px" overflowY="auto">
-                        {editFiltered.map((item) => (
-                          <MenuItem
-                            key={item._id}
-                            onClick={() => {
-                              setEditCategory(item._id);
-                              setEditForm({
-                                ...editForm,
-                                categoryId: item._id,
-                              });
-                              setEditSearch("");
-                            }}
-                          >
-                            {item.name} - {laoType[item.type]}
-                          </MenuItem>
-                        ))}
-                      </Box>
-                    </MenuList>
-                  </Menu>
-
-                  <Box
-                    minW="180px"
-                    bg="gray.50"
-                    border="1px solid"
-                    borderColor="gray.200"
-                    px={3}
-                    py={2}
-                    borderRadius="md"
-                  >
-                    <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      fontSize="sm"
-                      color="gray.600"
-                      mb={1}
-                    >
-                      ທີ່ເລືອກ:
-                    </Text>
-
-                    <Text
-                      fontWeight="bold"
-                      fontFamily="Noto Sans Lao, sans-serif"
-                    >
-                      {editForm?.categoryId?.name} -{" "}
-                      {laoType[editForm?.categoryId?.type]}
-                    </Text>
-                  </Box>
-                </HStack>
-
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ວັນທີ່
-                  </FormLabel>
-                  <Input
-                    type="date"
-                    value={
-                      editForm.request_date
-                        ? new Date(editForm.request_date)
-                            .toISOString()
-                            .slice(0, 10)
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        request_date: e.target.value,
-                      })
-                    }
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ສະຖານະການຊຳລະເງິນ
-                  </FormLabel>
-                  <Select
-                    placeholder="ສະຖານະການຊຳລະເງິນ"
-                    value={editForm.status_payment}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        status_payment: e.target.value,
-                      })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  >
-                    <option value="paid">ຊຳລະແລ້ວ</option>
-                    <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ວິທີການຊຳລະ
-                  </FormLabel>
-
-                  <Select
-                    placeholder="ເລືອກວິທີຊຳລະ"
-                    value={editForm.paymentMethods}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        paymentMethods: e.target.value,
-                      })
-                    }
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  >
-                    <option value="cash">ເງິນສົດ</option>
-                    <option value="bank">ເງິນໂອນ</option>
-                  </Select>
-                </FormControl>
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ລາຍລະອຽດ
-                  </FormLabel>
-                  <Textarea
-                    value={editForm.purpose || ""}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, purpose: e.target.value })
-                    }
-                    rows={4}
-                    fontFamily="Noto Sans Lao, sans-serif"
-                  />
-                </FormControl>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              colorScheme="blue"
-              mr={3}
-              onClick={() => updateAdvanceA(editing._id, editForm)}
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ບັນທຶກ
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={handleEditClose}
-              fontFamily="Noto Sans Lao, sans-serif"
-            >
-              ຍົກເລີກ
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
       {/* Transaction Modal */}
       <Modal isOpen={isTransOpen} onClose={handleTransClose} size="md">
         <ModalOverlay />

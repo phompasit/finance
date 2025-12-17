@@ -30,22 +30,15 @@ import {
   ModalCloseButton,
   VStack,
   HStack,
-  FormErrorMessage,
-  Textarea,
   Badge,
   useToast,
   InputGroup,
   InputLeftElement,
-  Icon,
   AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogContent,
-  Menu,
-  MenuList,
-  MenuButton,
-  MenuItem,
 } from "@chakra-ui/react";
 import {
   SearchIcon,
@@ -61,13 +54,18 @@ import {
   FilterXIcon,
   ViewIcon,
 } from "lucide-react";
-import { format } from "date-fns";
-import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
 import { useRef } from "react";
-import { fetchCategories } from "../store/reducer/partner";
-import { useDispatch, useSelector } from "react-redux";
-
+import api from "../api/api";
+import { useNavigate } from "react-router-dom";
+const laoType = {
+  income: "💰 ລາຍຮັບ",
+  asset: "🏦 ຊັບສິນ",
+  cogs: "📦 ຕົ້ນທຶນຂາຍ",
+  "selling-expense": "🛒 ຄ່າໃຊ້ຈ່າຍຈຳໜ່າຍ",
+  "admin-expense": "🏢 ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
+  expense: "📉 ຄ່າໃຊ້ຈ່າຍອື່ນໆ",
+};
 // Reusable component for the Details Modal
 const DebtDetailsModal = ({ isOpen, onClose, documentData, laoType }) => {
   // Format date from timestamp
@@ -749,9 +747,8 @@ const DebtDetailsModal = ({ isOpen, onClose, documentData, laoType }) => {
 };
 
 const DebtManagementSystem = () => {
+  const navigate = useNavigate();
   const [debts, setDebts] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [editingDebt, setEditingDebt] = useState(null);
   const [selectedDebts, setSelectedDebts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -762,7 +759,6 @@ const DebtManagementSystem = () => {
     onOpen: onDetailsOpen,
     onClose: onDetailsClose,
   } = useDisclosure();
-  const [value, setValue] = useState("");
   const [filters, setFilters] = useState({
     dateFrom: "",
     dateTo: "",
@@ -771,20 +767,6 @@ const DebtManagementSystem = () => {
     paymentMethod: "",
     status: "",
   });
-  const [formData, setFormData] = useState({
-    serial: "",
-    description: "",
-    debtType: "payable",
-    paymentMethod: "",
-    date: "",
-    amounts: [{ currency: "THB", amount: "", installments: [], accountId: "" }],
-    note: "",
-    reason: "",
-    partnerId: null,
-  });
-  const [errors, setErrors] = useState({});
-  const [suppliers, setSuppliers] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const toast = useToast();
   function formatDate(dateString) {
     const d = new Date(dateString);
@@ -803,73 +785,21 @@ const DebtManagementSystem = () => {
     payable: "ໜີ້ຕ້ອງສົ່ງ",
     receivable: "ໜີ້ຕ້ອງຮັບ",
   };
-  const { categoriesRedu: categories } = useSelector((state) => state.partner);
-  const dispatch = useDispatch();
   const statusOptions = ["ຄ້າງຊຳລະ", "ຊຳລະບາງສ່ວນ", "ຊຳລະຄົບ"];
-  const fetchC = async () => {
-    try {
-      await Promise.all([dispatch(fetchCategories()).unwrap()]);
-    } catch (error) {
-      console.error("Fetch failed:", error);
-    }
-  };
   useEffect(() => {
     fetchDebts();
-    fetchPartners();
-    fetchC();
   }, []);
-  const fetchPartners = async () => {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/debt/partners`,
-        {
-          method: "GET",
-
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const result = await res.json();
-      if (!result.success) throw new Error(result.message);
-
-      // แยก supplier / customer
-      const suppliersData = result.data.filter((p) => p.type === "supplier");
-      const customersData = result.data.filter((p) => p.type === "customer");
-
-      setSuppliers(suppliersData);
-      setCustomers(customersData);
-    } catch (err) {
-      console.error(err);
-      alert("ไม่สามารถโหลดข้อมูล Partner ได้: " + err.message);
-    }
-  };
-  const partnersOptions =
-    formData.debtType === "payable"
-      ? suppliers
-      : formData.debtType === "receivable"
-      ? customers
-      : [];
   const fetchDebts = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/debt`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDebts(data);
-      } else {
-        throw new Error("Failed to fetch debts");
-      }
+      const { data } = await api.get("/api/debt");
+
+      setDebts(data);
     } catch (error) {
       toast({
         title: "ຂໍ້ຜິດພາດ",
-        description: "ບໍ່ສາມາດດຶງຂໍ້ມູນໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
+        description:
+          error?.response?.data?.message ||
+          "ບໍ່ສາມາດດຶງຂໍ້ມູນໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -877,171 +807,6 @@ const DebtManagementSystem = () => {
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.serial.trim()) newErrors.serial = "ກະລຸນາປ້ອນເລກທີ່";
-    else if (
-      debts.some(
-        (d) => d.serial === formData.serial && d._id !== editingDebt?._id
-      )
-    ) {
-      newErrors.serial = "ເລກທີ່ເອກະສານຊໍາລະ ກະລຸນາໃຊ້ເລກທີ່ອື່ນ";
-    }
-    if (!formData?.partnerId) {
-      newErrors.partnerId = "ກະລຸນາເລືອກລູກໜີ້/ຜູ້ສະໜອງ";
-    }
-    if (!formData.description.trim())
-      newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
-    if (!formData.date) newErrors.date = "ກະລຸນາເລືອກວັນທີ";
-    if (!formData.paymentMethod)
-      newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີການຊຳລະເງຶນ";
-    if (!formData.reason.trim()) newErrors.reason = "ກະລຸນາປ້ອນສາເຫດ";
-
-    formData.amounts.forEach((curr, index) => {
-      if (!curr.amount || parseFloat(curr.amount) <= 0) {
-        newErrors[`amount_${index}`] = "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
-      }
-      if (!curr.accountId) {
-        newErrors[`amount_${index}`] = "ກະລຸນາເລືອກກະເປົາເງິນ ຫຼືບັນຊີ";
-      }
-      if (curr.installments?.length > 0) {
-        const totalInstallments = curr.installments.reduce(
-          (sum, inst) => sum + parseFloat(inst.amount || 0),
-          0
-        );
-        const mainAmount = parseFloat(curr.amount || 0);
-
-        if (Math.abs(totalInstallments - mainAmount) > 0.01) {
-          newErrors[
-            `installment_total_${index}`
-          ] = `ຍອດງວດລວມຕ້ອງເທົ່າກັບ ${mainAmount.toFixed(2)} ${curr.currency}`;
-        }
-
-        curr.installments.forEach((inst, instIndex) => {
-          if (!inst.dueDate) {
-            newErrors[`installment_date_${index}_${instIndex}`] =
-              "ກະລຸນາເລືອກວັນຄົບກຳນົດ";
-          }
-          if (!inst.amount || parseFloat(inst.amount) <= 0) {
-            newErrors[`installment_amount_${index}_${instIndex}`] =
-              "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
-          }
-        });
-      }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  console.log("formData", formData);
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    try {
-      const allInstallments = formData.amounts.flatMap((amt) =>
-        (amt.installments || []).map((inst) => ({
-          dueDate: inst.dueDate,
-          amount: parseFloat(inst.amount),
-          currency: amt.currency,
-          isPaid: inst.isPaid || false,
-          paidDate: inst.paidDate || null,
-          _id: inst._id || undefined,
-        }))
-      );
-
-      const submitData = {
-        ...formData,
-        amounts: formData.amounts.map((amt) => ({
-          currency: amt.currency,
-          amount: parseFloat(amt.amount),
-          accountId: amt.accountId,
-        })),
-
-        installments: allInstallments,
-      };
-
-      const url = editingDebt
-        ? `${import.meta.env.VITE_API_URL}/api/debt/${editingDebt._id}`
-        : `${import.meta.env.VITE_API_URL}/api/debt`;
-      const method = editingDebt ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(submitData),
-      });
-      if (response.ok) {
-        await fetchDebts();
-        setIsOpen(false);
-        resetForm();
-        setSelectedDebt([]);
-        setSelectedDebts([]);
-        toast({
-          title: editingDebt ? "ການແກ້ໄຂສຳເລັດ" : "ເພີ່ມລາຍການສຳເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: "ຂໍ້ຜິດພາດ",
-          description:
-            errorData.message || "ບໍ່ສາມາດບັນທຶກໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      console.log("error");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/debt/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const err = await res.json();
-      if (res.ok) {
-        await fetchDebts();
-        toast({
-          title: "ລົບສຳເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        toast({
-          title: "ຂໍ້ຜິດພາດ",
-          description: err.message || "ບໍ່ສາມາດລົບໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      console.log(error);
-      toast({
-        title: "ຂໍ້ຜິດພາດ",
-        description: "ບໍ່ສາມາດລົບໜີ້ສິນໄດ້. ກະລຸນາລອງໃໝ່.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
   const {
     isOpen: isWarningIsOpen,
     onOpen: onWarningOpen,
@@ -1060,164 +825,16 @@ const DebtManagementSystem = () => {
     onWarningClose();
   };
   const handleEdit = (debt) => {
-    setEditingDebt(debt);
-
-    const amountsWithInstallments = debt.amounts.map((amt) => ({
-      currency: amt.currency,
-      amount: amt.amount.toString(),
-      accountId: amt.accountId,
-      installments: (debt.installments || [])
-        .filter((inst) => inst.currency === amt.currency)
-        .map((inst) => ({
-          dueDate: inst.dueDate
-            ? new Date(inst.dueDate).toISOString().split("T")[0]
-            : "",
-          amount: inst.amount.toString(),
-          isPaid: inst.isPaid || false,
-          paidDate: inst.paidDate
-            ? new Date(inst.paidDate).toISOString().split("T")[0]
-            : null,
-          _id: inst._id || undefined,
-        })),
-    }));
-
-    setFormData({
-      serial: debt?.serial,
-      categoryId: debt?.categoryId,
-      description: debt?.description,
-      debtType: debt?.debtType,
-      paymentMethod: debt?.paymentMethod,
-      date: debt?.date ? new Date(debt?.date).toISOString().split("T")[0] : "",
-      amounts: amountsWithInstallments,
-      note: debt?.note || "",
-      reason: debt?.reason || "",
-      partnerId: debt?.partnerId?._id || debt?.partnerId?.name || "",
+    navigate("/debt_form", {
+      state: {
+        debt: debt,
+        mode: "update",
+      },
     });
-    setIsOpen(true);
   };
-
   const handleViews = (debt) => {
     setSelectedDebt(debt);
     onDetailsOpen();
-  };
-  console.log(formData);
-  const resetForm = () => {
-    setFormData({
-      serial: "",
-      description: "",
-      debtType: "payable",
-      paymentMethod: "",
-      date: "",
-      amounts: [
-        { currency: "THB", amount: "", installments: [], accountId: "" },
-      ],
-      note: "",
-      reason: "",
-    });
-    setEditingDebt(null);
-    setErrors({});
-  };
-
-  const addCurrency = () => {
-    setFormData({
-      ...formData,
-      amounts: [
-        ...formData.amounts,
-        { currency: "USD", amount: "", installments: [] },
-      ],
-    });
-  };
-  ///ລົບສະກຸນເງິນ
-  const removeCurrency = (index) => {
-    setFormData({
-      ...formData,
-      amounts: formData.amounts.filter((_, i) => i !== index),
-    });
-  };
-  //ເພີ່ມງວດ
-  const updateAmount = (index, field, value) => {
-    const newAmounts = [...formData.amounts];
-    newAmounts[index][field] = value;
-    setFormData({ ...formData, amounts: newAmounts });
-  };
-  ///ເພີ່ມງວດແລະຄຳນວນຍອດທີ່ຈະຈ່າຍໃນງວດຖັດໄປ
-  const addInstallment = (currencyIndex) => {
-    const newAmounts = [...formData.amounts];
-
-    // ดึงข้อมูลงวดปัจจุบันของสกุลเงินนี้
-    const currentInstallments = newAmounts[currencyIndex].installments || [];
-    // ดึงยอดรวม past ของสกุลเงินนี้
-    const totalAmount = Number(newAmounts[currencyIndex].amount || 0);
-
-    // รวมยอดที่ชำระแล้วของงวดก่อนหน้า
-    const totalPaid = currentInstallments.reduce(
-      (sum, i) => sum + Number(i.amount || 0),
-      0
-    );
-
-    // คำนวณยอดคงเหลือ
-    const remaining = Math.max(0, totalAmount - totalPaid);
-    // สร้างงวดใหม่ โดย ถ้ามีงวดก่อนหน้าแล้ว ให้ใส่ยอดคงเหลืออัตโนมัติ
-    const newInstallment = {
-      dueDate: "",
-      amount: currentInstallments.length > 0 ? remaining.toFixed(2) : "",
-      isPaid: false,
-      paidDate: null,
-      _id: undefined,
-    };
-
-    newAmounts[currencyIndex].installments = [
-      ...currentInstallments,
-      newInstallment,
-    ];
-
-    setFormData({ ...formData, amounts: newAmounts });
-  };
-  ///ຄິດໄລ່ຍອດເຫູືອຍິງບໍ່ຊຳລະ
-  const reminingBalance = (currencyIndex) => {
-    const currentCurrency = formData.amounts[currencyIndex];
-    if (!currentCurrency) return 0;
-
-    // งวดทั้งหมดของสกุลเงินนี้
-    const currentInstallments = currentCurrency.installments || [];
-
-    // รวมยอดที่ "จ่ายแล้ว"
-    const totalPaid = currentInstallments
-      .filter((item) => item.isPaid === true)
-      .reduce((sum, i) => sum + Number(i.amount || 0), 0);
-
-    // รวมยอดของทุกงวด (ถ้ามี)
-    const totalAmountInstallment = currentInstallments.reduce(
-      (sum, i) => sum + Number(i.amount || 0),
-      0
-    );
-
-    // ยอดทั้งหมดที่ต้องชำระ (อาจเก็บใน currentCurrency.total หรือ currentCurrency.amount)
-    const totalAmount = Number(
-      currentCurrency.total || currentCurrency.amount || 0
-    );
-
-    // คำนวณยอดคงเหลือ
-    const remaining = Math.max(0, totalAmount - totalPaid);
-    return (
-      <strong>
-        {remaining.toLocaleString()} {currentCurrency.currency}
-      </strong>
-    );
-  };
-
-  const removeInstallment = (currencyIndex, instIndex) => {
-    const newAmounts = [...formData.amounts];
-    newAmounts[currencyIndex].installments = newAmounts[
-      currencyIndex
-    ].installments.filter((_, i) => i !== instIndex);
-    setFormData({ ...formData, amounts: newAmounts });
-  };
-
-  const updateInstallment = (currencyIndex, instIndex, field, value) => {
-    const newAmounts = [...formData.amounts];
-    newAmounts[currencyIndex].installments[instIndex][field] = value;
-    setFormData({ ...formData, amounts: newAmounts });
   };
 
   const getStatusColor = (status) => {
@@ -1255,16 +872,6 @@ const DebtManagementSystem = () => {
       (!filters.status || debt.status === filters.status)
     );
   });
-  console.log("filteredDebts", filteredDebts);
-  const toggleSelectDebt = (id) => {
-    const newSet = new Set(selectedDebts); // สร้าง copy ของ Set
-    if (newSet.has(id)) {
-      newSet.delete(id); // ถ้าเลือกแล้ว → ลบ
-    } else {
-      newSet.add(id); // ถ้ายังไม่ได้เลือก → เพิ่ม
-    }
-    setSelectedDebts(newSet); // อัปเดต state
-  };
 
   const shortDesc = (desc) => {
     if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
@@ -2041,33 +1648,6 @@ td {
       position: "top-right",
     });
   };
-  const [addCategory, setAddCategory] = useState("");
-  const [addSearch, setAddSearch] = useState("");
-
-  const addFiltered = categories.filter((c) =>
-    c.name.toLowerCase().includes(addSearch.toLowerCase())
-  );
-  const addSelectedLabel =
-    categories.find((c) => c._id === addCategory)?.name || "ເລືອກ";
-  console.log(addSelectedLabel);
-  const laoType = {
-    income: "💰 ລາຍຮັບ",
-    asset: "🏦 ຊັບສິນ",
-    cogs: "📦 ຕົ້ນທຶນຂາຍ",
-    "selling-expense": "🛒 ຄ່າໃຊ້ຈ່າຍຈຳໜ່າຍ",
-    "admin-expense": "🏢 ຄ່າໃຊ້ຈ່າຍບໍລິຫານ",
-    expense: "📉 ຄ່າໃຊ້ຈ່າຍອື່ນໆ",
-  };
-  const bankOptions = (user?.companyId?.bankAccounts || []).map((b) => ({
-    label: `${b.bankName} (${b.currency})`,
-    value: b._id,
-    currency: b.currency,
-  }));
-  const cashOptions = (user?.companyId?.cashAccounts || []).map((b) => ({
-    label: `${b.name} (${b.currency})`,
-    value: b._id,
-    currency: b.currency,
-  }));
   return (
     <Box minH="100vh" bg="gray.50" p={4}>
       <Box maxW="7xl" mx="auto">
@@ -2086,8 +1666,11 @@ td {
               colorScheme="blue"
               leftIcon={<AddIcon />}
               onClick={() => {
-                resetForm();
-                setIsOpen(true);
+                navigate("/debt_form", {
+                  state: {
+                    mode: "create",
+                  },
+                });
               }}
             >
               ເພີ່ມລາຍການໃໝ່
@@ -2544,620 +2127,6 @@ td {
             )}
           </Box>
         </Box>
-
-        {/* Add/Edit Modal */}
-        <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} size="2xl">
-          <ModalOverlay />
-          <ModalContent maxH="90vh" overflowY="auto">
-            <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-              {editingDebt ? "ແກ້ໄຂລາຍການໜີ້ສິນ" : "ເພີ່ມລາຍການໜີ້ສິນໃໝ່"}
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <form onSubmit={handleSubmit}>
-                <VStack spacing={4}>
-                  <HStack w="full" spacing={4}>
-                    <FormControl isInvalid={errors.serial} isRequired>
-                      <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                        ເລກທີ່ເອກະສານ
-                      </FormLabel>
-                      <Input
-                        value={formData.serial}
-                        onChange={(e) =>
-                          setFormData({ ...formData, serial: e.target.value })
-                        }
-                      />
-                      <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                        {errors.serial}
-                      </FormErrorMessage>
-                    </FormControl>
-                    <FormControl isInvalid={errors.date} isRequired>
-                      <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                        ວັນທີ່
-                      </FormLabel>
-                      <Input
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) =>
-                          setFormData({ ...formData, date: e.target.value })
-                        }
-                      />
-                      <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                        {errors.date}
-                      </FormErrorMessage>
-                    </FormControl>
-                  </HStack>
-                  <FormControl>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ໝວດໝູ່
-                    </FormLabel>
-                    <Menu matchWidth>
-                      <MenuButton
-                        as={Button}
-                        rightIcon={<ChevronDownIcon />}
-                        width="100%"
-                      >
-                        {addSelectedLabel}
-                      </MenuButton>
-
-                      <MenuList p={2}>
-                        <Input
-                          placeholder="ຄົ້ນຫາ..."
-                          value={addSearch}
-                          onChange={(e) => setAddSearch(e.target.value)}
-                          mb={2}
-                        />
-
-                        <Box maxH="200px" overflowY="auto">
-                          {addFiltered.map((item) => (
-                            <MenuItem
-                              key={item._id}
-                              onClick={() => {
-                                setValue(item._id);
-                                setAddCategory(item._id);
-                                setFormData({
-                                  ...formData,
-                                  categoryId: item._id,
-                                });
-                                setAddSearch("");
-                              }}
-                            >
-                              {item.name} - {laoType[item.type]}
-                            </MenuItem>
-                          ))}
-                        </Box>
-                      </MenuList>
-                    </Menu>
-                    <Box
-                      minW="180px"
-                      bg="gray.50"
-                      border="1px solid"
-                      borderColor="gray.200"
-                      px={3}
-                      py={2}
-                      borderRadius="md"
-                    >
-                      <Text
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        fontSize="sm"
-                        color="gray.600"
-                        mb={1}
-                      >
-                        ທີ່ເລືອກ:
-                      </Text>
-
-                      <Text
-                        fontWeight="bold"
-                        fontFamily="Noto Sans Lao, sans-serif"
-                      >
-                        {addSelectedLabel === "ເລືອກ"
-                          ? formData?.categoryId?.name -
-                              laoType[formData?.categoryId?.type] || "-"
-                          : addSelectedLabel}
-                      </Text>
-                    </Box>
-                  </FormControl>
-                  <FormControl isInvalid={errors.description} isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ລາຍລະອຽດ
-                    </FormLabel>
-                    <Input
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          description: e.target.value,
-                        })
-                      }
-                    />
-                    <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                      {errors.description}
-                    </FormErrorMessage>
-                  </FormControl>
-
-                  <HStack w="full" spacing={4}>
-                    <FormControl>
-                      <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                        ປະເພດໜີ້ສິນ
-                      </FormLabel>
-                      <Select
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        value={formData.debtType}
-                        onChange={(e) =>
-                          setFormData({ ...formData, debtType: e.target.value })
-                        }
-                      >
-                        {debtTypes.map((type) => (
-                          <option
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            key={type.value}
-                            value={type.value}
-                          >
-                            {type.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <FormControl isInvalid={errors.partnerId} isRequired>
-                      <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                        ລູກໜີ້/ຜູ້ສະໜອງ
-                      </FormLabel>
-
-                      <Select
-                        value={formData.partnerId || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            partnerId: e.target.value, // ✔ เก็บเฉพาะ ID
-                          })
-                        }
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        placeholder="ເລືອກ ລູກໜີ້/ຜູ້ສະໜອງ"
-                      >
-                        {partnersOptions.map((p) => (
-                          <option key={p._id} value={p._id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </Select>
-
-                      <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                        {errors.partnerId}
-                      </FormErrorMessage>
-                    </FormControl>
-
-                    <FormControl isInvalid={errors.paymentMethod} isRequired>
-                      <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                        ວິທີການຊຳລະເງຶນ
-                      </FormLabel>
-                      <Select
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        value={formData.paymentMethod}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            paymentMethod: e.target.value,
-                          })
-                        }
-                      >
-                        <option fontFamily="Noto Sans Lao, sans-serif" value="">
-                          ເລືອກວິທີການຊຳລະເງິນ
-                        </option>
-                        {paymentMethods.map((method) => (
-                          <option
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            key={method}
-                            value={method}
-                          >
-                            {method}
-                          </option>
-                        ))}
-                      </Select>
-                      <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                        {errors.paymentMethod}
-                      </FormErrorMessage>
-                    </FormControl>
-                  </HStack>
-
-                  <FormControl isInvalid={errors.reason} isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ສາເຫດ
-                    </FormLabel>
-                    <Input
-                      value={formData.reason}
-                      onChange={(e) =>
-                        setFormData({ ...formData, reason: e.target.value })
-                      }
-                    />
-                    <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                      {errors.reason}
-                    </FormErrorMessage>
-                  </FormControl>
-
-                  <Box w="full">
-                    <Flex justify="space-between" align="center" mb={2}>
-                      <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                        ຈຳນວນເງິນ
-                      </FormLabel>
-                      <Button
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        size="sm"
-                        leftIcon={<AddIcon />}
-                        colorScheme="blue"
-                        variant="outline"
-                        onClick={addCurrency}
-                      >
-                        ເພີ່ມສະກຸນເງິນ
-                      </Button>
-                    </Flex>
-
-                    {formData.amounts.map((curr, currIndex) => {
-                      const accountOptions =
-                        formData.paymentMethod === "ເງິນສົດ"
-                          ? cashOptions?.filter(
-                              (acc) => acc.currency === curr.currency
-                            )
-                          : bankOptions?.filter(
-                              (acc) => acc.currency === curr.currency
-                            );
-                      return (
-                        <Box
-                          key={currIndex}
-                          p={4}
-                          borderWidth={1}
-                          rounded="md"
-                          bg="gray.50"
-                          mb={4}
-                        >
-                          <HStack spacing={2} mb={3}>
-                            <Select
-                              placeholder="ເລືອກ"
-                              value={curr.accountId}
-                              onChange={(e) =>
-                                updateAmount(
-                                  currIndex,
-                                  "accountId",
-                                  e.target.value
-                                )
-                              }
-                              w="120px"
-                              fontFamily="Noto Sans Lao, sans-serif"
-                            >
-                              {accountOptions?.map((acc) => (
-                                <option key={acc.value} value={acc.value}>
-                                  {acc.label}
-                                </option>
-                              ))}
-                            </Select>
-                            <Select
-                              fontFamily="Noto Sans Lao, sans-serif"
-                              value={curr.currency}
-                              onChange={(e) =>
-                                updateAmount(
-                                  currIndex,
-                                  "currency",
-                                  e.target.value
-                                )
-                              }
-                              w="150px"
-                            >
-                              {currencies.map((c) => (
-                                <option
-                                  fontFamily="Noto Sans Lao, sans-serif"
-                                  key={c}
-                                  value={c}
-                                >
-                                  {c}
-                                </option>
-                              ))}
-                            </Select>
-                            <FormControl
-                              isInvalid={errors[`amount_${currIndex}`]}
-                            >
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={curr.amount}
-                                onChange={(e) =>
-                                  updateAmount(
-                                    currIndex,
-                                    "amount",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="ຈຳນວນເງິນທັງໝົດ"
-                              />
-                              <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                                {errors[`amount_${currIndex}`]}
-                              </FormErrorMessage>
-                            </FormControl>
-                            {formData.amounts.length > 1 && (
-                              <IconButton
-                                icon={<DeleteIcon />}
-                                colorScheme="red"
-                                variant="ghost"
-                                onClick={() => removeCurrency(currIndex)}
-                                aria-label="ລົບສະກຸນເງິນ"
-                              />
-                            )}
-                          </HStack>
-
-                          <Box ml={4}>
-                            <Flex justify="space-between" align="center" mb={2}>
-                              <Text
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                fontSize="sm"
-                              >
-                                ການແບ່ງເປັນງວດ ({curr.currency})
-                              </Text>
-                              <Button
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                size="sm"
-                                leftIcon={<AddIcon />}
-                                colorScheme="blue"
-                                variant="outline"
-                                onClick={() => addInstallment(currIndex)}
-                              >
-                                ເພີ່ມງວດ
-                              </Button>
-                            </Flex>
-
-                            {errors[`installment_total_${currIndex}`] && (
-                              <Text
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                color="red.500"
-                                fontSize="sm"
-                                mb={2}
-                              >
-                                {errors[`installment_total_${currIndex}`]}
-                              </Text>
-                            )}
-
-                            {curr.installments?.length > 0 ? (
-                              <VStack spacing={2}>
-                                {curr.installments.map((inst, instIndex) => {
-                                  return (
-                                    <HStack
-                                      key={instIndex}
-                                      spacing={2}
-                                      p={2}
-                                      bg="white"
-                                      rounded="md"
-                                      borderWidth={1}
-                                      w="full"
-                                    >
-                                      <VStack>
-                                        <FormLabel
-                                          fontFamily={
-                                            "Noto Sans Lao, sans-serif"
-                                          }
-                                        >
-                                          ວັນທີ່ກຳນົດສົ່ງ
-                                        </FormLabel>
-                                        <FormControl
-                                          isInvalid={
-                                            errors[
-                                              `installment_date_${currIndex}_${instIndex}`
-                                            ]
-                                          }
-                                        >
-                                          <Input
-                                            type="date"
-                                            value={inst.dueDate}
-                                            onChange={(e) =>
-                                              updateInstallment(
-                                                currIndex,
-                                                instIndex,
-                                                "dueDate",
-                                                e.target.value
-                                              )
-                                            }
-                                            placeholder="ວັນຄົບກຳນົດ
-"
-                                          />
-                                          <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                                            {
-                                              errors[
-                                                `installment_date_${currIndex}_${instIndex}`
-                                              ]
-                                            }
-                                          </FormErrorMessage>
-                                        </FormControl>
-                                      </VStack>
-
-                                      <VStack>
-                                        <FormLabel
-                                          fontFamily={
-                                            "Noto Sans Lao, sans-serif"
-                                          }
-                                        >
-                                          ວັນທີ່ຊຳລະ
-                                        </FormLabel>
-                                        <FormControl
-                                          isInvalid={
-                                            errors[
-                                              `installment_date_${currIndex}_${instIndex}`
-                                            ]
-                                          }
-                                        >
-                                          <Input
-                                            type="date"
-                                            value={inst.paidDate}
-                                            onChange={(e) =>
-                                              updateInstallment(
-                                                currIndex,
-                                                instIndex,
-                                                "paidDate",
-                                                e.target.value
-                                              )
-                                            }
-                                            placeholder="ວັນຄົບກຳນົດ 
-"
-                                          />
-                                          <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                                            {
-                                              errors[
-                                                `installment_date_${currIndex}_${instIndex}`
-                                              ]
-                                            }
-                                          </FormErrorMessage>
-                                        </FormControl>
-                                      </VStack>
-                                      <VStack>
-                                        <FormLabel
-                                          fontFamily={
-                                            "Noto Sans Lao, sans-serif"
-                                          }
-                                        >
-                                          ຈຳນວນເງິນ
-                                        </FormLabel>
-                                        <FormControl
-                                          isInvalid={
-                                            errors[
-                                              `installment_amount_${currIndex}_${instIndex}`
-                                            ]
-                                          }
-                                        >
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={inst.amount}
-                                            onChange={(e) =>
-                                              updateInstallment(
-                                                currIndex,
-                                                instIndex,
-                                                "amount",
-                                                e.target.value
-                                              )
-                                            }
-                                            placeholder={`ຈຳນວນ (${curr.currency})`}
-                                          />
-                                          <FormErrorMessage fontFamily="Noto Sans Lao, sans-serif">
-                                            {
-                                              errors[
-                                                `installment_amount_${currIndex}_${instIndex}`
-                                              ]
-                                            }
-                                          </FormErrorMessage>
-                                        </FormControl>
-                                      </VStack>
-
-                                      <Checkbox
-                                        fontFamily={"Noto Sans Lao, sans-serif"}
-                                        isChecked={inst.isPaid}
-                                        onChange={(e) =>
-                                          updateInstallment(
-                                            currIndex,
-                                            instIndex,
-                                            "isPaid",
-                                            e.target.checked
-                                          )
-                                        }
-                                      >
-                                        <Text
-                                          fontFamily={
-                                            "Noto Sans Lao, sans-serif"
-                                          }
-                                        >
-                                          ຊຳລະແລ້ວ
-                                        </Text>
-                                      </Checkbox>
-
-                                      <IconButton
-                                        icon={<DeleteIcon />}
-                                        colorScheme="red"
-                                        variant="ghost"
-                                        onClick={() =>
-                                          removeInstallment(
-                                            currIndex,
-                                            instIndex
-                                          )
-                                        }
-                                        aria-label="ລົບງວດ"
-                                      />
-                                    </HStack>
-                                  );
-                                })}
-                                <Box bg="blue.50" p={2} rounded="md" w="full">
-                                  <Text
-                                    fontFamily="Noto Sans Lao, sans-serif"
-                                    fontSize="sm"
-                                  >
-                                    ຍອດລວມງວດ:{" "}
-                                    {curr.installments
-                                      .reduce(
-                                        (sum, inst) =>
-                                          sum + parseFloat(inst.amount || 0),
-                                        0
-                                      )
-                                      .toFixed(2)}{" "}
-                                    {curr.currency} / ຍອດທັງໝົດ: {curr.amount}{" "}
-                                    {curr.currency}
-                                  </Text>
-                                </Box>
-                                <Text fontFamily="Noto Sans Lao, sans-serif">
-                                  ຍອດເຫຼືອ(ຍັງບໍ່ຊຳລະ):{" "}
-                                  {reminingBalance(currIndex)}
-                                </Text>
-                              </VStack>
-                            ) : (
-                              <Text
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                fontSize="sm"
-                                color="gray.500"
-                                fontStyle="italic"
-                              >
-                                ບໍ່ມີການແບ່ງຊຳລະເງິນເປັນງວດ (ຊຳລະຄັ້ງດຽວ)
-                              </Text>
-                            )}
-                          </Box>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-
-                  <FormControl>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ໝາຍເຫດ
-                    </FormLabel>
-                    <Textarea
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={formData.note}
-                      onChange={(e) =>
-                        setFormData({ ...formData, note: e.target.value })
-                      }
-                      rows={3}
-                    />
-                  </FormControl>
-                </VStack>
-              </form>
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                fontFamily="Noto Sans Lao, sans-serif"
-                variant="outline"
-                mr={3}
-                onClick={() => {
-                  setIsOpen(false);
-                  resetForm();
-                }}
-                aria-label="ຍົກເລີກ"
-              >
-                ຍົກເລີກ
-              </Button>
-              <Button
-                fontFamily="Noto Sans Lao, sans-serif"
-                colorScheme="blue"
-                type="submit"
-                onClick={handleSubmit}
-                aria-label={editingDebt ? "ບັນທຶກການແກ້ໄຂ" : "ເພີ່ມລາຍການ"}
-              >
-                {editingDebt ? "ບັນທຶກການແກ້ໄຂ" : "ເພີ່ມລາຍການ"}
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
         {/* Details Modal */}
         <DebtDetailsModal
           laoType={laoType}

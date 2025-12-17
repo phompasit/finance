@@ -12,10 +12,6 @@ export const fetchTransaction = createAsyncThunk(
         `${import.meta.env.VITE_API_URL}/api/income-expense`,
         {
           params,
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
         }
       );
 
@@ -38,13 +34,7 @@ export const removeCurrencyFromServer = createAsyncThunk(
       const { data } = await api.delete(
         `${
           import.meta.env.VITE_API_URL
-        }/api/income-expense/item/${currencyIndex}/${index}`,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        }/api/income-expense/item/${currencyIndex}/${index}`
       );
 
       return { currencyIndex, index, data };
@@ -64,13 +54,7 @@ export const createIncomeExpense = createAsyncThunk(
     try {
       const { data } = await api.post(
         `${import.meta.env.VITE_API_URL}/api/income-expense/bulk`,
-        { transactions },
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        { transactions }
       );
 
       return data;
@@ -92,13 +76,7 @@ export const updateIncomeExpense = createAsyncThunk(
     try {
       const { data } = await api.put(
         `${import.meta.env.VITE_API_URL}/api/income-expense/${id}`,
-        Editdata,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        Editdata
       );
 
       return data;
@@ -115,12 +93,7 @@ export const deleteIncomeExpense = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const { data } = await api.delete(
-        `${import.meta.env.VITE_API_URL}/api/income-expense/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `${import.meta.env.VITE_API_URL}/api/income-expense/${id}`
       );
 
       return data; // ต้องมี success: true จาก backend
@@ -137,12 +110,7 @@ export const updateStatusIncomeExpense = createAsyncThunk(
     try {
       const { data } = await api.patch(
         `${import.meta.env.VITE_API_URL}/api/income-expense/status/${id}`,
-        { status_Ap: status },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        { status_Ap: status }
       );
 
       return data; // backend ควรส่ง { success: true, message: "..."}

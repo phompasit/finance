@@ -43,6 +43,8 @@ import {
   Stat,
   StatLabel,
   Grid,
+  SimpleGrid,
+  StatNumber,
 } from "@chakra-ui/react";
 import {
   Plus,
@@ -55,6 +57,9 @@ import {
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { useAuth } from "../context/AuthContext";
+import Swal from "sweetalert2";
+import api from "../api/api";
+import { useNavigate } from "react-router-dom";
 
 // Theme Configuration
 const theme = extendTheme({
@@ -70,6 +75,11 @@ const STATUS_COLORS = {
   APPROVED: "green",
   CANCELLED: "red",
 };
+const STATUS_LABELS = {
+  approved: "ອະນຸມັດ",
+  rejected: "ປະຕິເສດ",
+  pending: "ຕັ້ງລໍຖ້າ",
+};
 
 const STATUS_TEXTS = {
   PENDING: "ລໍຖ້າອະນຸມັດ",
@@ -84,10 +94,6 @@ const PAYMENT_METHODS = {
   cash: "ເງິນສົດ",
   transfer: "ໂອນເງິນ",
 };
-
-const CURRENCIES = ["LAK", "THB", "USD", "CNY"];
-
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
 function formatDate(dateString) {
   const d = new Date(dateString);
   const day = String(d.getDate()).padStart(2, "0");
@@ -102,60 +108,6 @@ const groupByCurrency = (items) =>
       (acc[item.currency] || 0) + parseFloat(item.amount || 0);
     return acc;
   }, {});
-
-const sanitizeInput = (input) => {
-  if (!input) return "";
-  return String(input).trim();
-};
-// Components
-const OPOItem = ({ item, onRemove, formData }) => (
-  <Box p={3} bg="gray.50" borderRadius="md" mb={2}>
-    <Flex justify="space-between" align="start">
-      <Box flex="1">
-        <Text fontWeight="bold">{item.description}</Text>
-        <HStack spacing={4} mt={1} fontSize="sm" color="gray.600">
-          <Text>{PAYMENT_METHODS[item.paymentMethod]}</Text>
-          <Text fontWeight="bold" color="blue.600">
-            {parseFloat(item.amount || 0).toLocaleString()} {item.currency}
-          </Text>
-        </HStack>
-        {item.reason && (
-          <Text fontSize="sm" mt={1}>
-            ສາເຫດ: {item.reason}
-          </Text>
-        )}
-        {item.notes && (
-          <Text fontSize="sm" color="gray.500">
-            ໝາຍເຫດ: {item.notes}
-          </Text>
-        )}
-      </Box>
-      <IconButton
-        icon={<Trash2 size={16} />}
-        size="sm"
-        colorScheme="red"
-        variant="ghost"
-        onClick={() => onRemove(item)}
-        aria-label="Delete item"
-      />
-    </Flex>
-  </Box>
-);
-
-OPOItem.propTypes = {
-  item: PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    description: PropTypes.string.isRequired,
-    paymentMethod: PropTypes.string.isRequired,
-    currency: PropTypes.string.isRequired,
-    amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
-      .isRequired,
-    reason: PropTypes.string,
-    notes: PropTypes.string,
-  }).isRequired,
-  onRemove: PropTypes.func.isRequired,
-};
-
 const OPOTable = ({
   toast,
   opos,
@@ -177,43 +129,56 @@ const OPOTable = ({
       </Box>
     );
   }
-  const handleStatus = async (data, status) => {
-    const endpoint = `${import.meta.env.VITE_API_URL}/api/opo/status/${
-      data._id
-    }`;
+  const handleStatus = async (opo, status) => {
+    const label = STATUS_LABELS[status] || status;
+
+    // 1️⃣ Confirm
+    const confirm = await Swal.fire({
+      icon: "question",
+      title: "ຢືນຢັນການດຳເນີນການ",
+      text: `ທ່ານຕ້ອງການ ${label} ໃບ PO ນີ້ຫຼືບໍ່?`,
+      showCancelButton: true,
+      confirmButtonText: "ຢືນຢັນ",
+      cancelButtonText: "ຍົກເລີກ",
+      reverseButtons: true,
+    });
+
+    if (!confirm.isConfirmed) return;
+
     try {
-      const response = await fetch(endpoint, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ status_Ap: status }),
+      // 2️⃣ Loading
+      Swal.fire({
+        title: "ກຳລັງດຳເນີນການ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
       });
 
-      const result = await response.json();
+      // 3️⃣ API
+      await api.patch(`/api/opo/status/${opo._id}`, {
+        status_Ap: status,
+      });
 
-      if (!response.ok) {
-        return toast({
-          title: "ກະລຸນາກວດສອບອີກຄັ້ງ",
-          description: result.message || "Error occurred",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-      toast({
+      // 4️⃣ Success
+      Swal.fire({
+        icon: "success",
         title: "ສຳເລັດ",
-        description: `${status} ສຳເລັດແລ້ວ`,
-        status: "success",
-        duration: 2500,
-        isClosable: true,
+        text: `${label} ສຳເລັດແລ້ວ`,
+        timer: 1500,
+        showConfirmButton: false,
       });
-      fetchOPOs();
 
-      onClose();
+      await fetchOPOs();
     } catch (error) {
-      console.error(error);
+      console.error("Update status error:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        text:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດປ່ຽນສະຖານະໄດ້",
+      });
     }
   };
 
@@ -222,14 +187,14 @@ const OPOTable = ({
       <Table>
         <Thead bg="blue.50">
           <Tr>
-            <Th>ເລກທີ</Th>
-            <Th>ວັນທີ</Th>
-            <Th>ຈຳນວນລາຍການ</Th>
-            <Th>ຍອດລວມ</Th>
-            <Th>ສະຖານະການຊຳລະເງິນ</Th>
-            <Th>ສະຖານະ</Th>
-            <Th>ຜູ້ສ້າງ</Th>
-            <Th>ຈັດການ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ເລກທີ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ວັນທີ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ຈຳນວນລາຍການ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ຍອດລວມ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະການຊຳລະເງິນ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ຜູ້ສ້າງ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ຈັດການ</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -237,16 +202,16 @@ const OPOTable = ({
             const totals = groupByCurrency(opo.items || []);
             return (
               <Tr key={opo._id} _hover={{ bg: "gray.50" }}>
-                <Td fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
+                <Td  fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
                   {opo.serial || opo.number}
                 </Td>
-                <Td fontFamily="Noto Sans Lao, sans-serif">
+                <Td  fontFamily="Noto Sans Lao, sans-serif">
                   {formatDate(opo.date)}
                 </Td>
-                <Td fontFamily="Noto Sans Lao, sans-serif">
+                <Td  fontFamily="Noto Sans Lao, sans-serif">
                   {(opo.items || []).length}
                 </Td>
-                <Td>
+                <Td >
                   <Box
                     display="flex"
                     flexDirection="column"
@@ -491,7 +456,6 @@ const OPOSystem = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isPdfOpen,
     onOpen: onPdfOpen,
@@ -500,310 +464,95 @@ const OPOSystem = () => {
   const toast = useToast();
   const pageSize = 100;
   const [page, setPage] = useState(1);
-
-  const shortDesc = (desc) => {
-    if (!desc) return "-"; // ถ้าไม่มีค่า ให้คืนเครื่องหมายขีด
-    return desc.length > 7 ? desc.substring(0, 7) + "..." : desc;
-  };
-  // Form state
-  const [formData, setFormData] = useState({
-    id: null,
-    serial: "",
-    date: new Date().toISOString().split("T")[0],
-    status_Ap: "PENDING",
-    requester: "",
-    manager: "",
-    createdBy: "",
-    items: [],
-    status: "unpaid",
-    role: "",
-  });
-
-  const [itemForm, setItemForm] = useState({
-    description: "",
-    paymentMethod: "cash",
-    currency: "LAK",
-    amount: "",
-    notes: "",
-    reason: "",
-    isLocale: false,
-  });
-
+  const navigate = useNavigate();
   // API Functions with improved error handling
   const fetchOPOs = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/opo`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const { data } = await api.get("/api/opo");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const sorted = Array.isArray(data)
+        ? data.sort((a, b) => new Date(b.date) - new Date(a.date))
+        : [];
 
-      const data = await response.json();
-      setOpos(data.sort((a, b) => new Date(b.date) - new Date(a.date)));
+      setOpos(sorted);
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Fetch OPOs error:", error);
+
+      setError(
+        error?.response?.data?.message || error?.message || "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ"
+      );
     } finally {
       setLoading(false);
     }
-  }, [toast]);
-  const saveOpo = useCallback(async () => {
-    if (!formData.serial || formData.items.length === 0) {
-      toast({
-        title: "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-        description: "ຕ້ອງລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-        status: "warning",
-        duration: 3000,
-      });
-      return;
-    }
-    if (
-      formData.items.some(
-        (item) => !item.description || !item.amount || !item.reason
-      )
-    ) {
-      toast({
-        title: "ກະລຸນາປ້ອນຂໍ້ມູນລາຍການໃຫ້ຄົບ",
-        description: "ລາຍການທຸກລາຍການຕ້ອງມີ ລາຍລະອຽດ, ຈຳນວນເງິນ, ແລະ ສາເຫດ",
-        status: "warning",
-        duration: 3000,
-      });
-      return;
-    }
-    const sanitizedData = {
-      ...formData,
-      serial: sanitizeInput(formData.serial),
-      createdBy: sanitizeInput(formData.createdBy),
-      requester: sanitizeInput(formData.requester),
-      manager: sanitizeInput(formData.manager),
-      items: formData.items.map((item) => ({
-        ...item,
-        description: sanitizeInput(item.description),
-        reason: sanitizeInput(item.reason),
-        notes: sanitizeInput(item.notes),
-        amount: parseFloat(item.amount) || 0,
-      })),
-      id: selectedOpo?._id,
-      createdAt: selectedOpo?.createdAt || new Date().toISOString(),
-    };
-
-    try {
-      const token = localStorage.getItem("token");
-
-      const url = selectedOpo
-        ? `${API_BASE_URL}/opo/${sanitizedData.id}`
-        : `${API_BASE_URL}/opo`;
-
-      const response = await fetch(url, {
-        method: selectedOpo ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(sanitizedData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        toast({
-          title: "ເກີດຂໍ້ຜິດພາດ",
-          description: errorData.message,
-          status: "warning",
-          duration: 3000,
-        });
-      } else {
-        toast({
-          title: selectedOpo ? "ອັບເດດສຳເລັດ" : "ບັນທຶກສຳເລັດ",
-          status: "success",
-          duration: 2000,
-        });
-      }
-
-      await fetchOPOs();
-      onClose();
-      resetForm();
-    } catch (error) {
-      console.error("Save error:", error);
-
-      await fetchOPOs();
-      onClose();
-      resetForm();
-      toast({
-        title: "ມີບາງຢ່າງຜິດພາດ",
-        description: error.message,
-        status: "warning",
-        duration: 3000,
-      });
-    }
-  }, [formData, selectedOpo, fetchOPOs, toast, onClose]);
+  }, []);
 
   const deleteOpo = useCallback(
     async (id) => {
-      if (!window.confirm("ທ່ານຕ້ອງການລຶບ OPO ນີ້ບໍ່?")) return;
+      // 1️⃣ Confirm
+      const confirm = await Swal.fire({
+        icon: "warning",
+        title: "ຢືນຢັນການລຶບ",
+        text: "ທ່ານແນ່ໃຈວ່າຈະລຶບ OPO ນີ້? ການດຳເນີນການນີ້ບໍ່ສາມາດກູ້ຄືນໄດ້",
+        showCancelButton: true,
+        confirmButtonText: "ລຶບ",
+        cancelButtonText: "ຍົກເລີກ",
+        confirmButtonColor: "#E53E3E",
+        reverseButtons: true,
+      });
+
+      if (!confirm.isConfirmed) return;
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE_URL}/opo/${id}`, {
-          method: "DELETE",
-
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        // 2️⃣ Loading
+        Swal.fire({
+          title: "ກຳລັງລຶບ...",
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading(),
         });
 
-        if (!response.ok) {
-          toast({
-            title: "ມີບາງຢ່າງຜິດພາດ",
-            description: response.message,
-            status: "info",
-            duration: 2000,
-          });
-        }
+        // 3️⃣ API
+        await api.delete(`/api/opo/${id}`);
 
+        // 4️⃣ Refresh data
         await fetchOPOs();
-        toast({
+
+        // 5️⃣ Success
+        Swal.fire({
+          icon: "success",
           title: "ລຶບສຳເລັດ",
-          status: "success",
-          duration: 2000,
+          text: "ລຶບລາຍການສຳເລັດແລ້ວ",
+          timer: 1500,
+          showConfirmButton: false,
         });
       } catch (error) {
-        console.error("Delete error:", error);
-        await fetchOPOs();
-        toast({
-          title: "ລຶບບໍ່ເລັດ",
-          description: error.message,
-          status: "info",
-          duration: 2000,
+        console.error("Delete OPO error:", error);
+
+        Swal.fire({
+          icon: "error",
+          title: "ລຶບບໍ່ສຳເລັດ",
+          text:
+            error?.response?.data?.message ||
+            error?.message ||
+            "ບໍ່ສາມາດລຶບຂໍ້ມູນໄດ້",
         });
       }
     },
-    [fetchOPOs, toast]
+    [fetchOPOs]
   );
 
-  const resetForm = () => {
-    setFormData({
-      serial: "",
-      date: new Date().toISOString().split("T")[0],
-      status_Ap: "PENDING",
-      status: "paid",
-      requester: "",
-      manager: "",
-      createdBy: "",
-      items: [],
-    });
-    setItemForm({
-      description: "",
-      paymentMethod: "cash",
-      currency: "LAK",
-      amount: "",
-      notes: "",
-      reason: "",
-    });
-    setSelectedOpo(null);
-  };
-
-  const addItem = () => {
-    if (!itemForm.description || !itemForm.amount || !itemForm.reason) {
-      toast({
-        title: "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ",
-        description: "ຕ້ອງມີ: ລາຍລະອຽດ, ຈຳນວນເງິນ, ແລະ ສາເຫດ",
-        status: "warning",
-        duration: 2000,
-      });
-      return;
-    }
-
-    setFormData({
-      ...formData,
-      items: [
-        ...formData.items,
-        { ...itemForm, id: Date.now(), isLocale: true },
-      ],
-    });
-
-    setItemForm({
-      description: "",
-      paymentMethod: "cash",
-      currency: "LAK",
-      amount: "",
-      notes: "",
-      reason: "",
-    });
-  };
-  console.log(formData);
-  const removeItem = (item) => {
-    try {
-      console.log(item.id);
-      if (item.isLocale) {
-        setFormData({
-          ...formData,
-          items: formData.items.filter((itemLocal) => itemLocal.id !== item.id),
-        });
-        return;
-      }
-      const endpoint = `${import.meta.env.VITE_API_URL}/api/opo/opoId/${
-        formData.id
-      }/item/${item._id}`;
-      const token = localStorage.getItem("token");
-      fetch(endpoint, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Failed to delete item");
-          }
-          return response.json();
-        })
-        .then(() => {
-          toast({
-            title: "ລຶບລາຍການສຳເລັດ",
-            status: "success",
-            duration: 2000,
-          });
-          fetchOPOs();
-          setFormData({
-            ...formData,
-            items: formData.items.filter((item) => item.id !== item.id),
-          });
-        })
-        .catch((error) => {
-          fetchOPOs();
-          setFormData({
-            ...formData,
-            items: formData.items.filter((item) => item.id !== item.id),
-          });
-          console.error("Remove item error:", error);
-        });
-    } catch (error) {
-      console.error("Remove item error:", error);
-    }
-  };
-
   const editOpo = (opo) => {
-    setSelectedOpo(opo);
-    setFormData({
-      id: opo._id || "",
-      serial: opo.serial || opo.number || "",
-      date: opo.date,
-      status_Ap: opo.status_Ap,
-      requester: opo.requester || "",
-      manager: opo.manager || "",
-      createdBy: opo.createdBy || "",
-      items: opo.items || [],
-      role: opo.userId.role || "",
-      status: opo?.status || "",
+    navigate("/opo_form", {
+      state: {
+        mode: "update",
+        opo: opo,
+        selectedOpo: opo,
+      },
     });
-    onOpen();
   };
+
   const filteredOpos = useMemo(() => {
     return opos.filter((opo) => {
       const matchSearch =
@@ -1466,719 +1215,488 @@ const OPOSystem = () => {
   }, [fetchOPOs]);
 
   return (
-    <ChakraProvider theme={theme}>
-      <Box p={6} maxW="1400px" mx="auto" bg="gray.50" minH="100vh">
-        <Heading mb={6} color="blue.600">
-          ລະບົບ PO (Outgoing Payment Order)
-        </Heading>
-
-        {error && (
-          <Alert status="error" mb={4}>
-            <AlertIcon />
-            <AlertTitle>ຂໍ້ຜິດພາດ!</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {loading && (
-          <Flex justify="center" my={6}>
-            <Spinner size="xl" color="blue.500" thickness="4px" />
-          </Flex>
-        )}
-
-        {/* Search and Filter */}
-        <Box bg="white" p={4} borderRadius="lg" shadow="sm" mb={6}>
-          <Flex gap={4} flexWrap="wrap">
-            <Input
-              fontFamily="Noto Sans Lao, sans-serif"
-              flex="1"
-              minW="250px"
-              placeholder="ຄົ້ນຫາເລກທີ, ລາຍລະອຽດ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            {user?.role === "admin" ? (
-              <FormControl>
-                <Select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  size="sm"
-                  bg="gray.50"
+    <Box theme={theme}>
+      <Box py={8}>
+        <Box px={6}>
+          <VStack spacing={6} align="stretch">
+            {/* ================= HEADER ================= */}
+            <Flex justify="space-between" align="center">
+              <Box>
+                <Heading
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  size="lg"
+                  color="gray.700"
                 >
-                  {Object.entries(STATUS_TEXTS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
-            ) : (
-              <Select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                size="sm"
-                bg="gray.50"
+                  Outgoing Payment Order
+                </Heading>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontSize="sm"
+                  color="gray.500"
+                >
+                  ລະບົບຈັດການໃບ PO ແລະການຊຳລະເງິນ
+                </Text>
+              </Box>
+
+              <Button
+                fontFamily="Noto Sans Lao, sans-serif"
+                leftIcon={<Plus size={18} />}
+                colorScheme="blue"
+                onClick={() =>
+                  navigate("/opo_form", {
+                    state: { mode: "create", data: opos },
+                  })
+                }
               >
-                {Object.entries(STATUS_TEXTS_staff).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
+                ສ້າງ PO ໃໝ່
+              </Button>
+            </Flex>
+
+            {/* ================= ERROR ================= */}
+            {error && (
+              <Alert status="error" borderRadius="lg">
+                <AlertIcon />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-            <Input
-              fontFamily="Noto Sans Lao, sans-serif"
-              type="date"
-              w="170px"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-            />
-            <Input
-              fontFamily="Noto Sans Lao, sans-serif"
-              type="date"
-              w="170px"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-            />
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              leftIcon={<Plus size={20} />}
-              colorScheme="blue"
-              onClick={() => {
-                resetForm();
-                onOpen();
-              }}
-            >
-              ສ້າງ PO ໃໝ່
-            </Button>
-            {/* <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              leftIcon={<Download size={20} />}
-              colorScheme="teal"
-              onClick={exportToCSV}
-              isDisabled={filteredOpos.length === 0}
-            >
-              ສົ່ງອອກ CSV
-            </Button> */}
-          </Flex>
+
+            {/* ================= LOADING ================= */}
+            {loading && (
+              <Flex justify="center" py={10}>
+                <Spinner size="xl" color="blue.500" />
+              </Flex>
+            )}
+
+            {/* ================= FILTER TOOLBAR ================= */}
+            <Card borderRadius="xl">
+              <CardBody>
+                <SimpleGrid columns={{ base: 1, md: 6 }} spacing={4}>
+                  <Input
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    placeholder="ຄົ້ນຫາເລກທີ, ລາຍລະອຽດ..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+
+                  <Select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    {Object.entries(
+                      user?.role === "admin" ? STATUS_TEXTS : STATUS_TEXTS_staff
+                    ).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+
+                  <Input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                  />
+
+                  <Input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                  />
+
+                  <Button
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    variant="outline"
+                  >
+                    Reset
+                  </Button>
+                </SimpleGrid>
+              </CardBody>
+            </Card>
+
+            {/* ================= SUMMARY ================= */}
+            <Card borderRadius="xl">
+              <CardBody>
+                <Heading
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  size="sm"
+                  mb={4}
+                >
+                  ສະຫຼຸບຕາມສະຖານະ
+                </Heading>
+
+                <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                  {Object.keys(STATUS_TEXTS).map((statusKey) => {
+                    const data = summaryOPO[statusKey];
+
+                    return (
+                      <Card
+                        key={statusKey}
+                        borderRadius="lg"
+                        border="1px solid"
+                        borderColor="gray.200"
+                      >
+                        <CardBody>
+                          <Stat>
+                            <StatLabel
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              color="gray.600"
+                            >
+                              {STATUS_TEXTS[statusKey]}
+                            </StatLabel>
+                            <StatNumber
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              color="blue.600"
+                            >
+                              {data?.count || 0}
+                            </StatNumber>
+                            <Text
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              fontSize="xs"
+                              color="gray.500"
+                            >
+                              ລາຍການ
+                            </Text>
+                          </Stat>
+                        </CardBody>
+                      </Card>
+                    );
+                  })}
+                </SimpleGrid>
+              </CardBody>
+            </Card>
+
+            {/* ================= TABLE ================= */}
+            <Card borderRadius="xl">
+              <CardBody>
+                {!loading && (
+                  <OPOTable
+                    fetchOPOs={fetchOPOs}
+                    toast={toast}
+                    user={user}
+                    opos={pageData}
+                    totalPages={totalPages}
+                    onEdit={editOpo}
+                    onDelete={deleteOpo}
+                    onExportPDF={exportPDF}
+                    setPage={setPage}
+                    page={page}
+                  />
+                )}
+              </CardBody>
+            </Card>
+
+            {/* ================= PDF MODAL ================= */}
+            {selectedOpo && (
+              <Modal isOpen={isPdfOpen} onClose={onPdfClose} size="6xl">
+                <ModalOverlay />
+                <ModalContent borderRadius="xl">
+                  <ModalHeader>
+                    PDF Preview — {selectedOpo.serial || selectedOpo.number}
+                  </ModalHeader>
+                  <ModalCloseButton />
+
+                  <ModalBody bg="gray.50">
+                    {/* เนื้อหา PDF ใช้ของเดิมคุณได้เลย */}
+                  </ModalBody>
+
+                  <ModalFooter>
+                    <Button variant="ghost" onClick={onPdfClose}>
+                      ປິດ
+                    </Button>
+                    <Button
+                      leftIcon={<Download size={18} />}
+                      colorScheme="blue"
+                      onClick={generatePDF}
+                    >
+                      Print
+                    </Button>
+                  </ModalFooter>
+                </ModalContent>
+              </Modal>
+            )}
+          </VStack>
         </Box>
-        <Card w="full">
-          <CardBody>
-            <Heading fontFamily="Noto Sans Lao, sans-serif" size="md" mb={4}>
-              📑 ສະຫຼຸບຕາມປະເພດ
-            </Heading>
-            <Grid templateColumns="repeat(3, 1fr)" gap={4}>
-              {Object.keys(STATUS_TEXTS).map((statusKey) => {
-                const statusText = STATUS_TEXTS[statusKey];
-                const data = summaryOPO[statusKey];
+      </Box>
 
-                return (
-                  <Card key={statusKey} bg="blue.50">
-                    <CardBody>
-                      <Stat>
-                        <StatLabel
-                          fontFamily="Noto Sans Lao, sans-serif"
-                          fontSize="sm"
-                        >
-                          {statusText}
-                        </StatLabel>
-                        <Text
-                          fontFamily="Noto Sans Lao, sans-serif"
-                          fontSize="xs"
-                          mt={1}
-                        >
-                          {data?.count} ລາຍການ
-                          {/* {new Intl.NumberFormat("lo-LA").format(data.total)} */}
-                        </Text>
-                      </Stat>
-                    </CardBody>
-                  </Card>
-                );
-              })}
-            </Grid>
-          </CardBody>
-        </Card>
-        {/* OPO List */}
-        {!loading && (
-          <OPOTable
-            fetchOPOs={fetchOPOs}
-            toast={toast}
-            user={user}
-            opos={pageData}
-            totalPages={totalPages}
-            onEdit={editOpo}
-            onDelete={deleteOpo}
-            onExportPDF={exportPDF}
-            setPage={setPage}
-            page={page}
-          />
-        )}
-
-        {/* Create/Edit Modal */}
-        <Modal isOpen={isOpen} onClose={onClose} size="4xl">
-          <ModalOverlay />
+      {selectedOpo && (
+        <Modal isOpen={isPdfOpen} onClose={onPdfClose} size="6xl">
+          {" "}
+          <ModalOverlay />{" "}
           <ModalContent maxH="90vh" overflow="auto">
             <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-              {selectedOpo ? "ແກ້ໄຂ PO" : "ສ້າງ PO ໃໝ່"}
+              {" "}
+              ສົ່ງອອກ PDF - {selectedOpo.serial || selectedOpo.number}
             </ModalHeader>
             <ModalCloseButton />
             <ModalBody>
-              <VStack spacing={4} align="stretch">
-                <HStack>
-                  <FormControl isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ເລກທີ PO
-                    </FormLabel>
-                    <Input
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={formData.serial}
-                      onChange={(e) =>
-                        setFormData({ ...formData, serial: e.target.value })
-                      }
-                      placeholder="PO-2025-001"
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ວັນທີ
-                    </FormLabel>
-                    <Input
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      type="date"
-                      value={
-                        new Date(formData.date).toISOString().split("T")[0]
-                      }
-                      onChange={(e) =>
-                        setFormData({ ...formData, date: e.target.value })
-                      }
-                    />
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ສະຖານະ
-                    </FormLabel>
-                    {user?.role === "admin" ? (
-                      <Select
-                        value={formData.status_Ap} // สมมติ user มี field status
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            status_Ap: e.target.value,
-                          })
-                        }
-                        size="sm"
-                        bg="gray.50"
-                      >
-                        {Object.entries(STATUS_TEXTS).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <Select
-                        value={formData.status_Ap} // สมมติ user มี field status
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            status_Ap: e.target.value,
-                          })
-                        }
-                        size="sm"
-                        bg="gray.50"
-                      >
-                        {Object.entries(STATUS_TEXTS_staff).map(
-                          ([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          )
-                        )}
-                      </Select>
-                    )}
-                  </FormControl>
-                </HStack>
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ສະຖານະການຊຳລະເງິນ
-                  </FormLabel>
-                  <Select
+              <Box mb={4}>
+                <Text
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  fontWeight="bold"
+                  mb={2}
+                >
+                  {" "}
+                  ເລືອກລາຍການທີ່ຕ້ອງການສົ່ງອອກ:{" "}
+                </Text>
+                {(selectedOpo.items || []).map((item) => (
+                  <Checkbox
                     fontFamily="Noto Sans Lao, sans-serif"
-                    value={formData.status} // สมมติ user มี field status
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        status: e.target.value,
-                      })
-                    }
+                    key={item._id}
+                    isChecked={selectedItems.includes(item._id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedItems([...selectedItems, item._id]);
+                      } else {
+                        setSelectedItems(
+                          selectedItems.filter((id) => id !== item._id)
+                        );
+                      }
+                    }}
+                    mb={2}
+                    display="block"
                   >
-                    <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-                    <option value="paid">ຊຳລະແລ້ວ</option>
-                  </Select>
-                </FormControl>
-                <HStack>
-                  <FormControl>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ຜູ້ຮ້ອງຂໍ
-                    </FormLabel>
-                    <Input
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={formData.requester}
-                      onChange={(e) =>
-                        setFormData({ ...formData, requester: e.target.value })
-                      }
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ຜູ້ຈັດການ
-                    </FormLabel>
-                    <Input
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={formData.manager}
-                      onChange={(e) =>
-                        setFormData({ ...formData, manager: e.target.value })
-                      }
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ຜູ້ສ້າງ
-                    </FormLabel>
-                    <Input
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={formData.createdBy}
-                      onChange={(e) =>
-                        setFormData({ ...formData, createdBy: e.target.value })
-                      }
-                    />
-                  </FormControl>
-                </HStack>
-
-                <Divider />
-                <Heading fontFamily="Noto Sans Lao, sans-serif" size="md">
-                  ເພີ່ມລາຍການ
-                </Heading>
-
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ລາຍລະອຽດ
-                  </FormLabel>
-                  <Textarea
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    value={itemForm.description}
-                    onChange={(e) =>
-                      setItemForm({ ...itemForm, description: e.target.value })
-                    }
-                    placeholder="ລາຍລະອຽດການຈ່າຍເງິນ..."
-                  />
-                </FormControl>
-
-                <HStack>
-                  <FormControl>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ວິທີຊຳລະ
-                    </FormLabel>
-                    <Select
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={itemForm.paymentMethod}
-                      onChange={(e) =>
-                        setItemForm({
-                          ...itemForm,
-                          paymentMethod: e.target.value,
-                        })
-                      }
-                    >
-                      {Object.entries(PAYMENT_METHODS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ສະກຸນເງິນ
-                    </FormLabel>
-                    <Select
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      value={itemForm.currency}
-                      onChange={(e) =>
-                        setItemForm({ ...itemForm, currency: e.target.value })
-                      }
-                    >
-                      {CURRENCIES.map((currency) => (
-                        <option key={currency} value={currency}>
-                          {currency}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl isRequired>
-                    <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                      ຈຳນວນເງິນ
-                    </FormLabel>
-                    <Input
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={itemForm.amount}
-                      onChange={(e) =>
-                        setItemForm({ ...itemForm, amount: e.target.value })
-                      }
-                      placeholder="0.00"
-                    />
-                  </FormControl>
-                </HStack>
-
-                <FormControl isRequired>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ສາເຫດ
-                  </FormLabel>
-                  <Input
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    value={itemForm.reason}
-                    onChange={(e) =>
-                      setItemForm({ ...itemForm, reason: e.target.value })
-                    }
-                    placeholder="ສາເຫດການຈ່າຍ..."
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ໝາຍເຫດ
-                  </FormLabel>
-                  <Textarea
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    value={itemForm.notes}
-                    onChange={(e) =>
-                      setItemForm({ ...itemForm, notes: e.target.value })
-                    }
-                    placeholder="ໝາຍເຫດເພີ່ມເຕີມ..."
-                  />
-                </FormControl>
-
+                    {" "}
+                    {item.description} -{" "}
+                    {parseFloat(item.amount || 0).toLocaleString()}{" "}
+                    {item.currency}{" "}
+                  </Checkbox>
+                ))}{" "}
                 <Button
                   fontFamily="Noto Sans Lao, sans-serif"
-                  colorScheme="green"
-                  onClick={addItem}
-                  leftIcon={<Plus size={18} />}
+                  size="sm"
+                  mt={2}
+                  colorScheme="blue"
+                  variant="outline"
+                  onClick={() => {
+                    if (
+                      selectedItems.length === (selectedOpo.items || []).length
+                    ) {
+                      setSelectedItems([]);
+                    } else {
+                      setSelectedItems(
+                        (selectedOpo.items || []).map((i) => i._id)
+                      );
+                    }
+                  }}
                 >
-                  ເພີ່ມລາຍການ
-                </Button>
-
-                {formData.items.length > 0 && (
+                  {" "}
+                  {selectedItems.length === (selectedOpo.items || []).length
+                    ? "ຍົກເລີກທັງໝົດ"
+                    : "ເລືອກທັງໝົດ"}{" "}
+                </Button>{" "}
+              </Box>{" "}
+              <Box id="pdf-preview" bg="white" p={8} border="1px solid #e2e8f0">
+                {" "}
+                {/* Info */}{" "}
+                <Flex
+                  justify="space-between"
+                  mb={6}
+                  pb={4}
+                  borderBottom="2px solid #e2e8f0"
+                >
+                  {" "}
                   <Box>
-                    <Divider my={4} />
-                    <Heading
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      size="sm"
-                      mb={3}
-                    >
-                      ລາຍການທັງໝົດ ({formData.items.length})
-                    </Heading>
-                    {formData.items.map((item) => (
-                      <OPOItem
-                        key={item._id}
-                        item={item}
-                        onRemove={removeItem}
-                      />
-                    ))}
-                    <Box mt={4} p={3} bg="blue.50" borderRadius="md">
+                    {" "}
+                    <HStack fontFamily="Noto Sans Lao, sans-serif" mb={1}>
+                      {" "}
+                      <Text fontFamily="Noto Sans Lao, sans-serif">
+                        {" "}
+                        ເລກທີ:{" "}
+                      </Text>{" "}
+                      <Text fontFamily="Noto Sans Lao, sans-serif">
+                        {" "}
+                        {selectedOpo.serial || selectedOpo.number}{" "}
+                      </Text>{" "}
+                    </HStack>{" "}
+                    <HStack fontFamily="Noto Sans Lao, sans-serif">
+                      {" "}
                       <Text
                         fontFamily="Noto Sans Lao, sans-serif"
                         fontWeight="bold"
-                        mb={2}
                       >
-                        ຍອດລວມ:
-                      </Text>
-                      {Object.entries(groupByCurrency(formData.items)).map(
-                        ([currency, amount]) => (
-                          <Text
-                            fontFamily="Noto Sans Lao, sans-serif"
-                            key={currency}
-                            fontSize="lg"
-                            fontWeight="bold"
-                            color="blue.600"
-                          >
-                            {amount.toLocaleString()} {currency}
-                          </Text>
-                        )
-                      )}
-                    </Box>
-                  </Box>
-                )}
-              </VStack>
-            </ModalBody>
+                        {" "}
+                        ວັນທີ:{" "}
+                      </Text>{" "}
+                      <Text fontFamily="Noto Sans Lao, sans-serif">
+                        {" "}
+                        {new Date(selectedOpo.date).toLocaleDateString(
+                          "lo-LA"
+                        )}{" "}
+                      </Text>{" "}
+                    </HStack>{" "}
+                  </Box>{" "}
+                  <Box textAlign="right">
+                    {" "}
+                    <Badge
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      colorScheme={STATUS_COLORS[selectedOpo.status_Ap]}
+                      fontSize="md"
+                      p={2}
+                      borderRadius="md"
+                    >
+                      {" "}
+                      {STATUS_TEXTS[selectedOpo.status_Ap]}{" "}
+                    </Badge>{" "}
+                  </Box>{" "}
+                </Flex>{" "}
+                {/* Items */}{" "}
+                <Box mb={6}>
+                  {" "}
+                  <Heading
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    size="md"
+                    mb={3}
+                    color="blue.700"
+                  >
+                    {" "}
+                    ລາຍການຈ່າຍເງິນ{" "}
+                  </Heading>{" "}
+                  <Table variant="simple" size="sm">
+                    {" "}
+                    <Thead bg="gray.100">
+                      {" "}
+                      <Tr>
+                        {" "}
+                        <Th fontFamily="Noto Sans Lao, sans-serif">
+                          ລຳດັບ
+                        </Th>{" "}
+                        <Th fontFamily="Noto Sans Lao, sans-serif">
+                          {" "}
+                          ລາຍລະອຽດ{" "}
+                        </Th>{" "}
+                        <Th fontFamily="Noto Sans Lao, sans-serif">
+                          ວິທີຊຳລະ{" "}
+                        </Th>{" "}
+                        <Th fontFamily="Noto Sans Lao, sans-serif">
+                          {" "}
+                          ສະກຸນເງິນ{" "}
+                        </Th>
+                        <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                          {" "}
+                          ຈຳນວນເງິນ{" "}
+                        </Th>
+                        <Th fontFamily="Noto Sans Lao, sans-serif">
+                          ສາເຫດ
+                        </Th>{" "}
+                        <Th fontFamily="Noto Sans Lao, sans-serif">ໝາຍເຫດ</Th>{" "}
+                      </Tr>{" "}
+                    </Thead>
+                    <Tbody>
+                      {" "}
+                      {(selectedItems.length > 0
+                        ? (selectedOpo.items || []).filter((item) =>
+                            selectedItems.includes(item._id)
+                          )
+                        : selectedOpo.items || []
+                      )
+                        .slice()
+                        .sort((a, b) => new Date(b.date) - new Date(a.date))
+                        .map((item, index) => (
+                          <Tr key={item.id}>
+                            {" "}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              {" "}
+                              {index + 1}{" "}
+                            </Td>{" "}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              {" "}
+                              <Text>{item.description}</Text>{" "}
+                            </Td>{" "}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              {" "}
+                              {PAYMENT_METHODS[item.paymentMethod]}{" "}
+                            </Td>{" "}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              {" "}
+                              {item.currency}{" "}
+                            </Td>{" "}
+                            <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              isNumeric
+                              fontWeight="bold"
+                            >
+                              {" "}
+                              {parseFloat(
+                                item.amount || 0
+                              ).toLocaleString()}{" "}
+                            </Td>{" "}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              {" "}
+                              {item.reason}{" "}
+                            </Td>{" "}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              {" "}
+                              {item.notes}{" "}
+                            </Td>{" "}
+                          </Tr>
+                        ))}{" "}
+                    </Tbody>{" "}
+                  </Table>{" "}
+                </Box>{" "}
+                {/* Total */}{" "}
+                <Box mb={6} bg="blue.50" p={4} borderRadius="md">
+                  {" "}
+                  <Heading
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    size="sm"
+                    mb={2}
+                    color="blue.700"
+                  >
+                    {" "}
+                    ຍອດລວມທັງໝົດ{" "}
+                  </Heading>{" "}
+                  {Object.entries(
+                    groupByCurrency(
+                      selectedItems.length > 0
+                        ? (selectedOpo.items || []).filter((item) =>
+                            selectedItems.includes(item.id)
+                          )
+                        : selectedOpo.items || []
+                    )
+                  ).map(([currency, amount]) => (
+                    <Text
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      key={currency}
+                      fontSize="xl"
+                      fontWeight="bold"
+                      color="blue.600"
+                    >
+                      {" "}
+                      {amount.toLocaleString()} {currency}{" "}
+                    </Text>
+                  ))}{" "}
+                </Box>{" "}
+              </Box>{" "}
+            </ModalBody>{" "}
             <ModalFooter>
+              {" "}
               <Button
                 fontFamily="Noto Sans Lao, sans-serif"
                 variant="ghost"
                 mr={3}
-                onClick={onClose}
+                onClick={onPdfClose}
               >
-                ຍົກເລີກ
-              </Button>
+                {" "}
+                ປິດ{" "}
+              </Button>{" "}
               <Button
                 fontFamily="Noto Sans Lao, sans-serif"
+                leftIcon={<Download size={18} />}
                 colorScheme="blue"
-                onClick={saveOpo}
-                isDisabled={!formData.serial || formData.items.length === 0}
+                onClick={generatePDF}
+                isDisabled={
+                  selectedItems.length === 0 &&
+                  (selectedOpo.items || []).length === 0
+                }
               >
-                ບັນທຶກ
-              </Button>
-            </ModalFooter>
-          </ModalContent>
+                {" "}
+                Print{" "}
+              </Button>{" "}
+            </ModalFooter>{" "}
+          </ModalContent>{" "}
         </Modal>
-
-        {/* PDF Preview Modal */}
-        {selectedOpo && (
-          <Modal isOpen={isPdfOpen} onClose={onPdfClose} size="6xl">
-            <ModalOverlay />
-            <ModalContent maxH="90vh" overflow="auto">
-              <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
-                ສົ່ງອອກ PDF - {selectedOpo.serial || selectedOpo.number}
-              </ModalHeader>
-              <ModalCloseButton />
-              <ModalBody>
-                <Box mb={4}>
-                  <Text
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    fontWeight="bold"
-                    mb={2}
-                  >
-                    ເລືອກລາຍການທີ່ຕ້ອງການສົ່ງອອກ:
-                  </Text>
-                  {(selectedOpo.items || []).map((item) => (
-                    <Checkbox
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      key={item._id}
-                      isChecked={selectedItems.includes(item._id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedItems([...selectedItems, item._id]);
-                        } else {
-                          setSelectedItems(
-                            selectedItems.filter((id) => id !== item._id)
-                          );
-                        }
-                      }}
-                      mb={2}
-                      display="block"
-                    >
-                      {item.description} -{" "}
-                      {parseFloat(item.amount || 0).toLocaleString()}{" "}
-                      {item.currency}
-                    </Checkbox>
-                  ))}
-                  <Button
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    size="sm"
-                    mt={2}
-                    colorScheme="blue"
-                    variant="outline"
-                    onClick={() => {
-                      if (
-                        selectedItems.length ===
-                        (selectedOpo.items || []).length
-                      ) {
-                        setSelectedItems([]);
-                      } else {
-                        setSelectedItems(
-                          (selectedOpo.items || []).map((i) => i._id)
-                        );
-                      }
-                    }}
-                  >
-                    {selectedItems.length === (selectedOpo.items || []).length
-                      ? "ຍົກເລີກທັງໝົດ"
-                      : "ເລືອກທັງໝົດ"}
-                  </Button>
-                </Box>
-
-                <Box
-                  id="pdf-preview"
-                  bg="white"
-                  p={8}
-                  border="1px solid #e2e8f0"
-                >
-                  {/* Info */}
-                  <Flex
-                    justify="space-between"
-                    mb={6}
-                    pb={4}
-                    borderBottom="2px solid #e2e8f0"
-                  >
-                    <Box>
-                      <HStack fontFamily="Noto Sans Lao, sans-serif" mb={1}>
-                        <Text fontFamily="Noto Sans Lao, sans-serif">
-                          ເລກທີ:
-                        </Text>{" "}
-                        <Text fontFamily="Noto Sans Lao, sans-serif">
-                          {selectedOpo.serial || selectedOpo.number}
-                        </Text>
-                      </HStack>
-                      <HStack fontFamily="Noto Sans Lao, sans-serif">
-                        <Text
-                          fontFamily="Noto Sans Lao, sans-serif"
-                          fontWeight="bold"
-                        >
-                          ວັນທີ:
-                        </Text>{" "}
-                        <Text fontFamily="Noto Sans Lao, sans-serif">
-                          {new Date(selectedOpo.date).toLocaleDateString(
-                            "lo-LA"
-                          )}
-                        </Text>
-                      </HStack>
-                    </Box>
-                    <Box textAlign="right">
-                      <Badge
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        colorScheme={STATUS_COLORS[selectedOpo.status_Ap]}
-                        fontSize="md"
-                        p={2}
-                        borderRadius="md"
-                      >
-                        {STATUS_TEXTS[selectedOpo.status_Ap]}
-                      </Badge>
-                    </Box>
-                  </Flex>
-
-                  {/* Items */}
-                  <Box mb={6}>
-                    <Heading
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      size="md"
-                      mb={3}
-                      color="blue.700"
-                    >
-                      ລາຍການຈ່າຍເງິນ
-                    </Heading>
-                    <Table variant="simple" size="sm">
-                      <Thead bg="gray.100">
-                        <Tr>
-                          <Th fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
-                          <Th fontFamily="Noto Sans Lao, sans-serif">
-                            ລາຍລະອຽດ
-                          </Th>
-                          <Th fontFamily="Noto Sans Lao, sans-serif">
-                            ວິທີຊຳລະ
-                          </Th>
-                          <Th fontFamily="Noto Sans Lao, sans-serif">
-                            ສະກຸນເງິນ
-                          </Th>
-                          <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
-                            ຈຳນວນເງິນ
-                          </Th>
-                          <Th fontFamily="Noto Sans Lao, sans-serif">ສາເຫດ</Th>
-                          <Th fontFamily="Noto Sans Lao, sans-serif">ໝາຍເຫດ</Th>
-                        </Tr>
-                      </Thead>
-                      <Tbody>
-                        {(selectedItems.length > 0
-                          ? (selectedOpo.items || []).filter((item) =>
-                              selectedItems.includes(item._id)
-                            )
-                          : selectedOpo.items || []
-                        )
-                          .slice() // สร้างสำเนา array เพื่อไม่แก้ตัวต้นฉบับ
-                          .sort((a, b) => new Date(b.date) - new Date(a.date)) // b - a = ใหม่ → เก่า
-                          .map((item, index) => (
-                            <Tr key={item.id}>
-                              <Td fontFamily="Noto Sans Lao, sans-serif">
-                                {index + 1}
-                              </Td>
-                              <Td fontFamily="Noto Sans Lao, sans-serif">
-                                <Text>{item.description}</Text>
-                              </Td>
-                              <Td fontFamily="Noto Sans Lao, sans-serif">
-                                {PAYMENT_METHODS[item.paymentMethod]}
-                              </Td>
-                              <Td fontFamily="Noto Sans Lao, sans-serif">
-                                {item.currency}
-                              </Td>
-                              <Td
-                                fontFamily="Noto Sans Lao, sans-serif"
-                                isNumeric
-                                fontWeight="bold"
-                              >
-                                {parseFloat(item.amount || 0).toLocaleString()}
-                              </Td>
-                              <Td fontFamily="Noto Sans Lao, sans-serif">
-                                {item.reason}
-                              </Td>
-                              <Td fontFamily="Noto Sans Lao, sans-serif">
-                                {item.notes}
-                              </Td>
-                            </Tr>
-                          ))}
-                      </Tbody>
-                    </Table>
-                  </Box>
-
-                  {/* Total */}
-                  <Box mb={6} bg="blue.50" p={4} borderRadius="md">
-                    <Heading
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      size="sm"
-                      mb={2}
-                      color="blue.700"
-                    >
-                      ຍອດລວມທັງໝົດ
-                    </Heading>
-                    {Object.entries(
-                      groupByCurrency(
-                        selectedItems.length > 0
-                          ? (selectedOpo.items || []).filter((item) =>
-                              selectedItems.includes(item.id)
-                            )
-                          : selectedOpo.items || []
-                      )
-                    ).map(([currency, amount]) => (
-                      <Text
-                        fontFamily="Noto Sans Lao, sans-serif"
-                        key={currency}
-                        fontSize="xl"
-                        fontWeight="bold"
-                        color="blue.600"
-                      >
-                        {amount.toLocaleString()} {currency}
-                      </Text>
-                    ))}
-                  </Box>
-                </Box>
-              </ModalBody>
-              <ModalFooter>
-                <Button
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  variant="ghost"
-                  mr={3}
-                  onClick={onPdfClose}
-                >
-                  ປິດ
-                </Button>
-                <Button
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  leftIcon={<Download size={18} />}
-                  colorScheme="blue"
-                  onClick={generatePDF}
-                  isDisabled={
-                    selectedItems.length === 0 &&
-                    (selectedOpo.items || []).length === 0
-                  }
-                >
-                  Print
-                </Button>
-              </ModalFooter>
-            </ModalContent>
-          </Modal>
-        )}
-      </Box>
-    </ChakraProvider>
+      )}
+    </Box>
   );
 };
 

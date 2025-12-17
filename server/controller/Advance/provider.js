@@ -146,10 +146,8 @@ export const createAdvance = async (req, res) => {
 
     // โหลดข้อมูลบริษัทครั้งเดียว
     const company = await Company.findById(req.user.companyId).lean();
-
     const cashAccounts = company.cashAccounts || [];
     const bankAccounts = company.bankAccounts || [];
-
     const validatedAmounts = req.body.amounts.map((item, index) => {
       if (!item.currency || !item.amount || !item.accountId) {
         throw new Error(
@@ -164,7 +162,7 @@ export const createAdvance = async (req, res) => {
       let accounts = [];
       if (req.body.paymentMethods === "cash") {
         accounts = cashAccounts;
-      } else if (req.body.paymentMethods === "bank_transfer") {
+      } else if (req.body.paymentMethods === "bank") {
         accounts = bankAccounts;
       }
 
@@ -302,7 +300,6 @@ export const updateAdvance = async (req, res) => {
             `Row ${index + 1}: ກະລຸນາກອກ currency, amount, accountId ໃຫ້ຄົບ`
           );
         }
-
         if (parseFloat(item.amount) <= 0) {
           throw new Error(`Row ${index + 1}: ຈໍານວນເງິນຕ້ອງຫຼາຍກວ່າ 0`);
         }
@@ -312,13 +309,14 @@ export const updateAdvance = async (req, res) => {
         } else if (req.body.paymentMethods === "bank") {
           accounts = bankAccounts;
         }
-
         const accountMatch = accounts.find(
           (acc) => acc._id.toString() === item.accountId
         );
         if (!accountMatch) {
           throw new Error(
-            `Row ${index + 1}: ບັນຊີນີ້ບໍ່ຢູ່ໃນ ${req.body.paymentMethods}`
+            `Row ${index + 1}: ບັນຊີນີ້ບໍ່ຢູ່ໃນ ${req.body.paymentMethods} ${
+              item.accountId
+            }`
           );
         }
 
@@ -328,6 +326,26 @@ export const updateAdvance = async (req, res) => {
 
         if (isNaN(Number(item.amount))) {
           throw new Error(`Row ${index + 1}: Amount ບໍ່ຖືກຕ້ອງ`);
+        }
+
+        ////ປ້ອງກັນເວລາມີລາຍການເຄື່ອນໄຫວ ຢູ່ບໍ່ໃຫ້ລົບລາຍການນັ້ນອອກ
+        // currency ที่เคยมี transaction แล้ว (ห้ามหาย)
+        const lockedCurrencies = new Set(
+          (advance.transactions || []).map((t) => t.currency)
+        );
+
+        // currency ที่ส่งมาใหม่
+        const incomingCurrencies = new Set(
+          (req.body.amounts || []).map((a) => a.currency)
+        );
+
+        // ❌ ถ้ามี currency ที่เคยมี แต่ request ใหม่ไม่มี = ลบ
+        for (const currency of lockedCurrencies) {
+          if (!incomingCurrencies.has(currency)) {
+            throw new Error(
+              `ບໍ່ສາມາດລົບສະກຸນ ${currency} ໄດ້ ເພາະມີລາຍການເຄື່ອນໄຫວແລ້ວ`
+            );
+          }
         }
 
         return {
@@ -886,7 +904,6 @@ export const deleteAdvance_transactions = async (req, res) => {
     advance.transactions = advance.transactions.filter(
       (tx) => tx._id.toString() !== item
     );
-
     // ✅ คำนวณ summary ใหม่
     advance.summary = recalcSummary(advance.transactions);
 

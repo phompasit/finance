@@ -2,12 +2,7 @@ import { Flex, Heading, Button } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 import { Printer } from "lucide-react";
 
-export default function PrepaidHeader({
-  selected,
-  user,
-  onAddOpen,
-  onPrint,
-}) {
+export default function PrepaidHeader({ selected, user, onAddOpen, onPrint }) {
   return (
     <Flex justify="space-between" align="center" mb={6}>
       <Heading size="lg" fontFamily="Noto Sans Lao, sans-serif">
@@ -28,7 +23,7 @@ export default function PrepaidHeader({
         <Button
           leftIcon={<AddIcon />}
           colorScheme="blue"
-          onClick={onAddOpen}
+          onClick={() => onAddOpen()}
           fontFamily="Noto Sans Lao, sans-serif"
         >
           ເພີ່ມລາຍການ

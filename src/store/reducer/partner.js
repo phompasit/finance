@@ -8,15 +8,7 @@ export const fetchCategories = createAsyncThunk(
   "all/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(
-        `${import.meta.env.VITE_API_URL}/api/category/get-category`,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const { data } = await api.get(`/api/category/get-category`);
 
       return data; // <----- ถูกต้อง
     } catch (error) {

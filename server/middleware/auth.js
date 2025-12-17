@@ -12,21 +12,19 @@ import rateLimit from "express-rate-limit";
 =============================================== */
 export const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    // const authHeader = req.headers.authorization || "";
+    // const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const token = req.cookies.access_token
 
     if (!token) {
       return res.status(401).json({
         message: "ກະລຸນາເຂົ້າລະບົບກ່ອນ",
       });
     }
-
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET, {
-        algorithms: ["HS256"],
+      decoded = jwt.verify(req.cookies.access_token, process.env.JWT_SECRET, {
+        algorithms: "HS256",
         issuer: "admin",
         audience: "admin",
       });

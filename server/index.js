@@ -36,23 +36,18 @@ import {
   securityHeaders,
   authLimiter,
 } from "./middleware/security.js";
+import cookieParser from "cookie-parser";
 const app = express();
 
 // ============================================
 // 🔒 SECURITY MIDDLEWARE (Order matters!)
 // ============================================
-
-console.log("Cloudinary ENV Loaded:", {
-  cloud: process.env.CLOUDINARY_CLOUD_NAME,
-  key: process.env.CLOUDINARY_API_KEY,
-  secret: process.env.CLOUDINARY_API_SECRET,
-});
 // 1. Helmet - Basic security headers
 app.use(helmet());
 
 app.use(securityHeaders);
 app.use(cors(corsOptions));
-
+app.use(cookieParser())
 // 4. Body parsing with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));

@@ -53,6 +53,7 @@ import {
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useAuth } from "../context/AuthContext";
+import api from "../api/api";
 
 const Report = () => {
   const [data, setData] = useState([]);
@@ -91,41 +92,31 @@ const Report = () => {
   // Fetch data
   const fetchData = async () => {
     setLoading(true);
-    try {
-      const queryParams = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value);
-      });
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/report?${queryParams.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
 
-      if (!response.ok) {
-        throw new Error(
-          response.status === 401 ? "Unauthorized" : "Server error"
-        );
-      }
-      const result = await response.json();
-      if (result.success) {
-        setData(result.data);
-      } else {
-        throw new Error(result.message);
-      }
+    try {
+      // axios รองรับ params ตรง ๆ ไม่ต้อง URLSearchParams
+      const { data } = await api.get("/api/report", {
+        params: Object.fromEntries(
+          Object.entries(filters).filter(([_, v]) => v)
+        ),
+      });
+
+      // ถ้า backend ส่ง { success, data }
+      setData(data.data ?? data);
     } catch (error) {
       toast({
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description: error.message || "ບໍ່ສາມາດດຶງຂໍ້ມູນໄດ້",
+        description:
+          error?.response?.data?.message ||
+          (error?.response?.status === 401
+            ? "Unauthorized"
+            : "ບໍ່ສາມາດດຶງຂໍ້ມູນໄດ້"),
         status: "error",
         duration: 3000,
       });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {

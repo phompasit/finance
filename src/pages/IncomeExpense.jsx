@@ -46,16 +46,11 @@ import {
   FileText,
   CreditCard,
 } from "lucide-react";
-import Select from "react-select";
 import { useAuth } from "../context/AuthContext";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCategories } from "../store/reducer/partner";
 import {
-  createIncomeExpense,
   deleteIncomeExpense,
   fetchTransaction,
-  removeCurrencyFromServer,
-  updateIncomeExpense,
   updateStatusIncomeExpense,
 } from "../store/reducer/incomeExpense";
 import PaymentCard from "../components/Income_Expense/PaymentCard";
@@ -76,6 +71,8 @@ import {
 import { formatDate, shortDesc } from "../components/Income_Expense/formatter";
 import Pagination from "../components/Income_Expense/Pagination";
 import RenderFields from "../components/Income_Expense/FormFieldsAdd";
+import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 
 // Custom debounce hook
 function useDebounce(value, delay = 300) {
@@ -100,21 +97,8 @@ const IncomeExpense = () => {
   const [deleteId, setDeleteId] = useState(null);
 
   // Edit state - BUG FIX: Added missing id state
-  const [id, setId] = useState(null);
-
+  const navigate = useNavigate();
   // Form states
-  const [serial, setSerial] = useState("");
-  const [type, setType] = useState("income");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
-  const [status, setStatus] = useState("paid");
-  const [categoryId, setCategoryId] = useState(null);
-  const [note, setNote] = useState("");
-  const [status_Ap, setStatusAp] = useState("pending");
-  const [amounts, setAmounts] = useState([
-    { currency: "LAK", amount: "", accountId: "" },
-  ]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -127,14 +111,7 @@ const IncomeExpense = () => {
     status: "",
     status_Ap: "",
   });
-
   const { user } = useAuth();
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const {
-    isOpen: isEdit,
-    onOpen: onEditOpen,
-    onClose: onEditClose,
-  } = useDisclosure();
   const {
     isOpen: isViews,
     onOpen: onOpenViews,
@@ -151,8 +128,6 @@ const IncomeExpense = () => {
   const toast = useToast();
 
   // Selectors
-  const { categoriesRedu: categories } = useSelector((state) => state.partner);
-
   const { transactionsRedu: transactionData, loader: Loading } = useSelector(
     (state) => state.incomeExpense
   );
@@ -207,23 +182,10 @@ const IncomeExpense = () => {
   ]);
 
   useEffect(() => {
-    dispatch(fetchCategories());
-  }, []); // ลบ dispatch ออกจาก dependencies - fetch ครั้งเดียวตอน mount
-
-  useEffect(() => {
     dispatch(fetchTransaction(filterParams));
   }, [dispatch, filterParams]); // ใช้ filterParams โดยตรง ไม่ต้อง stringify
 
   // Memoized options
-
-  const paymentOptions = useMemo(
-    () =>
-      Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => ({
-        value: key,
-        label: label,
-      })),
-    [PAYMENT_METHOD_LABELS]
-  );
 
   const status_income_expense = useMemo(
     () => ({
@@ -233,34 +195,6 @@ const IncomeExpense = () => {
     []
   );
 
-  const bankOptions = useMemo(
-    () =>
-      (user?.companyId?.bankAccounts || []).map((b) => ({
-        label: `${b.bankName} (${b.currency})`,
-        value: b._id,
-        currency: b.currency,
-      })),
-    [user?.companyId?.bankAccounts]
-  );
-
-  const cashOptions = useMemo(
-    () =>
-      (user?.companyId?.cashAccounts || []).map((b) => ({
-        label: `${b.name} (${b.currency})`,
-        value: b._id,
-        currency: b.currency,
-      })),
-    [user?.companyId?.cashAccounts]
-  );
-
-  const categoryOptions = useMemo(
-    () =>
-      categories?.map((c) => ({
-        value: c._id,
-        label: `${c.name} (${laoType[c.type] || c.type})`,
-      })),
-    [categories]
-  );
   // Format date
   const formatDateString = useCallback((dateString) => {
     return formatDate(dateString);
@@ -270,292 +204,35 @@ const IncomeExpense = () => {
   const pageData = records || [];
   const stats = useStats(pageData);
 
-  // Reset form function
-  const resetForm = useCallback(() => {
-    setId(null);
-    setSerial("");
-    setType("income");
-    setPaymentMethod("cash");
-    setDescription("");
-    setDate("");
-    setStatus("paid");
-    setCategoryId(null);
-    setNote("");
-    setStatusAp("pending");
-    setAmounts([{ currency: "LAK", amount: "", accountId: "" }]);
-  }, []);
- 
-  // Currency operations - BUG FIX: Simplified logic
-  const addCurrency = useCallback(() => {
-    setAmounts((prev) => [
-      ...prev,
-      { currency: "LAK", amount: "", accountId: "" },
-    ]);
-  }, []);
-
-  const removeCurrency = useCallback(
-    async (currencyIndex, transactionId = null) => {
-      if (transactionId) {
-        try {
-          await dispatch(
-            removeCurrencyFromServer({
-              currencyIndex: currencyIndex,
-              index: transactionId,
-            })
-          ).unwrap();
-        } catch (error) {
-          toast({
-            title: "ເກີດຂໍ້ຜິດພາດ",
-            description: error?.message || "ບໍ່ສາມາດລົບສະກຸນເງິນ",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-          return;
-        }
-      }
-      setAmounts((prev) => prev.filter((_, i) => i !== currencyIndex));
-    },
-    [dispatch, toast]
-  );
-
-  const updateCurrency = useCallback((currencyIndex, field, value) => {
-    setAmounts((prev) => {
-      const newArr = [...prev];
-      newArr[currencyIndex] = {
-        ...newArr[currencyIndex],
-        [field]: value,
-      };
-      return newArr;
-    });
-  }, []);
-
-  // Validation
-  const validateForm = useCallback(() => {
-    const newErrors = {};
-
-    if (!serial) newErrors.serial = "ກະລຸນາປ້ອນເລກທີ່";
-    if (!description) newErrors.description = "ກະລຸນາປ້ອນລາຍລະອຽດ";
-    if (!type) newErrors.type = "ກະລຸນາເລືອກປະເພດ";
-    if (!paymentMethod) newErrors.paymentMethod = "ກະລຸນາເລືອກວິທີຈ່າຍ";
-    if (!date) newErrors.date = "ກະລຸນາເລືອກວັນທີ";
-    if (!note) newErrors.note = "ກະລຸນາປ້ອນໝາຍເຫດ";
-
-    const hasValidAmount = amounts.some((item) => parseFloat(item.amount) > 0);
-    if (!hasValidAmount) {
-      newErrors.amounts = "ຈຳນວນເງິນຕ້ອງຫຼາຍກວ່າ 0";
-    }
-
-    return newErrors;
-  }, [serial, description, type, paymentMethod, date, note, amounts]);
-
-  // Submit handler
-  const handleSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
-
-      const errors = validateForm();
-      if (Object.keys(errors).length > 0) {
-        toast({
-          title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-          description: Object.values(errors).join(", "),
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-
-      try {
-        const response = await dispatch(
-          createIncomeExpense({
-            transactions: {
-              serial,
-              description,
-              type,
-              paymentMethod,
-              date,
-              amounts,
-              note,
-              status,
-              status_Ap: "pending",
-              categoryId,
-            },
-          })
-        ).unwrap();
-
-        if (response?.success) {
-          toast({
-            title: "ສຳເລັດ",
-            description: "ບັນທຶກລາຍການສຳເລັດ",
-            status: "success",
-            duration: 3000,
-            isClosable: true,
-          });
-
-          resetForm();
-          onClose();
-          setSelectedTransactions([]);
-        } else {
-          toast({
-            title: "ກະລຸນາກວດສອບຄືນ",
-            description: response?.message || "ເກີດຂໍ້ຜິດພາດ",
-            status: "error",
-            duration: 3000,
-            isClosable: true,
-          });
-        }
-      } catch (error) {
-        toast({
-          title: "ເກີດຂໍ້ຜິດພາດ",
-          description: error?.message || "Server error",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    },
-    [
-      validateForm,
-      dispatch,
-      onClose,
-      toast,
-      resetForm,
-      serial,
-      description,
-      type,
-      paymentMethod,
-      date,
-      amounts,
-      note,
-      status,
-      categoryId,
-    ]
-  );
-
-  // Edit handler - BUG FIX: Added proper edit data population
   const handleEditClick = useCallback(
     (transaction) => {
-      setId(transaction._id);
-      setSerial(transaction.serial || "");
-      setType(transaction.type || "income");
-      setPaymentMethod(transaction.paymentMethod || "cash");
-      setDescription(transaction.description || "");
-      setDate(transaction.date ? transaction.date.split("T")[0] : "");
-      setStatus(transaction.status || "paid");
-      setCategoryId(transaction.categoryId?._id || null);
-      setNote(transaction.note || "");
-      setStatusAp(transaction.status_Ap || "pending");
-      setAmounts(
-        transaction.amounts || [{ currency: "LAK", amount: "", accountId: "" }]
-      );
-      onEditOpen();
+      navigate("/form_income_expense", {
+        state: {
+          mode: "edit",
+          data: transaction,
+        },
+      });
     },
-    [onEditOpen]
+    [navigate]
   );
-
-  const handleEdit = useCallback(async () => {
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      toast({
-        title: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
-        description: Object.values(errors).join(", "),
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    try {
-      const response = await dispatch(
-        updateIncomeExpense({
-          id,
-          Editdata: {
-            serial,
-            description,
-            type,
-            paymentMethod,
-            date,
-            amounts,
-            note,
-            status,
-            status_Ap: "pending",
-            categoryId,
-          },
-        })
-      ).unwrap();
-
-      if (response?.success) {
-        toast({
-          title: "ສຳເລັດ",
-          description: "ແກ້ໄຂລາຍການສຳເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-
-        resetForm();
-        onEditClose();
-        setSelectedTransactions([]);
-      } else {
-        toast({
-          title: "ເກີດຂໍ້ຜິດພາດ",
-          description: response.message || "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນ",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິດພາດ",
-        description: error?.message || "Server Error",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [
-    validateForm,
-    dispatch,
-    id,
-    serial,
-    description,
-    type,
-    paymentMethod,
-    date,
-    amounts,
-    note,
-    status,
-    categoryId,
-    toast,
-    resetForm,
-    onEditClose,
-  ]);
 
   // Delete handlers
   const handleDelete = useCallback(
     async (transactionId) => {
       try {
         await dispatch(deleteIncomeExpense(transactionId)).unwrap();
-
-        toast({
+        Swal.fire({
           title: "ສຳເລັດ",
-          description: "ລຶບລາຍການສຳເລັດ",
-          status: "success",
-          duration: 3000,
-          isClosable: true,
+          text: "ລຶບລາຍການສຳເລັດ",
+          icon: "success",
         });
 
         await dispatch(fetchTransaction(filterParams));
       } catch (error) {
-        toast({
+        Swal.fire({
           title: "ເກີດຂໍ້ຜິພາດ",
-          description: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
+          text: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
+          icon: "error",
         });
       }
     },
@@ -598,42 +275,27 @@ const IncomeExpense = () => {
             status: newStatus,
           })
         ).unwrap();
-
-        toast({
+        Swal.fire({
           title: "ສຳເລັດ",
-          description: `${newStatus} ສຳເລັດແລ້ວ`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
+          text: `${newStatus} ສຳເລັດແລ້ວ`,
+          icon: "success",
         });
 
         await dispatch(fetchTransaction(filterParams));
       } catch (error) {
-        toast({
+        Swal.fire({
           title: "ເກີດຂໍ້ຜິພາດ",
-          description: error?.message || "ກະລຸນາລອງໃໝ່",
-          status: "error",
-          duration: 2000,
-          isClosable: true,
+          text: error?.message || "ກະລຸນາລອງໃໝ່",
+          icon: "error",
         });
       }
     },
     [dispatch, filterParams, toast]
   );
 
-  // Modal close handlers with reset
-  const handleModalClose = useCallback(() => {
-    resetForm();
-    onClose();
-  }, [resetForm, onClose]);
-
-  const handleEditModalClose = useCallback(() => {
-    resetForm();
-    onEditClose();
-  }, [resetForm, onEditClose]);
   return (
     <Box>
-      <Container maxW="container.xl">
+      <Box maxW="">
         {/* Header */}
         <Flex justify="space-between" align="center" mb={8}>
           <HStack spacing={4}>
@@ -652,7 +314,11 @@ const IncomeExpense = () => {
               fontFamily="Noto Sans Lao, sans-serif"
               colorScheme="teal"
               leftIcon={<AddIcon />}
-              onClick={onOpen}
+              onClick={() =>
+                navigate("/form_income_expense", {
+                  state: { mode: "create", data: transactionData },
+                })
+              }
               rounded="xl"
               shadow="md"
               _hover={{ shadow: "lg", transform: "translateY(-2px)" }}
@@ -772,196 +438,7 @@ const IncomeExpense = () => {
             ອັບເດດລ່າສຸດ: {new Date().toLocaleString("lo-LA")}
           </Text>
         </Flex>
-      </Container>
-
-      {/* Add Modal */}
-      <Modal
-        isOpen={isOpen}
-        onClose={handleModalClose}
-        size="4xl"
-        isCentered
-        motionPreset="slideInBottom"
-      >
-        <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
-        <ModalContent
-          bg={cardBg}
-          rounded="2xl"
-          shadow="2xl"
-          border="1px solid"
-          borderColor={borderClr}
-        >
-          <ModalHeader borderBottom="1px" borderColor={borderClr}>
-            <HStack spacing={3}>
-              <Icon as={DollarSign} boxSize={6} color="teal.500" />
-              <Heading
-                fontFamily="Noto Sans Lao, sans-serif"
-                size="md"
-                bgGradient="linear(to-r, teal.400, blue.500)"
-                bgClip="text"
-              >
-                ເພີ່ມລາຍຮັບ / ລາຍຈ່າຍ
-              </Heading>
-            </HStack>
-          </ModalHeader>
-          <ModalCloseButton rounded="full" top={4} right={4} />
-
-          <ModalBody fontFamily="Noto Sans Lao, sans-serif" py={6}>
-            {isOpen && (
-              <RenderFields
-                labelClr={labelClr}
-                cardBg={cardBg}
-                borderClr={borderClr}
-                serial={serial}
-                setSerial={setSerial}
-                type={type}
-                setType={setType}
-                paymentMethod={paymentMethod}
-                setPaymentMethod={setPaymentMethod}
-                description={description}
-                setDescription={setDescription}
-                date={date}
-                setDate={setDate}
-                status={status}
-                setStatus={setStatus}
-                categoryId={categoryId}
-                setCategoryId={setCategoryId}
-                note={note}
-                setNote={setNote}
-                status_Ap={status_Ap}
-                typeOptions={typeOptions}
-                paymentOptions={paymentOptions}
-                statusOptions={statusOptions}
-                categoryOptions={categoryOptions}
-                currencyOptions={currencyOptions}
-                cashOptions={cashOptions}
-                bankOptions={bankOptions}
-                amounts={amounts}
-                addCurrency={addCurrency}
-                removeCurrency={removeCurrency}
-                updateCurrency={updateCurrency}
-                id={id}
-              />
-            )}
-          </ModalBody>
-
-          <ModalFooter borderTop="1px" borderColor={borderClr}>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              colorScheme="teal"
-              mr={3}
-              onClick={handleSubmit}
-              rounded="xl"
-              px={8}
-              shadow="md"
-              _hover={{ shadow: "lg" }}
-            >
-              ບັນທຶກ
-            </Button>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              variant="ghost"
-              onClick={handleModalClose}
-              rounded="xl"
-            >
-              ຍົກເລີກ
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        isOpen={isEdit}
-        onClose={handleEditModalClose}
-        size="4xl"
-        isCentered
-        motionPreset="slideInBottom"
-      >
-        <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(10px)" />
-        <ModalContent
-          bg={cardBg}
-          rounded="2xl"
-          shadow="2xl"
-          border="1px solid"
-          borderColor={borderClr}
-        >
-          <ModalHeader borderBottom="1px" borderColor={borderClr}>
-            <HStack spacing={3}>
-              <Icon as={DollarSign} boxSize={6} color="teal.500" />
-              <Heading
-                fontFamily="Noto Sans Lao, sans-serif"
-                size="md"
-                bgGradient="linear(to-r, teal.400, blue.500)"
-                bgClip="text"
-              >
-                ແກ້ໄຂລາຍຮັບ / ລາຍຈ່າຍ
-              </Heading>
-            </HStack>
-          </ModalHeader>
-          <ModalCloseButton rounded="full" top={4} right={4} />
-
-          <ModalBody fontFamily="Noto Sans Lao, sans-serif" py={6}>
-            <RenderFields
-              labelClr={labelClr}
-              cardBg={cardBg}
-              borderClr={borderClr}
-              serial={serial}
-              setSerial={setSerial}
-              type={type}
-              setType={setType}
-              paymentMethod={paymentMethod}
-              setPaymentMethod={setPaymentMethod}
-              description={description}
-              setDescription={setDescription}
-              date={date}
-              setDate={setDate}
-              status={status}
-              setStatus={setStatus}
-              categoryId={categoryId}
-              setCategoryId={setCategoryId}
-              note={note}
-              setNote={setNote}
-              status_Ap={status_Ap}
-              typeOptions={typeOptions}
-              paymentOptions={paymentOptions}
-              statusOptions={statusOptions}
-              categoryOptions={categoryOptions}
-              currencyOptions={currencyOptions}
-              cashOptions={cashOptions}
-              bankOptions={bankOptions}
-              amounts={amounts}
-              addCurrency={addCurrency}
-              removeCurrency={removeCurrency}
-              updateCurrency={updateCurrency}
-              id={id}
-            />
-          </ModalBody>
-
-          <ModalFooter borderTop="1px" borderColor={borderClr}>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              colorScheme="teal"
-              mr={3}
-              onClick={handleEdit}
-              rounded="xl"
-              px={8}
-              shadow="md"
-              _hover={{ shadow: "lg" }}
-            >
-              ບັນທຶກ
-            </Button>
-            <Button
-              fontFamily="Noto Sans Lao, sans-serif"
-              variant="ghost"
-              onClick={handleEditModalClose}
-              rounded="xl"
-            >
-              ຍົກເລີກ
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
+      </Box>
       {/* View Modal */}
       <Modal
         isOpen={isViews}

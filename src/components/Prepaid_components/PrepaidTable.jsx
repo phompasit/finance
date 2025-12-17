@@ -60,7 +60,8 @@ export default React.memo(function PrepaidTable({
   closeAdvanceA,
   reopenAdvanceA,
   deleteAdvanceA,
-  handleStatus
+  handleStatus,
+  handleSendEdit,
 }) {
   const toggle = (item) => {
     const exists = selected.find((i) => i._id === item._id);
@@ -318,13 +319,11 @@ export default React.memo(function PrepaidTable({
                                     fontFamily="Noto Sans Lao, sans-serif"
                                     icon={<Edit size={16} />}
                                     onClick={() => {
-                                      setEditing(advance);
-                                      setEditForm({
+                                      handleSendEdit({
                                         ...advance,
                                         amounts: advance?.amount_requested,
                                         categoryId: advance.categoryId, // ⭐ สำคัญมาก
                                       });
-                                      onEditOpen();
                                     }}
                                   >
                                     ແກ້ໄຂ

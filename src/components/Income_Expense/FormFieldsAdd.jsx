@@ -15,11 +15,24 @@ import {
   InputGroup,
   InputRightElement,
   Icon,
+  useColorModeValue,
+  Flex,
+  Text,
 } from "@chakra-ui/react";
 import Select from "react-select";
 import { AddIcon, CloseIcon } from "@chakra-ui/icons";
 import { InfoIcon } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  currencyOptions,
+  laoType,
+  PAYMENT_METHOD_LABELS,
+  statusOptions,
+  typeOptions,
+} from "./constants";
+import { useAuth } from "../../context/AuthContext";
+import { fetchCategories } from "../../store/reducer/partner";
+import { useDispatch, useSelector } from "react-redux";
 
 // ✅ สร้าง MemoSelect นอก component - สร้างครั้งเดียว
 const MemoSelect = React.memo(Select);
@@ -30,7 +43,6 @@ const AmountField = React.memo(
     index,
     amount,
     accountOptions,
-    currencyOptions,
     onUpdate,
     onRemove,
     canRemove,
@@ -40,7 +52,7 @@ const AmountField = React.memo(
   }) => {
     // ✅ Memoize selected values เพื่อไม่ให้ find ซ้ำ
     const selectedCurrency = useMemo(
-      () => currencyOptions.find((i) => i.value === amount.currency),
+      () => currencyOptions?.find((i) => i.value === amount.currency),
       [currencyOptions, amount.currency]
     );
 
@@ -54,19 +66,37 @@ const AmountField = React.memo(
     useEffect(() => setAmountLocal(amount.amount), [amount.amount]);
     return (
       <Box
-        w="full"
-        p={4}
-        bg={cardBg}
-        borderWidth="1px"
-        borderRadius="lg"
-        borderColor={borderClr}
+        w="1200px"
+        bg="whiteAlpha.800"
+        backdropFilter="blur(14px)"
+        border="1px solid"
+        borderColor="whiteAlpha.400"
+        rounded="3xl"
+        p={5}
+        shadow="xl"
+        position="relative"
       >
-        <VStack spacing={3} align="stretch">
-          <HStack spacing={3}>
-            {/* Currency */}
+        {/* Remove Button */}
+        {canRemove && (
+          <IconButton
+            icon={<CloseIcon />}
+            size="xs"
+            variant="ghost"
+            colorScheme="red"
+            position="absolute"
+            top={3}
+            right={3}
+            onClick={() => onRemove(index, id)}
+            _hover={{ bg: "red.50" }}
+          />
+        )}
+
+        <VStack spacing={4} align="stretch">
+          {/* ===== Currency & Account ===== */}
+          <SimpleGrid columns={2} spacing={3}>
             <FormControl>
-              <FormLabel fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
-                ສະກຸນເງິນ
+              <FormLabel fontSize={12}  fontFamily="Noto Sans Lao, sans-serif"  opacity={0.7}>
+                💱 ສະກຸນເງິນ
               </FormLabel>
               <MemoSelect
                 value={selectedCurrency}
@@ -75,10 +105,9 @@ const AmountField = React.memo(
               />
             </FormControl>
 
-            {/* Account */}
             <FormControl>
-              <FormLabel fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
-                ບັນຊີ
+              <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                🏦 ບັນຊີ
               </FormLabel>
               <MemoSelect
                 value={selectedAccount}
@@ -87,44 +116,39 @@ const AmountField = React.memo(
                 isClearable
               />
             </FormControl>
-          </HStack>
+          </SimpleGrid>
 
-          {/* Amount */}
+          {/* ===== Amount ===== */}
           <FormControl isRequired>
-            <FormLabel fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
-              ຈຳນວນ
+            <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+              💸 ຈຳນວນ
             </FormLabel>
+
             <InputGroup>
               <Input
-                fontFamily="Noto Sans Lao, sans-serif"
                 type="number"
                 value={amountLocal}
-                onChange={(e) => setAmountLocal(e.target.value)} // 🔥 เร็ว (local only)
+                onChange={(e) => setAmountLocal(e.target.value)}
                 onBlur={() => {
                   if (amountLocal !== amount.amount) {
-                    onUpdate(index, "amount", amountLocal); // ✅ sync ทีเดียว
+                    onUpdate(index, "amount", amountLocal);
                   }
                 }}
                 placeholder="0.00"
+                rounded="2xl"
+                bg="white"
+                fontWeight="600"
+                _focus={{
+                  borderColor: "teal.400",
+                  boxShadow: "0 0 0 2px rgba(56,178,172,.25)",
+                }}
               />
 
-              <InputRightElement fontFamily="Noto Sans Lao, sans-serif">
+              <InputRightElement>
                 <Icon as={InfoIcon} boxSize={4} color="gray.400" />
               </InputRightElement>
             </InputGroup>
           </FormControl>
-
-          {/* Remove */}
-          {canRemove && (
-            <IconButton
-              icon={<CloseIcon />}
-              colorScheme="red"
-              variant="ghost"
-              size="sm"
-              onClick={() => onRemove(index, id)}
-              alignSelf="flex-end"
-            />
-          )}
         </VStack>
       </Box>
     );
@@ -136,10 +160,6 @@ AmountField.displayName = "AmountField";
 // ✅ Main Component - Wrapped with React.memo
 const RenderFields = React.memo(
   ({
-    labelClr,
-    cardBg,
-    borderClr,
-
     serial,
     setSerial,
     type,
@@ -157,21 +177,54 @@ const RenderFields = React.memo(
     note,
     setNote,
     status_Ap,
-
-    typeOptions,
-    paymentOptions,
-    statusOptions,
-    categoryOptions,
-    currencyOptions,
-    cashOptions,
-    bankOptions,
-
+    handleEdit,
     amounts,
     addCurrency,
     removeCurrency,
     updateCurrency,
     id,
   }) => {
+    const { user } = useAuth();
+    const { categoriesRedu: categories } = useSelector(
+      (state) => state.partner
+    );
+    const dispatch = useDispatch();
+    const bankOptions = useMemo(
+      () =>
+        (user?.companyId?.bankAccounts || []).map((b) => ({
+          label: `${b.bankName} (${b.currency})`,
+          value: b._id,
+          currency: b.currency,
+        })),
+      [user?.companyId?.bankAccounts]
+    );
+    const cashOptions = useMemo(
+      () =>
+        (user?.companyId?.cashAccounts || []).map((b) => ({
+          label: `${b.name} (${b.currency})`,
+          value: b._id,
+          currency: b.currency,
+        })),
+      [user?.companyId?.cashAccounts]
+    );
+
+    const categoryOptions = useMemo(
+      () =>
+        categories?.map((c) => ({
+          value: c._id,
+          label: `${c.name} (${laoType[c.type] || c.type})`,
+        })),
+      [categories]
+    );
+    const paymentOptions = useMemo(
+      () =>
+        Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => ({
+          value: key,
+          label: label,
+        })),
+      [PAYMENT_METHOD_LABELS]
+    );
+
     // ✅ Memoize selected values สำหรับ top-level selects
     const selectedType = useMemo(
       () => typeOptions?.find((i) => i.value === type),
@@ -182,7 +235,6 @@ const RenderFields = React.memo(
       () => paymentOptions?.find((i) => i.value === paymentMethod),
       [paymentOptions, paymentMethod]
     );
-
     const selectedStatus = useMemo(
       () => statusOptions?.find((i) => i.value === status) || null,
       [statusOptions, status]
@@ -196,7 +248,6 @@ const RenderFields = React.memo(
     // ✅ Pre-compute account options Map - คำนวณครั้งเดียว
     const accountOptionsMap = useMemo(() => {
       const options = paymentMethod === "cash" ? cashOptions : bankOptions;
-
       // สร้าง Map เพื่อ O(1) lookup
       const map = new Map();
       currencyOptions?.forEach((curr) => {
@@ -204,7 +255,6 @@ const RenderFields = React.memo(
           options?.filter((acc) => acc.currency === curr.value) || [];
         map.set(curr.value, filtered);
       });
-
       return map;
     }, [paymentMethod, cashOptions, bankOptions, currencyOptions]);
     const [serialLocal, setSerialLocal] = useState(serial);
@@ -216,188 +266,181 @@ const RenderFields = React.memo(
     useEffect(() => setDescriptionLocal(description), [description]);
     useEffect(() => setDateLocal(date), [date]);
     useEffect(() => setNoteLocal(note), [note]);
+    useEffect(() => {
+      dispatch(fetchCategories());
+    }, []); // ลบ dispatch ออกจาก dependencies - fetch ครั้งเดียวตอน mount
 
     return (
-      <VStack spacing={5} align="stretch">
-        {/* ========= Row 1 ============= */}
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily="Noto Sans Lao, sans-serif"
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ເລກທີ່
-            </FormLabel>
-            <Input
-              onChange={(e) => setSerialLocal(e.target.value)}
-              onBlur={() => {
-                if (serialLocal !== serial) {
-                  setSerial(serialLocal);
-                }
-              }}
-              value={serialLocal}
-              placeholder="INV-001"
-              rounded="lg"
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily="Noto Sans Lao, sans-serif"
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ປະເພດ
-            </FormLabel>
-            <MemoSelect
-              value={selectedType}
-              onChange={(v) => setType(v.value)}
-              options={typeOptions}
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily="Noto Sans Lao, sans-serif"
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ວິທີຊຳລະ
-            </FormLabel>
-            <MemoSelect
-              value={selectedPayment}
-              onChange={(v) => setPaymentMethod(v.value)}
-              options={paymentOptions}
-            />
-          </FormControl>
+      <VStack spacing={8} align="stretch">
+        {/* ================= Top Section ================= */}
+        <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={6}>
+          {/* ==== Card: Basic Info ==== */}
+          <Box
+            bg="whiteAlpha.700"
+            backdropFilter="blur(12px)"
+            border="1px solid"
+            borderColor="whiteAlpha.400"
+            rounded="3xl"
+            p={6}
+            shadow="lg"
+          >
+            <Text   fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" fontWeight="700" mb={4} opacity={0.8}>
+              ✨ ຂໍ້ມູນພື້ນຖານ
+            </Text>
+
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+              <FormControl   fontFamily="Noto Sans Lao, sans-serif" isRequired>
+                <FormLabel fontSize="xs" opacity={0.7}>
+                  ເລກທີ່
+                </FormLabel>
+                <Input
+                  value={serialLocal}
+                  onChange={(e) => setSerialLocal(e.target.value)}
+                  onBlur={() =>
+                    serialLocal !== serial && setSerial(serialLocal)
+                  }
+                  placeholder="INV-001"
+                  rounded="2xl"
+                  bg="white"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                  ປະເພດ
+                </FormLabel>
+                <MemoSelect
+                  value={selectedType}
+                  onChange={(v) => setType(v.value)}
+                  options={typeOptions}
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                  ວິທີຊຳລະ
+                </FormLabel>
+                <MemoSelect
+                  value={selectedPayment}
+                  onChange={(v) => setPaymentMethod(v.value)}
+                  options={paymentOptions}
+                />
+              </FormControl>
+            </SimpleGrid>
+          </Box>
+
+          {/* ==== Card: Details ==== */}
+          <Box
+            bgGradient="linear(to-br, teal.50, purple.50)"
+            border="1px solid"
+            borderColor="whiteAlpha.400"
+            rounded="3xl"
+            p={6}
+            shadow="lg"
+          >
+            <Text   fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" fontWeight="700" mb={4} opacity={0.8}>
+              📝 ລາຍລະອຽດ
+            </Text>
+
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <FormControl isRequired>
+                <FormLabel    fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                  ຄຳອະທິບາຍ
+                </FormLabel>
+                <Input
+                  value={descriptionLocal}
+                  onChange={(e) => setDescriptionLocal(e.target.value)}
+                  onBlur={() =>
+                    descriptionLocal !== description &&
+                    setDescription(descriptionLocal)
+                  }
+                  placeholder="ຂາຍສິນຄ້າ..."
+                  rounded="2xl"
+                  bg="white"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                  ວັນທີ່
+                </FormLabel>
+                <Input
+                  type="date"
+                  value={dateLocal}
+                  onChange={(e) => setDateLocal(e.target.value)}
+                  onBlur={() => dateLocal !== date && setDate(dateLocal)}
+                  rounded="2xl"
+                  bg="white"
+                />
+              </FormControl>
+            </SimpleGrid>
+
+            <SimpleGrid mt={4} columns={{ base: 1, md: 2 }} spacing={4}>
+              <FormControl isRequired>
+                <FormLabel    fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                  ສະຖານະ
+                </FormLabel>
+                <MemoSelect
+                  value={selectedStatus}
+                  onChange={(v) => setStatus(v.value)}
+                  options={statusOptions}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+                  ໝວດໝູ່
+                </FormLabel>
+                <MemoSelect
+                  value={selectedCategory}
+                  onChange={(v) => setCategoryId(v?.value || null)}
+                  options={categoryOptions}
+                  isClearable
+                />
+              </FormControl>
+            </SimpleGrid>
+          </Box>
         </SimpleGrid>
 
-        {/* ========= Row 2 ============= */}
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily="Noto Sans Lao, sans-serif"
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ລາຍລະອຽດ
-            </FormLabel>
-            <Input
-              value={descriptionLocal}
-              onChange={(e) => setDescriptionLocal(e.target.value)}
-              onBlur={() => {
-                if (descriptionLocal !== description) {
-                  setDescription(descriptionLocal);
-                }
-              }}
-              placeholder="ຂາຍສິນຄ້າ..."
-              rounded="lg"
-            />
-          </FormControl>
-
-          <FormControl isRequired>
-            <FormLabel
-              fontFamily="Noto Sans Lao, sans-serif"
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-            >
-              ວັນທີ່
-            </FormLabel>
-            <Input
-              type="date"
-              value={dateLocal}
-              onChange={(e) => setDateLocal(e.target.value)}
-              onBlur={() => {
-                if (dateLocal !== date) setDate(dateLocal);
-              }}
-              rounded="lg"
-            />
-          </FormControl>
-        </SimpleGrid>
-
-        {/* ========= Status ============= */}
-        <FormControl isRequired>
-          <FormLabel
-            fontFamily="Noto Sans Lao, sans-serif"
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ສະຖານະ
-          </FormLabel>
-          <MemoSelect
-            value={selectedStatus}
-            onChange={(v) => setStatus(v.value)}
-            options={statusOptions}
-            placeholder="ເລືອກສະຖານະ"
-          />
-        </FormControl>
-
-        {/* ========= Category ============= */}
-        <FormControl>
-          <FormLabel
-            fontFamily="Noto Sans Lao, sans-serif"
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ໝວດໝູ່
-          </FormLabel>
-          <MemoSelect
-            value={selectedCategory}
-            onChange={(v) => setCategoryId(v?.value || null)}
-            options={categoryOptions}
-            isClearable
-          />
-        </FormControl>
-
-        <Divider />
-
-        {/* ========= Amounts Section ============= */}
-        <Box>
-          <HStack justify="space-between" mb={3}>
-            <FormLabel
-              fontFamily="Noto Sans Lao, sans-serif"
-              color={labelClr}
-              fontSize="sm"
-              fontWeight="600"
-              mb={0}
-            >
-              ຈຳນວນເງິນ
-            </FormLabel>
+        {/* ================= Amount Section ================= */}
+        <Box
+          bg="whiteAlpha.800"
+          backdropFilter="blur(14px)"
+          rounded="3xl"
+          p={6}
+          shadow="xl"
+        >
+          <HStack justify="space-between" mb={4}>
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="800">💸 ຈຳນວນເງິນ</Text>
             <Button
-              size="sm"
               fontFamily="Noto Sans Lao, sans-serif"
-              onClick={addCurrency}
-              colorScheme="teal"
+              size="sm"
               rounded="full"
+              bgGradient="linear(to-r, teal.400, cyan.400)"
+              color="white"
               leftIcon={<AddIcon boxSize={3} />}
+              onClick={addCurrency}
+              _hover={{ opacity: 0.9 }}
             >
-              ເພີ່ມສະກຸນ
+              ເພີ່ມ
             </Button>
           </HStack>
 
-          <VStack spacing={3}>
-            {amounts?.map((amt, currencyIndex) => {
-              // ✅ ดึงจาก Map - O(1) lookup แทน filter ทุกครั้ง
+          <VStack spacing={4}>
+            {amounts?.map((amt, i) => {
               const accountOptions = accountOptionsMap.get(amt.currency) || [];
-
               return (
                 <AmountField
-                  key={currencyIndex}
-                  index={currencyIndex}
+                  key={i}
+                  index={i}
                   amount={amt}
                   accountOptions={accountOptions}
                   currencyOptions={currencyOptions}
                   onUpdate={updateCurrency}
                   onRemove={removeCurrency}
                   canRemove={amounts.length > 1}
-                  cardBg={cardBg}
-                  borderClr={borderClr}
+                  cardBg="transparent"
+                  borderClr="transparent"
                   id={id}
                 />
               );
@@ -405,39 +448,53 @@ const RenderFields = React.memo(
           </VStack>
         </Box>
 
-        {/* Note */}
-        <FormControl isRequired>
-          <FormLabel
-            fontFamily="Noto Sans Lao, sans-serif"
-            color={labelClr}
-            fontSize="sm"
-            fontWeight="600"
-          >
-            ໝາຍເຫດ
-          </FormLabel>
-          <Textarea
-            value={noteLocal}
-            onChange={(e) => setNoteLocal(e.target.value)}
-            onBlur={() => {
-              if (noteLocal !== note) setNote(noteLocal);
-            }}
-            placeholder="ໝາຍເຫດ..."
-            rows={3}
-            rounded="lg"
-          />
-        </FormControl>
+        {/* ================= Notes ================= */}
+        <Box
+          bgGradient="linear(to-br, gray.50, white)"
+          rounded="3xl"
+          p={6}
+          shadow="md"
+        >
+          <FormControl mb={4}>
+            <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+              🗒 ໝາຍເຫດ
+            </FormLabel>
+            <Textarea
+              fontFamily="Noto Sans Lao, sans-serif"
+              value={noteLocal}
+              onChange={(e) => setNoteLocal(e.target.value)}
+              onBlur={() => noteLocal !== note && setNote(noteLocal)}
+              rows={3}
+              rounded="2xl"
+              bg="white"
+            />
+          </FormControl>
 
-        {/* Status Approval */}
-        <FormControl>
-          <FormLabel
-            fontFamily="Noto Sans Lao, sans-serif"
-            color={labelClr}
-            fontSize="sm"
+          <FormControl>
+            <FormLabel   fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" opacity={0.7}>
+              🔒 ສະຖານະອະນຸມັດ
+            </FormLabel>
+            <Input value={status_Ap} isDisabled rounded="2xl" />
+          </FormControl>
+        {/* ================= CTA ================= */}
+        <Flex justify="flex-end" pt={2}>
+          <Button
+            size="lg"
+              fontFamily="Noto Sans Lao, sans-serif"
+            px={14}
+            rounded="full"
+            fontWeight="800"
+            bgGradient="linear(to-r, teal.500, purple.500)"
+            color="white"
+            shadow="xl"
+            _hover={{ transform: "translateY(-2px)", shadow: "2xl" }}
+            onClick={handleEdit}
           >
-            ສະຖານະອະນຸມັດ
-          </FormLabel>
-          <Input value={status_Ap} isDisabled rounded="lg" />
-        </FormControl>
+            🚀 ບັນທຶກ
+          </Button>
+        </Flex>
+        </Box>
+
       </VStack>
     );
   }

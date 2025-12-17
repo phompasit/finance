@@ -16,6 +16,7 @@ import {
   Button,
   VStack,
   Icon,
+  Box,
   AlertDialog,
   AlertDialogBody,
   AlertDialogFooter,
@@ -66,133 +67,163 @@ function TransactionTable({
     [pageData]
   );
   return (
-    <Table variant="simple">
-      {/* HEADER */}
-      <Thead bg={tableHeaderBg}>
-        <Tr>
-          <Th>
-            <Checkbox
-              colorScheme="teal"
-              isChecked={
-                selectedTransactions.length === pageDataSorted.length &&
-                pageDataSorted.length > 0
-              }
-              onChange={(e) =>
-                setSelectedTransactions(e.target.checked ? pageDataSorted : [])
-              }
-            />
-          </Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ລຳດັບ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ເລກທີ່</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ວັນທີ່</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ປະເພດ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ລາຍລະອຽດ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ວິທີຊຳລະ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ຈຳນວນເງິນ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ສະຖານະຊຳລະ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ຜູ້ສ້າງ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ສະຖານະ</Th>
-          <Th fontFamily="Noto Sans Lao, sans-serif" color="white">ການກະທຳ</Th>
-        </Tr>
-      </Thead>
+    <Box
+      bg="whiteAlpha.800"
+      backdropFilter="blur(14px)"
+      rounded="3xl"
+      p={4}
+      shadow="xl"
+    >
+      <Table variant="unstyled" size="sm">
+        {/* ===== HEADER ===== */}
+        <Thead position="sticky" top={0} zIndex={1}>
+          <Tr bgGradient="linear(to-r, teal.500, cyan.500)" rounded="xl">
+            <Th>
+              <Checkbox
+                colorScheme="whiteAlpha"
+                isChecked={
+                  selectedTransactions.length === pageDataSorted.length &&
+                  pageDataSorted.length > 0
+                }
+                onChange={(e) =>
+                  setSelectedTransactions(
+                    e.target.checked ? pageDataSorted : []
+                  )
+                }
+              />
+            </Th>
 
-      {/* BODY */}
-      <Tbody>
-        {pageDataSorted.length === 0 ? (
-          <Tr>
-            <Td colSpan={12} textAlign="center" py={12}>
-              <VStack spacing={3}>
-                <Icon as={FileText} boxSize={12} color="gray.400" />
-                <Text fontFamily="Noto Sans Lao, sans-serif" color={labelClr} fontSize="lg">
-                  ບໍ່ມີຂໍ້ມູນ
-                </Text>
-              </VStack>
-            </Td>
+            {[
+              "ລຳດັບ",
+              "ເລກທີ່",
+              "ວັນທີ່",
+              "ປະເພດ",
+              "ລາຍລະອຽດ",
+              "ວິທີຊຳລະ",
+              "ຈຳນວນ",
+              "ຊຳລະ",
+              "ຜູ້ສ້າງ",
+              "ສະຖານະ",
+              "ສະຖານະ",
+              "ການກະທຳ",
+            ].map((h) => (
+              <Th
+                fontFamily="Noto Sans Lao, sans-serif"
+                key={h}
+                fontSize="xs"
+                fontWeight="700"
+                color="white"
+                letterSpacing="wide"
+              >
+                {h}
+              </Th>
+            ))}
           </Tr>
-        ) : (
-          pageDataSorted.map((transaction, idx) => (
-            <Tr
-              key={transaction._id}
-              _hover={{ bg: hoverBg }}
-              transition="all 0.2s"
-            >
-              {/* SELECT */}
-              <Td>
-                <Checkbox
-                  colorScheme="teal"
-                  isChecked={selectedTransactions.includes(transaction)}
-                  onChange={(e) =>
-                    setSelectedTransactions(
-                      e.target.checked
-                        ? [...selectedTransactions, transaction]
-                        : selectedTransactions.filter(
-                            (t) => t._id !== transaction._id
-                          )
-                    )
-                  }
-                />
-              </Td>
+        </Thead>
 
-              {/* INDEX */}
-              <Td>
-                <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="600" color={labelClr}>
+        {/* ===== BODY ===== */}
+        <Tbody>
+          {pageDataSorted.length === 0 ? (
+            <Tr>
+              <Td colSpan={12} py={16}>
+                <VStack spacing={4}>
+                  <Icon as={FileText} boxSize={14} color="gray.400" />
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="lg"
+                    opacity={0.7}
+                  >
+                    ບໍ່ມີຂໍ້ມູນ
+                  </Text>
+                </VStack>
+              </Td>
+            </Tr>
+          ) : (
+            pageDataSorted.map((transaction, idx) => (
+              <Tr
+                key={transaction._id}
+                bg="white"
+                rounded="2xl"
+                _hover={{
+                  bg: "gray.50",
+                  transform: "translateY(-2px)",
+                  shadow: "md",
+                }}
+                transition="all 0.2s ease"
+              >
+                {/* SELECT */}
+                <Td>
+                  <Checkbox
+                    colorScheme="teal"
+                    isChecked={selectedTransactions.includes(transaction)}
+                    onChange={(e) =>
+                      setSelectedTransactions(
+                        e.target.checked
+                          ? [...selectedTransactions, transaction]
+                          : selectedTransactions.filter(
+                              (t) => t._id !== transaction._id
+                            )
+                      )
+                    }
+                  />
+                </Td>
+
+                {/* INDEX */}
+                <Td fontFamily="Noto Sans Lao, sans-serif" fontWeight="700">
                   {offset + idx + 1}
-                </Text>
-              </Td>
+                </Td>
 
-              <Td>
-                <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="600" color={labelClr}>
+                {/* SERIAL */}
+                <Td fontFamily="Noto Sans Lao, sans-serif" fontWeight="600">
                   {transaction.serial || "-"}
-                </Text>
-              </Td>
+                </Td>
 
-              {/* DATE */}
-              <Td>
-                <HStack spacing={2}>
-                  <Icon as={Calendar} boxSize={4} color="gray.400" />
-                  <Text fontFamily="Noto Sans Lao, sans-serif" color={labelClr}>
-                    {formatDate(new Date(transaction.date))}
-                  </Text>
-                </HStack>
-              </Td>
+                {/* DATE */}
+                <Td fontFamily="Noto Sans Lao, sans-serif">
+                  <HStack spacing={2}>
+                    <Icon  as={Calendar} boxSize={4} color="gray.400" />
+                    <Text   fontFamily="Noto Sans Lao, sans-serif">{formatDate(new Date(transaction.date))}</Text>
+                  </HStack>
+                </Td>
 
-              {/* TYPE */}
-              <Td>
-                <Badge
-                  px={3}
-                  py={1}
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  rounded="full"
-                  colorScheme={transaction.type === "income" ? "green" : "red"}
-                >
-                  {transaction.type === "income" ? "ລາຍຮັບ" : "ລາຍຈ່າຍ"}
-                </Badge>
-              </Td>
+                {/* TYPE */}
+                <Td fontFamily="Noto Sans Lao, sans-serif">
+                  <Badge
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    rounded="full"
+                    px={3}
+                    colorScheme={
+                      transaction.type === "income" ? "green" : "red"
+                    }
+                  >
+                    {transaction.type === "income" ? "💰 ລາຍຮັບ" : "💸 ລາຍຈ່າຍ"}
+                  </Badge>
+                </Td>
 
-              {/* DESCRIPTION */}
-              <Td>
-                <Tooltip label={transaction.note}>
-                  <Text fontFamily="Noto Sans Lao, sans-serif" color={labelClr} fontWeight="500">
-                    {shortDesc(transaction.description)}
-                  </Text>
-                </Tooltip>
-              </Td>
+                {/* DESCRIPTION */}
+                <Td fontFamily="Noto Sans Lao, sans-serif" maxW="220px">
+                  <Tooltip label={transaction.note}>
+                    <Text   fontFamily="Noto Sans Lao, sans-serif" noOfLines={1} fontWeight="500">
+                      {transaction.description}
+                    </Text>
+                  </Tooltip>
+                </Td>
 
-              {/* PAYMENT METHOD */}
-              <Td>
-                <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue" rounded="md">
-                  {paymentMethodLabels[transaction.paymentMethod]}
-                </Badge>
-              </Td>
+                {/* PAYMENT */}
+                <Td fontFamily="Noto Sans Lao, sans-serif">
+                  <Badge   fontFamily="Noto Sans Lao, sans-serif" rounded="md" colorScheme="blue">
+                    {paymentMethodLabels[transaction.paymentMethod]}
+                  </Badge>
+                </Td>
 
-              {/* AMOUNTS */}
-              <Td>
-                <VStack align="start" spacing={1}>
-                  {transaction.amounts.map((amt, i) => (
-                    <HStack key={i} spacing={1}>
+                {/* AMOUNT */}
+                <Td fontFamily="Noto Sans Lao, sans-serif">
+                  <VStack justifyContent={'flex-start'} w={'100px'} align="start" spacing={0}>
+                    {transaction.amounts.map((amt, i) => (
                       <Text
-                      fontFamily="Noto Sans Lao, sans-serif"
-                        fontWeight="bold"
+                        fontFamily="Noto Sans Lao, sans-serif"
+                        key={i}
+                        fontWeight="700"
                         color={
                           transaction.type === "income"
                             ? "green.500"
@@ -200,61 +231,54 @@ function TransactionTable({
                         }
                       >
                         {transaction.type === "income" ? "+" : "-"}
-                        {parseFloat(amt.amount).toLocaleString()} {amt.currency}
+                        {Number(amt.amount).toLocaleString()} {amt.currency}
                       </Text>
-                    </HStack>
-                  ))}
-                </VStack>
-              </Td>
+                    ))}
+                  </VStack>
+                </Td>
 
-              {/* STATUS */}
-              <Td>
-                <Badge
-                  px={3}
-                  py={1}
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  rounded="full"
-                  colorScheme={
-                    transaction.status === "paid" ? "green" : "orange"
-                  }
-                >
-                  {transaction.status === "paid"
-                    ? "✓ ຊຳລະແລ້ວ"
-                    : "⏳ ຍັງບໍ່ຊຳລະ"}
-                </Badge>
-              </Td>
-
-              {/* CREATED BY */}
-              <Td>
-                <Badge fontFamily="Noto Sans Lao, sans-serif">{transaction?.createdBy?.username}</Badge>
-              </Td>
-
-              {/* STATUS_AP */}
-              <Td>
-                {transaction.type !== "income" ? (
+                {/* PAYMENT STATUS */}
+                <Td fontFamily="Noto Sans Lao, sans-serif">
                   <Badge
-                    px={4}
-                    py={2}
                     fontFamily="Noto Sans Lao, sans-serif"
-                    colorScheme={statusColors[transaction.status_Ap]}
-                    variant="solid"
-                    rounded="lg"
+                    rounded="full"
+                    px={3}
+                    colorScheme={
+                      transaction.status === "paid" ? "green" : "orange"
+                    }
                   >
-                    {status_Ap[transaction.status_Ap]}
+                    {transaction.status === "paid" ? "✅ ຊຳລະແລ້ວ" : "⏳ ລໍຖ້າ"}
                   </Badge>
-                ) : (
-                  "-"
-                )}
-              </Td>
+                </Td>
 
-              {/* ACTIONS */}
-              <Td>
-                <HStack spacing={2}>
-                  {/* ADMIN STATUS BUTTONS */}
-                  {user?.role === "admin" && transaction.type !== "income" && (
-                    <HStack spacing={2}>
-                      <Button
+                {/* CREATED BY */}
+                <Td fontFamily="Noto Sans Lao, sans-serif">
+                  <Badge fontFamily="Noto Sans Lao, sans-serif" rounded="full">
+                    👤 {transaction?.createdBy?.username}
+                  </Badge>
+                </Td>
+
+                {/* APPROVAL */}
+                <Td>
+                  {transaction.type !== "income" ? (
+                    <Badge
+                      rounded="lg"
+                      px={3}
+                      py={1}
                       fontFamily="Noto Sans Lao, sans-serif"
+                      colorScheme={statusColors[transaction.status_Ap]}
+                    >
+                      {status_Ap[transaction.status_Ap]}
+                    </Badge>
+                  ) : (
+                    "-"
+                  )}
+                </Td>
+                <Td>
+                  {user?.role === "admin" && transaction.type !== "income" && (
+                   <HStack>
+                       <Button
+                        fontFamily="Noto Sans Lao, sans-serif"
                         size="sm"
                         colorScheme="yellow"
                         variant={
@@ -264,9 +288,9 @@ function TransactionTable({
                         }
                         onClick={() => handleStatus(transaction, "pending")}
                       >
-                        ລໍຖ້າ
+                        {" "}
+                        ລໍຖ້າ{" "}
                       </Button>
-
                       <Button
                         size="sm"
                         fontFamily="Noto Sans Lao, sans-serif"
@@ -278,9 +302,9 @@ function TransactionTable({
                         }
                         onClick={() => handleStatus(transaction, "approve")}
                       >
-                        ອະນຸມັດ
+                        {" "}
+                        ອະນຸມັດ{" "}
                       </Button>
-
                       <Button
                         size="sm"
                         fontFamily="Noto Sans Lao, sans-serif"
@@ -292,79 +316,49 @@ function TransactionTable({
                         }
                         onClick={() => handleStatus(transaction, "cancel")}
                       >
-                        ຍົກເລີກ
+                        {" "}
+                        ຍົກເລີກ{" "}
                       </Button>
-                    </HStack>
+                   </HStack>
                   )}
-
-                  {/* EDIT */}
-                  <Tooltip label="ແກ້ໄຂ">
+                </Td>
+                {/* ACTIONS */}
+                <Td>
+                  <HStack spacing={1}>
+                    F
                     <IconButton
                       icon={<EditIcon />}
                       size="sm"
-                      fontFamily="Noto Sans Lao, sans-serif"
                       variant="ghost"
-                      colorScheme="blue"
+                      rounded="full"
+                      aria-label="edit"
                       onClick={() => handleEditClick(transaction)}
                     />
-                  </Tooltip>
-
-                  {/* VIEW */}
-                  <Tooltip label="ເບີງລາຍລະອຽດ">
                     <IconButton
                       icon={<ViewIcon />}
                       size="sm"
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      colorScheme="blue"
                       variant="ghost"
+                      rounded="full"
+                      aria-label="view"
                       onClick={() => handleViews(transaction)}
                     />
-                  </Tooltip>
-
-                  {/* DELETE */}
-                  <Tooltip label="ລຶບ">
                     <IconButton
                       icon={<DeleteIcon />}
                       size="sm"
-                      fontFamily="Noto Sans Lao, sans-serif"
-                      colorScheme="red"
                       variant="ghost"
+                      rounded="full"
+                      colorScheme="red"
+                      aria-label="delete"
                       onClick={() => onDeleteClick(transaction._id)}
                     />
-                  </Tooltip>
-                </HStack>
-              </Td>
-            </Tr>
-          ))
-        )}
-      </Tbody>
-
-      {/* ALERT DIALOG */}
-      <AlertDialog
-        isOpen={isWarningIsOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={onWarningClose}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              ລຶບລາຍການ
-            </AlertDialogHeader>
-
-            <AlertDialogBody>ທ່ານແນ່ໃຈບໍ່ວ່າຈະລຶບລາຍການນີ້?</AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onWarningClose}>
-                ຍົກເລີກ
-              </Button>
-              <Button colorScheme="red" onClick={confirmDelete} ml={3}>
-                ລຶບ
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-    </Table>
+                  </HStack>
+                </Td>
+              </Tr>
+            ))
+          )}
+        </Tbody>
+      </Table>
+    </Box>
   );
 }
 export default React.memo(TransactionTable);

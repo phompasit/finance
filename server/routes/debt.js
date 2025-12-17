@@ -7,6 +7,7 @@ const router = express.Router();
 import employees from "../models/employees.js";
 import IncomeExpense from "../models/IncomeExpense.js";
 import Company from "../models/company.js";
+import Joi from "joi";
 // Helper function to calculate debt status
 const calculateDebtStatus = (debt) => {
   if (!debt.installments || debt.installments.length === 0) {
@@ -740,9 +741,10 @@ router.delete("/:id", authenticate, async (req, res) => {
     }
     const record = await Debt.findOneAndDelete({
       _id: req.params.id,
-      companyId: req.user._id,
+      companyId: req.user.companyId,
     });
 
+    console.log(record);
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
@@ -757,7 +759,7 @@ router.delete("/:id", authenticate, async (req, res) => {
 // Get debt statistics
 router.get("/stats/summary", authenticate, async (req, res) => {
   try {
-    const debts = await Debt.find({ companyId: req.user._id });
+    const debts = await Debt.find({ companyId: req.user.companyId });
 
     const stats = {
       total: debts.length,
@@ -803,121 +805,244 @@ const validateObjectId = (req, res, next) => {
   next();
 };
 
-///partner
+/* ================================
+   VALIDATION SCHEMAS
+================================ */
+const partnerSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(100).required(),
+  phone: Joi.string().trim().min(6).max(20).required(),
+  email: Joi.string().email().allow("", null),
+  address: Joi.string().max(255).allow("", null),
+  type: Joi.string().valid("customer", "supplier").required(),
+});
+
+const employeeSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(15).required(),
+  phone: Joi.string().trim().min(11).max(11).required(),
+  email: Joi.string().email().allow("", null),
+  position: Joi.string().max(100).allow("", null),
+});
+
+/* ================================
+   PARTNER ROUTES
+================================ */
+
+/* CREATE PARTNER */
 router.post("/partners", authenticate, async (req, res) => {
   try {
-    const partnerData = req.body;
-    const partner = new Partner({
-      ...partnerData,
+    const { error, value } = partnerSchema.validate(req.body, {
+      stripUnknown: true,
+      abortEarly: false,
+    });
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid input",
+        errors: error.details.map((d) => d.message),
+      });
+    }
+
+    const data = pick(value, ["name", "phone", "email", "address", "type"]);
+
+    const partner = await Partner.create({
+      ...data,
       userId: req.user._id,
       companyId: req.user.companyId,
     });
-    await partner.save();
+
     res.status(201).json({ success: true, data: partner });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-// ดึง Partner ตาม ID
+/* GET PARTNER BY ID (company isolated) */
 router.get(
   "/partners/:id",
   authenticate,
   validateObjectId,
   async (req, res) => {
     try {
-      const partner = await Partner.findById(req?.params?.id);
-      if (!partner)
+      const partner = await Partner.findOne({
+        _id: req.params.id,
+        companyId: req.user.companyId,
+      });
+
+      if (!partner) {
         return res
           .status(404)
           .json({ success: false, message: "Partner not found" });
+      }
+
       res.json({ success: true, data: partner });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: "Server error" });
     }
   }
 );
 
-// อัปเดต Partner ตาม ID
+/* UPDATE PARTNER */
 router.put(
   "/partners/:id",
   authenticate,
   validateObjectId,
   async (req, res) => {
     try {
-      const partner = await Partner.findByIdAndUpdate(
-        req?.params?.id,
-        req.body,
-        { new: true, runValidators: true } // return object ใหม่หลัง update
+      const { error, value } = partnerSchema.validate(req.body, {
+        stripUnknown: true,
+      });
+
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          message: "ກະລຸນາລະບຸຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
+          errors: error.details.map((d) => d.message),
+        });
+      }
+
+      const data = pick(value, ["name", "phone", "email", "address", "type"]);
+
+      const partner = await Partner.findOneAndUpdate(
+        { _id: req.params.id, companyId: req.user.companyId },
+        data,
+        { new: true, runValidators: true }
       );
-      if (!partner)
+
+      if (!partner) {
         return res
           .status(404)
           .json({ success: false, message: "Partner not found" });
+      }
+
       res.json({ success: true, data: partner });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: "Server error" });
     }
   }
 );
-// ลบ Partner ตาม ID
+
+/* DELETE PARTNER */
 router.delete(
   "/partners/:id",
   authenticate,
   validateObjectId,
   async (req, res) => {
     try {
-      const partner = await Partner.findByIdAndDelete(req.params.id);
-      if (!partner)
+      const partner = await Partner.findOneAndDelete({
+        _id: req.params.id,
+        companyId: req.user.companyId,
+      });
+
+      if (!partner) {
         return res
           .status(404)
           .json({ success: false, message: "Partner not found" });
-      res.json({ success: true, message: "Partner deleted successfully" });
+      }
+
+      res.json({
+        success: true,
+        message: "Partner deleted successfully",
+      });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: "Server error" });
     }
   }
 );
+
+/* ================================
+   EMPLOYEE ROUTES
+================================ */
+
+/* CREATE EMPLOYEE */
 router.post("/employees", authenticate, async (req, res) => {
   try {
-    const employee = new employees({
-      ...req.body,
+    const { error, value } = employeeSchema.validate(req.body, {
+      stripUnknown: true,
+    });
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid input",
+        errors: error.details.map((d) => d.message),
+      });
+    }
+
+    const employee = await Employee.create({
+      ...value,
       userId: req.user._id,
       companyId: req.user.companyId,
     });
-    await employee.save();
-    res.json({ success: true, data: employee });
+
+    res.status(201).json({ success: true, data: employee });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-router.put("/employees/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updated = await employees.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
-    if (!updated)
-      return res
-        .status(404)
-        .json({ success: false, message: "Employee not found" });
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+/* UPDATE EMPLOYEE */
+router.put(
+  "/employees/:id",
+  authenticate,
+  validateObjectId,
+  async (req, res) => {
+    try {
+      const { error, value } = employeeSchema.validate(req.body, {
+        stripUnknown: true,
+      });
+
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid input",
+          errors: error.details.map((d) => d.message),
+        });
+      }
+
+      const updated = await Employee.findOneAndUpdate(
+        { _id: req.params.id, companyId: req.user.companyId },
+        value,
+        { new: true, runValidators: true }
+      );
+
+      if (!updated) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Employee not found" });
+      }
+
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      res.status(500).json({ success: false, message: "Server error" });
+    }
   }
-});
-router.delete("/employees/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleted = await employees.findByIdAndDelete(id);
-    if (!deleted)
-      return res
-        .status(404)
-        .json({ success: false, message: "Employee not found" });
-    res.json({ success: true, message: "Deleted successfully" });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+);
+
+/* DELETE EMPLOYEE */
+router.delete(
+  "/employees/:id",
+  authenticate,
+  validateObjectId,
+  async (req, res) => {
+    try {
+      const deleted = await Employee.findOneAndDelete({
+        _id: req.params.id,
+        companyId: req.user.companyId,
+      });
+
+      if (!deleted) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Employee not found" });
+      }
+
+      res.json({ success: true, message: "Deleted successfully" });
+    } catch (err) {
+      res.status(500).json({ success: false, message: "Server error" });
+    }
   }
-});
+);
+
 export default router;

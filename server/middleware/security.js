@@ -15,6 +15,7 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 const getAllowedOrigins = () => {
   const origins = [
     "http://localhost:5173", // dev
+    "https://finance.manignom.group"
   ];
 
   // FRONTEND_DOMAIN from env

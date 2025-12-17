@@ -62,8 +62,8 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
+import api from "../api/api";
 // Constants
-const API_URL = import.meta.env.VITE_API_URL;
 const TOAST_DURATION = 3000;
 
 // Initial state for new user
@@ -79,15 +79,6 @@ const INITIAL_USER_STATE = {
     email: "",
     logo: "",
   },
-};
-
-// API utility functions
-const createAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
 };
 
 const handleApiError = (error, toast, defaultMessage) => {
@@ -168,19 +159,21 @@ export default function Users() {
   const hoverBg = useColorModeValue("gray.50", "gray.700");
   // Fetch users with error handling
   const fetchUsers = useCallback(async () => {
+    setLoading(true);
+
     try {
-      const response = await fetch(`${API_URL}/api/auth/users`, {
-        headers: createAuthHeaders(),
-      });
+      const { data } = await api.get("/api/auth/users");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-      handleApiError(error, toast, "ບໍ່ສາມາດດືງຂໍ້ມູນຜູ້ໃຊ້ງານ");
+      toast({
+        title: "ບໍ່ສາມາດດືງຂໍ້ມູນຜູ້ໃຊ້ງານ",
+        description: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+
       setUsers([]);
     } finally {
       setLoading(false);
@@ -197,21 +190,12 @@ export default function Users() {
       if (!userId || !newRole) return;
 
       try {
-        const response = await fetch(
-          `${API_URL}/api/auth/users/${userId}/role`,
-          {
-            method: "PATCH",
-            headers: createAuthHeaders(),
-            body: JSON.stringify({ role: newRole }),
-          }
-        );
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.message || "ບໍ່ສາມາດອັບເດດບົດບາດໄດ້");
-        }
+        await api.patch(`/api/auth/users/${userId}/role`, {
+          role: newRole,
+        });
 
         await fetchUsers();
+
         toast({
           title: "ອັບເດດສຳເລັດ",
           status: "success",
@@ -219,7 +203,13 @@ export default function Users() {
           isClosable: true,
         });
       } catch (error) {
-        handleApiError(error, toast, "ບໍ່ສາມາດອັບເດດບົດບາດໄດ້");
+        toast({
+          title: "ບໍ່ສາມາດອັບເດດບົດບາດໄດ້",
+          description: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
     },
     [fetchUsers, toast]
@@ -231,33 +221,26 @@ export default function Users() {
       if (!userId) return;
 
       const confirmed = window.confirm(
-        "ເຈົ້າແນ່ໃຈບໍ່ທີ່ຈະລົບບັນຊີນີ້? ຄຳເຕືອນ:ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ລາຍການທັງໝົດທີ່ຜູ້ໃຊ້ນີ້ເຄີຍບັນທຶກໄວ້ ແລະບໍ່ສາມາດກູ້ຄືນໄດ້"
+        "ເຈົ້າແນ່ໃຈບໍ່ທີ່ຈະລົບບັນຊີນີ້?\n\nຄຳເຕືອນ: ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ຂໍ້ມູນທັງໝົດ ແລະບໍ່ສາມາດກູ້ຄືນໄດ້"
       );
 
       if (!confirmed) return;
 
       try {
-        const response = await fetch(`${API_URL}/api/auth/users/${userId}`, {
-          method: "DELETE",
-          headers: createAuthHeaders(),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.message || "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້");
-        }
+        await api.delete(`/api/auth/users/${userId}`);
 
         await fetchUsers();
+
         toast({
-          title: "ລົບຜູ້ໃຊ້ງານເຮັດສຳເລັດແລ້ວ",
+          title: "ລົບຜູ້ໃຊ້ງານສຳເລັດແລ້ວ",
           status: "success",
           duration: 2000,
           isClosable: true,
         });
       } catch (error) {
         toast({
-          title: error.message || "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້",
+          title: "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້",
+          description: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
           status: "error",
           duration: 3000,
           isClosable: true,
@@ -287,16 +270,7 @@ export default function Users() {
       validateUserInput(newUser);
       setIsSubmitting(true);
 
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: "POST",
-        headers: createAuthHeaders(),
-        body: JSON.stringify(newUser),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້");
-      }
+      await api.post("/api/auth/register", newUser);
 
       toast({
         title: "ເພີ່ມຜູ້ໃຊ້ງານເຮັດສຳເລັດແລ້ວ",
@@ -309,25 +283,25 @@ export default function Users() {
       setNewUser(INITIAL_USER_STATE);
       onClose();
     } catch (error) {
-      handleApiError(error, toast, "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້");
+      toast({
+        title: "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້",
+        description:
+          error?.response?.data?.message || error?.message || "ກະລຸນາລອງໃໝ່",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setIsSubmitting(false);
     }
   }, [newUser, fetchUsers, toast, onClose]);
+
   const addBankAccount = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/company/${authUser.companyId._id}/add-bank`,
-        {
-          method: "PATCH",
-          headers: createAuthHeaders(),
-          body: JSON.stringify(newBank),
-        }
+      await api.patch(
+        `/api/company/${authUser.companyId._id}/add-bank`,
+        newBank
       );
-
-      const result = await response.json();
-
-      if (!result.success) throw new Error(result.message);
 
       toast({
         title: "ເພີ່ມບັນຊີສຳເລັດ",
@@ -335,36 +309,34 @@ export default function Users() {
         duration: 2500,
         isClosable: true,
       });
+
       onCloseBank();
       await fetchUsers();
+
       setNewBank({
         bankName: "",
         accountNumber: "",
         currency: "LAK",
         balance: 0,
       });
-    } catch (err) {
+    } catch (error) {
       toast({
         title: "ເກີດຂໍ້ຜິດພາດ",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດເພີ່ມບັນຊີໄດ້",
         status: "error",
-        description: err.message,
       });
     }
   };
+
   const addCashAccount = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/company/${authUser.companyId._id}/add-cash`,
-        {
-          method: "PATCH",
-          headers: createAuthHeaders(),
-          body: JSON.stringify(newCash),
-        }
+      await api.patch(
+        `/api/company/${authUser.companyId._id}/add-cash`,
+        newCash
       );
-
-      const result = await response.json();
-
-      if (!result.success) throw new Error(result.message);
 
       toast({
         title: "ເພີ່ມບັນຊີເງິນສົດສຳເລັດ",
@@ -375,89 +347,79 @@ export default function Users() {
 
       await fetchUsers();
       onCloseCash();
-      setNewCash({ name: "", currency: "LAK", balance: 0 });
-    } catch (err) {
+
+      setNewCash({
+        name: "",
+        currency: "LAK",
+        balance: 0,
+      });
+    } catch (error) {
       toast({
-        title: "Error",
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດເພີ່ມບັນຊີເງິນສົດໄດ້",
         status: "error",
-        description: err.message,
       });
     }
   };
-  console.log(editBank);
+
   const updateBankAccount = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/company/update-bank/${editBank._id}`,
-        {
-          method: "PATCH",
-          headers: createAuthHeaders(),
-          body: JSON.stringify(editBank),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!result.success) throw new Error(result.message);
+      await api.patch(`/api/company/update-bank/${editBank._id}`, editBank);
 
       toast({
         title: "ອັບເດດບັນຊີສຳເລັດ",
         status: "success",
         duration: 2500,
       });
+
       await fetchUsers();
       onCloseEditBank();
-    } catch (err) {
+    } catch (error) {
       toast({
-        title: "Error",
-        description: err.message,
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດອັບເດດບັນຊີໄດ້",
         status: "error",
       });
     }
   };
+
   const deleteBankAccount = async (bankId) => {
     if (!confirm("ຢືນຢັນການລົບບັນຊີນີ້?")) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/company/remove-bank/${bankId}`,
-        {
-          method: "PATCH",
-          headers: createAuthHeaders(),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!result.success) throw new Error(result.message);
+      await api.patch(`/api/company/remove-bank/${bankId}`);
 
       toast({
         title: "ລົບບັນຊີສຳເລັດ",
         status: "success",
         duration: 2500,
       });
+
       await fetchUsers();
-    } catch (err) {
+    } catch (error) {
       toast({
-        title: "Error",
-        description: err.message,
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດລົບບັນຊີໄດ້",
         status: "error",
       });
     }
   };
+
   const updateCashAccount = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/company/${company._id}/update-cash/${editCash._id}`,
-        {
-          method: "PATCH",
-          headers: createAuthHeaders(),
-          body: JSON.stringify(editCash),
-        }
+      await api.patch(
+        `/api/company/${company._id}/update-cash/${editCash._id}`,
+        editCash
       );
-
-      const result = await response.json();
-      if (!result.success) throw new Error(result.message);
 
       toast({
         title: "ອັບເດດບັນຊີເງິນສົດສຳເລັດ",
@@ -467,10 +429,13 @@ export default function Users() {
 
       await fetchUsers();
       onCloseEditCash();
-    } catch (err) {
+    } catch (error) {
       toast({
-        title: "Error",
-        description: err.message,
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດອັບເດດບັນຊີເງິນສົດໄດ້",
         status: "error",
       });
     }
@@ -479,16 +444,7 @@ export default function Users() {
     if (!confirm("ຢືນຢັນການລົບບັນຊີເງິນສົດນີ້?")) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/company/remove-cash/${cashId}`,
-        {
-          method: "PATCH",
-          headers: createAuthHeaders(),
-        }
-      );
-      console.log(response);
-      const result = await response.json();
-      if (!result.success) throw new Error(result.message);
+      await api.patch(`/api/company/remove-cash/${cashId}`);
 
       toast({
         title: "ລົບບັນຊີເງິນສົດສຳເລັດ",
@@ -497,10 +453,13 @@ export default function Users() {
       });
 
       await fetchUsers();
-    } catch (err) {
+    } catch (error) {
       toast({
-        title: "Error",
-        description: err.message,
+        title: "ເກີດຂໍ້ຜິດພາດ",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "ບໍ່ສາມາດລົບບັນຊີເງິນສົດໄດ້",
         status: "error",
       });
     }
@@ -539,7 +498,7 @@ export default function Users() {
 
       const formData = new FormData();
 
-      // ส่งข้อมูลทั่วไป
+      // ข้อมูลพื้นฐาน
       formData.append("username", editUser.username);
       formData.append("email", editUser.email);
 
@@ -547,45 +506,43 @@ export default function Users() {
         formData.append("role", editUser.role);
       }
 
-      // ส่ง password ถ้ามี
+      // password (ถ้ามี)
       if (editUser.password) {
         formData.append("password", editUser.password);
       }
 
-      // companyId ต้องส่งแบบ JSON string
+      // companyId ส่งเป็น JSON string
       if (editUser.companyId) {
         formData.append("companyId", JSON.stringify(editUser.companyId));
       }
 
-      // ส่งรูปใหม่ ถ้ามีเลือกไฟล์
-      if (editUser.companyId.logo instanceof File) {
+      // logo (ถ้าเป็นไฟล์ใหม่)
+      if (editUser.companyId?.logo instanceof File) {
         formData.append("logo", editUser.companyId.logo);
       }
-      // ดูค่าใน FormData
-      const response = await fetch(`${API_URL}/api/auth/user/${editUser._id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`, // ❗ ห้ามใส่ Content-Type
-        },
-        body: formData,
-      });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || "Update failed");
-      }
+      // 🚀 axios รองรับ FormData โดยตรง
+      await api.patch(`/api/auth/user/${editUser._id}`, formData);
 
       await fetchUsers();
+
       toast({
         title: "ອັບເດດຂໍ້ມູນສຳເລັດ",
         status: "success",
         duration: 2000,
         isClosable: true,
       });
+
       onEditClose();
     } catch (error) {
-      handleApiError(error, toast, "ບໍ່ສາມາດອັບເດດຂໍ້ມູນໄດ້");
+      toast({
+        title: "ບໍ່ສາມາດອັບເດດຂໍ້ມູນໄດ້",
+        description:
+          error?.response?.data?.message || error?.message || "ກະລຸນາລອງໃໝ່",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -597,13 +554,6 @@ export default function Users() {
     [authUser?.role]
   );
 
-  if (loading) {
-    return (
-      <Center h="100vh">
-        <Spinner size="xl" color="green.400" />
-      </Center>
-    );
-  }
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const iconColor = useColorModeValue("blue.500", "blue.300");
@@ -642,7 +592,6 @@ export default function Users() {
         </VStack>
       </HStack>
     );
-    console.log(users?.companyId);
     return (
       <Box minH="100vh" bg={useColorModeValue("gray.50", "gray.900")} py={8}>
         <Container maxW="container.xl">
@@ -866,7 +815,6 @@ export default function Users() {
                     </Flex>
 
                     <Divider />
-
                     {authUser?.companyId?.bankAccounts?.length === 0 ? (
                       <Text
                         fontFamily="'Noto Sans Lao', sans-serif"
@@ -1222,92 +1170,118 @@ export default function Users() {
                 </Tr>
               </Thead>
               <Tbody>
-                {users.map((user) => {
-                  const isMe = user._id === authUser?._id;
-                  return (
-                    <Tr
-                      key={user._id}
-                      _hover={{ bg: hoverBg }}
-                      bg={isMe ? "green.50" : "white"}
-                      borderLeft={
-                        isMe ? "4px solid #38A169" : "4px solid transparent"
-                      }
-                      transition="all 0.2s"
-                    >
-                      <Td>
-                        <HStack spacing={3}>
-                          <Avatar
-                            size="sm"
-                            name={user.username}
-                            src={user.avatar}
-                          />
-                          <Text
-                            fontFamily="'Noto Sans Lao', sans-serif"
-                            fontWeight="500"
-                          >
-                            {user.username}
+                {loading ? (
+                  <Tr>
+                    <Td colSpan={5}>
+                      <Center py={10}>
+                        <VStack spacing={3}>
+                          <Spinner size="lg" color="green.400" />
+                          <Text fontSize="sm" color="gray.500">
+                            ກຳລັງໂຫຼດຂໍ້ມູນ...
                           </Text>
-                        </HStack>
-                      </Td>
-                      <Td>
-                        <HStack spacing={2}>
-                          <Icon as={Mail} boxSize={4} color="gray.400" />
-                          <Text fontSize="sm">{user.email}</Text>
-                        </HStack>
-                      </Td>
-                      <Td fontFamily="'Noto Sans Lao', sans-serif">
-                        {user.companyId?.name || "-"}
-                      </Td>
-                      <Td>
-                        {isAdmin ? (
-                          <Select
-                            value={user.role}
-                            onChange={(e) =>
-                              handleRoleChange(user._id, e.target.value)
-                            }
-                            size="sm"
-                            bg={useColorModeValue("gray.50", "gray.700")}
-                            borderRadius="md"
-                            maxW="120px"
-                            fontFamily="'Noto Sans Lao', sans-serif"
-                          >
-                            <option value="staff">Staff</option>
-                            <option value="admin">Admin</option>
-                            <option value="master">Master</option>
-                          </Select>
-                        ) : (
-                          getRoleBadge(user.role)
-                        )}
-                      </Td>
-                      {isAdmin && (
-                        <Td textAlign="center">
-                          <HStack spacing={2} justify="center">
-                            <Tooltip label="ແກ້ໄຂ" placement="top">
-                              <IconButton
-                                icon={<Edit2 size={16} />}
-                                colorScheme="blue"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEdit(user)}
-                                aria-label="ແກ້ໄຂ"
-                              />
-                            </Tooltip>
-                            <Tooltip label="ລົບ" placement="top">
-                              <IconButton
-                                icon={<Trash2 size={16} />}
-                                colorScheme="red"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteUser(user._id)}
-                                aria-label="ລົບ"
-                              />
-                            </Tooltip>
+                        </VStack>
+                      </Center>
+                    </Td>
+                  </Tr>
+                ) : users.length === 0 ? (
+                  <Tr>
+                    <Td colSpan={5}>
+                      <Center py={10}>
+                        <VStack spacing={3}>
+                          <Spinner size="lg" color="green.400" />
+                          <Text color="gray.500">ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້</Text>
+                        </VStack>
+                      </Center>
+                    </Td>
+                  </Tr>
+                ) : (
+                  users.map((user) => {
+                    const isMe = user._id === authUser?._id;
+                    return (
+                      <Tr
+                        key={user._id}
+                        _hover={{ bg: hoverBg }}
+                        bg={isMe ? "green.50" : "white"}
+                        borderLeft={
+                          isMe ? "4px solid #38A169" : "4px solid transparent"
+                        }
+                        transition="all 0.2s"
+                      >
+                        <Td>
+                          <HStack spacing={3}>
+                            <Avatar
+                              size="sm"
+                              name={user.username}
+                              src={user.avatar}
+                            />
+                            <Text
+                              fontFamily="'Noto Sans Lao', sans-serif"
+                              fontWeight="500"
+                            >
+                              {user.username}
+                            </Text>
                           </HStack>
                         </Td>
-                      )}
-                    </Tr>
-                  );
-                })}
+                        <Td>
+                          <HStack spacing={2}>
+                            <Icon as={Mail} boxSize={4} color="gray.400" />
+                            <Text fontSize="sm">{user.email}</Text>
+                          </HStack>
+                        </Td>
+                        <Td fontFamily="'Noto Sans Lao', sans-serif">
+                          {user.companyId?.name || "-"}
+                        </Td>
+                        <Td>
+                          {isAdmin ? (
+                            <Select
+                              value={user.role}
+                              onChange={(e) =>
+                                handleRoleChange(user._id, e.target.value)
+                              }
+                              size="sm"
+                              bg={useColorModeValue("gray.50", "gray.700")}
+                              borderRadius="md"
+                              maxW="120px"
+                              fontFamily="'Noto Sans Lao', sans-serif"
+                            >
+                              <option value="staff">Staff</option>
+                              <option value="admin">Admin</option>
+                              <option value="master">Master</option>
+                            </Select>
+                          ) : (
+                            getRoleBadge(user.role)
+                          )}
+                        </Td>
+                        {isAdmin && (
+                          <Td textAlign="center">
+                            <HStack spacing={2} justify="center">
+                              <Tooltip label="ແກ້ໄຂ" placement="top">
+                                <IconButton
+                                  icon={<Edit2 size={16} />}
+                                  colorScheme="blue"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenEdit(user)}
+                                  aria-label="ແກ້ໄຂ"
+                                />
+                              </Tooltip>
+                              <Tooltip label="ລົບ" placement="top">
+                                <IconButton
+                                  icon={<Trash2 size={16} />}
+                                  colorScheme="red"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteUser(user._id)}
+                                  aria-label="ລົບ"
+                                />
+                              </Tooltip>
+                            </HStack>
+                          </Td>
+                        )}
+                      </Tr>
+                    );
+                  })
+                )}
               </Tbody>
             </Table>
           </Box>
