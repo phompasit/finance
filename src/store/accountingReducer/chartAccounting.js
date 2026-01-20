@@ -8,12 +8,7 @@ export const getAccounts = createAsyncThunk(
   "account/getAccounts",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get("/api/account-document", {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.get("/api/account-document");
       return data.accounts;
     } catch (err) {
       return rejectWithValue(
@@ -30,12 +25,7 @@ export const getAccountTree = createAsyncThunk(
   "account/getTree",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get("/api/account-document/tree", {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.get("/api/account-document/tree");
       return data.tree;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || "Error loading tree");
@@ -50,12 +40,7 @@ export const createAccount = createAsyncThunk(
   "account/create",
   async (formData, { rejectWithValue }) => {
     try {
-      const { data } = await api.post("/api/account-document/create", formData, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.post("/api/account-document/create", formData);
       return data.account;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || "Create failed");
@@ -70,12 +55,7 @@ export const updateAccount = createAsyncThunk(
   "account/update",
   async ({ id, formData }, { rejectWithValue }) => {
     try {
-      const { data } = await api.patch(`/api/account-document/${id}`, formData, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.patch(`/api/account-document/${id}`, formData);
       return data.account;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || "Update failed");
@@ -90,12 +70,9 @@ export const deleteAccount = createAsyncThunk(
   "account/delete",
   async (id, { rejectWithValue }) => {
     try {
-      const { data } = await api.delete(`/api/account-document/${id}`, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.delete(
+        `/api/account-document/account-document/${id}`
+      );
       return { id };
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || "Delete failed");

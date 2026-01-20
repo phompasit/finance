@@ -19,13 +19,17 @@ import OPO from "../models/OPO.js";
 import Employees from "../models/employees.js";
 import Partner from "../models/partner.js";
 import Category from "../models/category.js";
+import mongoose from "mongoose";
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
 // Registe
 router.post("/register", registerLimiter, authenticate, async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
-    if (!username || !email || !password) {
+    if (!username?.trim() || !email?.trim() || !password) {
       return res.status(400).json({
         message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
       });
@@ -50,14 +54,14 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
         message: "ຮູບແບບອິເມວບໍ່ຖືກຕ້ອງ",
       });
     }
-    // const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    // if (!passwordRegex.test(password)) {
-    //   return res.status(400).json({
-    //     message:
-    //       "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
-    //   });
-    // }
-    const allowedRoles = ["user", "admin", "staff", "master"];
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        message:
+          "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
+      });
+    }
+    const allowedRoles = ["admin", "staff", "master"];
     const userRole = role || "user";
     if (!allowedRoles.includes(userRole)) {
       return res.status(400).json({
@@ -87,18 +91,10 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
       companyId: companyId?._id,
     });
     await user.save();
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || "secret",
-      {
-        expiresIn: process.env.JWT_EXPIRE,
-      }
-    );
-
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is required");
+    }
     res.status(201).json({
-      token,
       user: {
         id: user._id,
         username: user.username,
@@ -107,9 +103,9 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
       },
     });
   } catch (error) {
+    console.log("register log", error);
     res.status(500).json({
-      message: "เกิดข้อผิดพลาดในการสมัครสมาชิก",
-      error: error.message,
+      message: "Something with Wrong please try again",
     });
   }
 });
@@ -117,7 +113,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
 router.post("/register-superadmin", registerLimiter, async (req, res) => {
   try {
     const { username, email, password, companyInfo } = req.body;
-    if (!username || !email || !password || !companyInfo) {
+    if (!username.trim() || !email.trim() || !password || !companyInfo) {
       return res.status(400).json({
         message: "ກະລຸນາເຕີມຂໍ້ມູນໃຫ້ຄົບຖ້ວນ",
       });
@@ -164,9 +160,9 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
       message: "ສ້າງບັນຊີຜູ້ດູແລລະບົບສໍາເລັດ",
     });
   } catch (error) {
+    console.log("register superAdmin log", error);
     res.status(500).json({
-      message: "เกิดข้อผิดพลาดในการสมัครสมาชิก",
-      error: error.message,
+      message: "Something with Wrong please try again",
     });
   }
 });
@@ -174,7 +170,7 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
 // Account lockout tracking (ใช้ Redis หรือ Memory) ປ້ອງກັນການໂຈມຕີແບບ  Ddos
 const loginAttempts = new Map();
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_TIME = 1 * 60 * 1000; // 1 นาที
+const LOCKOUT_TIME = 10 * 60 * 1000; // 1 นาที
 
 // Login
 // ฟังก์ชันตรวจสอบและบันทึกความพยายาม login
@@ -308,7 +304,7 @@ router.post(
         });
 
         return res.status(429).json({
-          message: ` ບັນຊີຂອງທ່ານຖືກບ໋ອກຊົ່ວຄາວ ກະລຸນາລອງໃໝ່ ${attemptCheck.minutesLeft} ນາທີ`,
+          message: ` ບັນຊີຂອງທ່ານຖືກບ໋ອກຊົ່ວຄາວ ກະລຸນາລອງໃໝ່ໃນອີກ ${attemptCheck.minutesLeft} ນາທີ`,
           lockedUntil: attemptCheck.lockedUntil,
         });
       }
@@ -421,7 +417,9 @@ router.post(
 
       // 9. Generate secure JWT token
       const sessionId = crypto.randomBytes(16).toString("hex");
-
+      if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is required");
+      }
       const token = jwt.sign(
         {
           userId: user._id,
@@ -502,7 +500,6 @@ router.post(
 
       // 16. Send response
       res.json({
-        token,
         expiresIn: 7 * 24 * 60 * 60,
         user: {
           id: user._id,
@@ -530,7 +527,7 @@ router.post(
 
       // ไม่เปิดเผยรายละเอียดข้อผิดพลาด
       res.status(500).json({
-        message: "เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง",
+        message: "Something with Wrong please try again",
       });
     }
   }
@@ -582,49 +579,6 @@ async function getLocationFromIp(ip) {
   // TODO: Implement IP geolocation
   return "Unknown";
 }
-
-// Endpoint สำหรับ refresh token
-router.post("/refresh-token", async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(400).json({ message: "ไม่พบ refresh token" });
-    }
-
-    // ตรวจสอบ refresh token
-    const session = await Session.findOne({
-      refreshToken,
-      isActive: true,
-      expiresAt: { $gt: new Date() },
-    }).populate("userId");
-
-    if (!session) {
-      return res
-        .status(401)
-        .json({ message: "Refresh token ไม่ถูกต้องหรือหมดอายุ" });
-    }
-
-    // สร้าง token ใหม่
-    const newToken = jwt.sign(
-      {
-        userId: session.userId._id,
-        role: session.userId.role,
-        sessionId: session.sessionId,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d", algorithm: "HS256" }
-    );
-
-    res.json({
-      token: newToken,
-      expiresIn: 7 * 24 * 60 * 60,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
-  }
-});
-
 // Endpoint สำหรับ logout
 router.post("/logout", authenticate, async (req, res) => {
   try {
@@ -651,19 +605,19 @@ router.post("/logout", authenticate, async (req, res) => {
     }
 
     // ⭐ สำคัญ: clear httpOnly cookie
-    res.clearCookie("token", {
+    res.clearCookie("access_token", {
       httpOnly: true,
-      sameSite: "lax", // หรือ "lax" ตาม env
-      secure: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     });
 
     return res.status(200).json({
-      message: "ออกจากระบบสำเร็จ",
+      message: "ອອກຈາກລະບົບສຳເລັດ",
     });
   } catch (error) {
     console.error("Logout error:", error);
-    return res.status(500).json({
-      message: "เกิดข้อผิดพลาดระหว่างออกจากระบบ",
+    res.status(500).json({
+      message: "Something with Wrong please try again",
     });
   }
 });
@@ -671,15 +625,46 @@ router.post("/logout", authenticate, async (req, res) => {
 // Get current user
 router.get("/me", authenticate, async (req, res) => {
   try {
+    // 1️⃣ Validate ObjectId (กัน token ปลอม / broken token)
+    if (!mongoose.Types.ObjectId.isValid(req.user._id)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // 2️⃣ Fetch user + whitelist fields เท่านั้น
     const user = await User.findById(req.user._id)
-      .select("-password")
-      .populate("companyId");
-    res.json(user);
+      .select("-_id   -isActive   -lastLogin -createdAt -password")
+      .populate({
+        path: "companyId",
+        select: "-_id",
+      })
+      .lean(); // 3️⃣ ป้องกัน mutation / performance ดีขึ้น
+
+    // 4️⃣ User ไม่พบ / ถูกลบ
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 5️⃣ เช็กสถานะ user
+    if (user.isActive === false) {
+      return res.status(403).json({
+        message: "Account is disabled",
+      });
+    }
+
+    // 6️⃣ Response (ไม่ส่งข้อมูลอ่อนไหว)
+    return res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    // 7️⃣ Secure error logging
+    console.error("GET /me error:", {
+      userId: req.user?._id,
+      error: error.message,
+    });
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 });
-
 // Get all users (admin only)
 router.get("/users", authenticate, async (req, res) => {
   try {
@@ -702,10 +687,9 @@ router.get("/users", authenticate, async (req, res) => {
 
     res.json(users);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "เกิดข้อผิดพลาด",
-      error: error.message,
+    console.log("user log", error);
+    return res.status(500).json({
+      message: "Internal Server Error",
     });
   }
 });
@@ -713,13 +697,20 @@ router.get("/users", authenticate, async (req, res) => {
 // Update user role (admin only)
 router.patch("/users/:id/role", authenticate, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+    const allowedRoles = ["staff", "master", "admin"];
+    const { role } = req.body;
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
     if (req.user.role !== "admin") {
       return res.status(403).json({ message: "ไม่มีสิทธิ์เข้าถึง" });
     }
     if (req.user.role === "admin" && req.user.isSuperAdmin !== true) {
       return res.status(403).json({ message: "ບໍ່ມີສິດ ສ້າງ ແອດມຶນໃໝ່" });
     }
-
     if (
       req.params.id === req.user._id.toString() &&
       req.user.role === "admin" &&
@@ -727,8 +718,13 @@ router.patch("/users/:id/role", authenticate, async (req, res) => {
     ) {
       return res.status(403).json({ message: "ບໍ່ສາມາດປ່ຽນສະຖານະຕົນເອງໄດ້" });
     }
-    const { role } = req.body;
-
+    const targetUser = await User.findOne({
+      _id: req.params.id,
+      companyId: req.user.companyId,
+    });
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },
@@ -737,7 +733,8 @@ router.patch("/users/:id/role", authenticate, async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.log("update log role", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -749,9 +746,23 @@ router.delete("/users/:id", authenticate, async (req, res) => {
         .status(403)
         .json({ success: false, message: "ບໍ່ມີສິດເຂົ້າເຖິງ" });
     }
+    if (!req.user.isSuperAdmin) {
+      return res
+        .status(403)
+        .json({ message: "Only super admin can delete users" });
+    }
 
     const userId = req.params.id;
-
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+    const targetUser = await User.findOne({
+      _id: userId,
+      companyId: req.user.companyId,
+    });
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
     if (req.user._id.toString() === userId) {
       return res
         .status(400)
@@ -760,20 +771,20 @@ router.delete("/users/:id", authenticate, async (req, res) => {
 
     const hasIncomeExpense = await IncomeExpense.exists({ userId });
     const hasAdvance = await AdvanceRequests.exists({ userId });
-    const OPO = await OPO.exists({ userId });
-    const Debt = await Debt.exists({ userId });
-    const Employees = await OPO.exists({ userId });
-    const Partner = await OPO.exists({ userId });
-    const Category = await OPO.exists({ userId });
+    const OPOS = await OPO.exists({ userId });
+    const Debts = await Debt.exists({ userId });
+    const hasEmployees = await Employees.exists({ userId });
+    const hasPartner = await Partner.exists({ userId });
+    const HasCategory = await Category.exists({ userId });
 
     if (
       hasIncomeExpense ||
-      Employees ||
+      hasEmployees ||
       hasAdvance ||
-      OPO ||
-      Category ||
-      Partner ||
-      Debt
+      OPOS ||
+      HasCategory ||
+      hasPartner ||
+      Debts
     ) {
       return res.status(400).json({
         success: false,
@@ -785,21 +796,38 @@ router.delete("/users/:id", authenticate, async (req, res) => {
     await User.findByIdAndDelete(userId);
     res.json({ success: true, message: "ລົບຜູ້ໃຊ້ງານສຳເລັດ" });
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.log("delete user:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
 // PATCH /api/auth/users/:id
 // PATCH /api/auth/users/:id
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
 
 const uploadImageLogo = async (image) => {
   try {
     return new Promise((resolve, reject) => {
+      if (!file) throw new Error("No file uploaded");
+
+      // 1️⃣ file size check
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error("File too large (max 2MB)");
+      }
+
+      // 2️⃣ mimetype check
+      if (!ALLOWED_MIME.includes(file.mimetype)) {
+        throw new Error("Invalid file type");
+      }
+
       const stream = cloudinary.uploader.upload_stream(
         {
           folder: "finance/image_company",
           resource_type: "image",
-          transformation: [{ width: 500, height: 500, crop: "limit" }],
+          transformation: [
+            { width: 500, height: 500, crop: "limit", fetch_format: "auto" },
+          ],
         },
         (error, result) => {
           if (error) return reject(error);
@@ -816,6 +844,12 @@ const uploadImageLogo = async (image) => {
 };
 const deleteCloudinaryImage = async (imageUrl) => {
   try {
+    if (!publicId) return;
+
+    // whitelist path
+    if (!publicId.startsWith("finance/image_company/")) {
+      throw new Error("Invalid publicId");
+    }
     const publicId = imageUrl.split("/").pop().split(".")[0];
     await cloudinary.uploader.destroy(`finance/image_company/${publicId}`);
   } catch (err) {
@@ -829,6 +863,9 @@ router.patch(
   async (req, res) => {
     try {
       const updater = req.user;
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).end();
+      }
       const targetUser = await User.findById(req.params.id);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
@@ -915,6 +952,9 @@ router.patch(
       // ---------------------------------------------------
       // 4) อัปเดต User
       // ---------------------------------------------------
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).end();
+      }
       const updatedUser = await User.findByIdAndUpdate(
         req.params.id,
         updateData,

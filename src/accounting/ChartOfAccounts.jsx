@@ -27,8 +27,16 @@ import {
   Switch,
   useDisclosure,
   useToast,
+  IconButton,
 } from "@chakra-ui/react";
-import { Search, Plus, ChevronRight, ChevronDown, Lock } from "lucide-react";
+import {
+  Search,
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  Lock,
+  Trash2,
+} from "lucide-react";
 import SelectReact from "react-select";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -37,7 +45,10 @@ import {
   createAccount,
   updateAccount,
   messageClear,
+  deleteAccount,
 } from "../store/accountingReducer/chartAccounting";
+import Swal from "sweetalert2";
+import LedgerLoading from "../components/Loading";
 
 /**
  * Chart of Accounts with explicit Cost-of-Goods-Sold / Distribution / Administrative grouping.
@@ -82,12 +93,13 @@ const TreeNode = React.memo(function TreeNode({
   onToggle,
   onEdit,
   isAdmin,
+  onDelete,
 }) {
   const hasChildren = children.length > 0;
   const isExpanded = !!expanded[account?.code];
   const balance = (account?.balanceDr || 0) - (account?.balanceCr || 0);
-  const balanceColor = balance >= 0 ? "green.600" : "red.600";
   const canEdit = isAdmin || !account?.isMainAccount;
+  const canDelete = !account?.isMainAccount && children.length === 0;
 
   return (
     <Box>
@@ -126,6 +138,7 @@ const TreeNode = React.memo(function TreeNode({
           mr={2}
           minW="60px"
           textAlign="center"
+          fontFamily="Noto Sans Lao, sans-serif"
         >
           {account?.code}
         </Badge>
@@ -133,6 +146,7 @@ const TreeNode = React.memo(function TreeNode({
         <Text
           flex={1}
           fontSize="sm"
+          fontFamily="Noto Sans Lao, sans-serif"
           fontWeight={account?.isMainAccount ? "bold" : "medium"}
         >
           {account?.name}
@@ -141,20 +155,22 @@ const TreeNode = React.memo(function TreeNode({
         {account?.isMainAccount && (
           <Icon as={Lock} boxSize={3} color="blue.500" mr={2} />
         )}
-
-        <Text
-          fontSize="sm"
-          color={balanceColor}
-          minW="120px"
-          textAlign="right"
-          mr={3}
-        >
-          {balance?.toLocaleString ? balance.toLocaleString() : balance}
-        </Text>
-
         <Badge minW="90px" textAlign="center">
           {account?.type}
         </Badge>
+        {canDelete && (
+          <IconButton
+            size="sm"
+            ml={2}
+            colorScheme="red"
+            icon={<Trash2 size={14} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete && onDelete(account);
+            }}
+            aria-label="Delete account"
+          />
+        )}
       </Flex>
 
       {hasChildren && isExpanded && (
@@ -166,6 +182,7 @@ const TreeNode = React.memo(function TreeNode({
               children={child.children || []}
               level={level + 1}
               expanded={expanded}
+              onDelete={onDelete}
               onToggle={onToggle}
               onEdit={onEdit}
               isAdmin={isAdmin}
@@ -212,14 +229,27 @@ const ChartOfAccountsWithCostCenters = () => {
 
   useEffect(() => {
     if (successMessage) {
-      toast({ title: successMessage, status: "success" });
+      Swal.fire({
+        icon: "success",
+        title: "ສຳເລັດ",
+        text: successMessage,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
       dispatch(messageClear());
     }
+
     if (errorMessage) {
-      toast({ title: errorMessage, status: "error" });
+      Swal.fire({
+        icon: "error",
+        title: "ຜິດພາດ",
+        text: errorMessage,
+      });
+
       dispatch(messageClear());
     }
-  }, [successMessage, errorMessage]);
+  }, [successMessage, errorMessage, dispatch]);
 
   const toggleNode = useCallback((code) => {
     setExpanded((p) => ({ ...p, [code]: !p[code] }));
@@ -227,7 +257,11 @@ const ChartOfAccountsWithCostCenters = () => {
 
   const handleEdit = (acc) => {
     if (!isAdmin && acc.isMainAccount) {
-      return toast({ title: "ไม่สามารถแก้ไขบัญชีหลักได้", status: "warning" });
+      return Swal.fire({
+        icon: "warning",
+        title: "ຄຳເຕືອນ",
+        text: "ບໍ່ສາມາດແກ້ໄຂບັນຊີຫຼັກໄດ້",
+      });
     }
     setEditingAccount(acc);
     setFormData({
@@ -256,7 +290,12 @@ const ChartOfAccountsWithCostCenters = () => {
 
   const handleSave = async () => {
     if (!formData.code || !formData.name) {
-      return toast({ title: "กรุณากรอก code และ name", status: "warning" });
+      await Swal.fire({
+        icon: "warning",
+        title: "ຂໍ້ມູນບໍ່ຄົບ",
+        text: "ກະລຸນາລະບຸ ໝາຍເລກບັນຊີ ແລະ ຊື່ບັນຊີ",
+      });
+      return;
     }
 
     const payload = {
@@ -273,16 +312,59 @@ const ChartOfAccountsWithCostCenters = () => {
         await dispatch(
           updateAccount({ id: editingAccount._id, formData: payload })
         );
-        toast({ title: "Updated", status: "success" });
       } else {
         await dispatch(createAccount(payload));
-        toast({ title: "Created", status: "success" });
       }
       dispatch(getAccounts());
       dispatch(getAccountTree());
       onClose();
     } catch (err) {
       toast({ title: "Save failed", status: "error" });
+    }
+  };
+  const handleDelete = async (acc) => {
+    /* ---------- กันลบบัญชีหลัก ---------- */
+    if (acc.isMainAccount) {
+      await Swal.fire({
+        icon: "warning",
+        title: "ບໍ່ອະນຸຍາດ",
+        text: "ບໍ່ສາມາດລົບບັນຊີຫຼັກໄດ້",
+      });
+      return;
+    }
+
+    /* ---------- Confirm ---------- */
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "ຢືນຢັນການລົບ",
+      text: `ຕ້ອງການລົບ ${acc.code} - ${acc.name} ແມ່ນຫຼືບໍ່?`,
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "ລົບ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
+
+    if (!result.isConfirmed) return;
+
+    /* ---------- Loading ---------- */
+    Swal.fire({
+      title: "ກຳລັງລົບ...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      await dispatch(deleteAccount(acc._id));
+      dispatch(getAccounts());
+      dispatch(getAccountTree());
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "ຜິດພາດ",
+        text: "ລົບບໍ່ສຳເລັດ",
+      });
     }
   };
 
@@ -356,36 +438,31 @@ const ChartOfAccountsWithCostCenters = () => {
       return n; // keep anyway to preserve tree; you can implement pruning later
     });
   }, [sortedTree, searchTerm]);
-
+  if (loader) {
+    return <LedgerLoading />;
+  }
   return (
     <ChakraProvider>
       <Box p={6} maxW="1400px" mx="auto" bg="gray.50" minH="100vh">
         <Flex justify="space-between" mb={6}>
           <Box>
-            <Text fontSize="2xl" fontWeight="bold">
-              Chart of Accounts — Cost Centers
-            </Text>
-            <Text fontSize="sm" color="gray.500">
-              แยก ต้นทุนขาย / ต้นทุนจำหน่าย / ต้นทุนบริหาร
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="2xl"
+              fontWeight="bold"
+            >
+              ຜັງບັນຊີວິສະຫະກິດ
             </Text>
           </Box>
 
           <HStack spacing={3}>
-            <HStack bg="white" px={4} py={2} borderRadius="md" shadow="sm">
-              <Text fontSize="sm">Admin mode</Text>
-              <Switch
-                isChecked={isAdmin}
-                onChange={(e) => setIsAdmin(e.target.checked)}
-                colorScheme="blue"
-              />
-            </HStack>
-
             <Button
               leftIcon={<Plus size={18} />}
               colorScheme="blue"
               onClick={handleOpenAdd}
+              fontFamily="Noto Sans Lao, sans-serif"
             >
-              Add Account
+              ເພີ່ມເລກໝາຍບັນຊີ
             </Button>
           </HStack>
         </Flex>
@@ -396,6 +473,7 @@ const ChartOfAccountsWithCostCenters = () => {
               <Search size={16} />
             </InputLeftElement>
             <Input
+              fontFamily="Noto Sans Lao, sans-serif"
               placeholder="Search account code or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -414,12 +492,19 @@ const ChartOfAccountsWithCostCenters = () => {
             color="gray.600"
           >
             <Box w={6} />
-            <Text flex={1}>Account</Text>
-            <Box w="120px" textAlign="right" mr={3}>
-              Balance
-            </Box>
-            <Box w="90px" textAlign="center">
-              Type
+            <Text fontFamily="Noto Sans Lao, sans-serif" flex={1}>
+              ເລກບັນຊີ
+            </Text>
+            <Text fontFamily="Noto Sans Lao, sans-serif" flex={1}>
+              ຊື່ບັນຊີ
+            </Text>
+
+            <Box
+              fontFamily="Noto Sans Lao, sans-serif"
+              w="90px"
+              textAlign="center"
+            >
+              ປະເພດ
             </Box>
           </Flex>
           <Divider />
@@ -434,6 +519,7 @@ const ChartOfAccountsWithCostCenters = () => {
                   children={node.children || []}
                   level={0}
                   expanded={expanded}
+                  onDelete={handleDelete}
                   onToggle={toggleNode}
                   onEdit={handleEdit}
                   isAdmin={isAdmin}
@@ -443,20 +529,21 @@ const ChartOfAccountsWithCostCenters = () => {
         </Box>
 
         {/* Expense detail grouped by cost categories */}
-      
 
         {/* Modal for add/edit */}
         <Modal isOpen={isOpen} onClose={onClose} size="lg">
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader>
-              {editingAccount ? "Edit Account" : "Create Account"}
+            <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
+              {editingAccount ? "ແກ້ໄຂເລກໝາຍບັນຊີ" : "ເພີ່ມເລກໝາຍບັນຊີ"}
             </ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <VStack spacing={4}>
                 <FormControl>
-                  <FormLabel>Parent Account (main accounts only)</FormLabel>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ເລືອກໝາຍເລກບັນຊີ(ຖ້າຈະສ້າງບັນຊີຫຼັກ ບໍ່ເລືອກ)
+                  </FormLabel>
                   <SelectReact
                     options={parentOptions}
                     value={
@@ -470,7 +557,7 @@ const ChartOfAccountsWithCostCenters = () => {
                         parentCode: opt?.value || "",
                       }))
                     }
-                    placeholder="-- Main Account --"
+                    placeholder="-- ເລືອກບັນຊີ --"
                     isClearable
                     styles={{
                       container: (base) => ({ ...base, width: "100%" }),
@@ -479,8 +566,11 @@ const ChartOfAccountsWithCostCenters = () => {
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Code</FormLabel>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ເລກໝາຍບັນຊີ
+                  </FormLabel>
                   <Input
+                    fontFamily="Noto Sans Lao, sans-serif"
                     value={formData.code}
                     onChange={(e) =>
                       setFormData((s) => ({ ...s, code: e.target.value }))
@@ -489,7 +579,9 @@ const ChartOfAccountsWithCostCenters = () => {
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ຊື່ເລກໝາຍບັນຊີ
+                  </FormLabel>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
@@ -499,24 +591,29 @@ const ChartOfAccountsWithCostCenters = () => {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Type</FormLabel>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ປະເພດ
+                  </FormLabel>
                   <Select
                     value={formData.type}
                     onChange={(e) =>
                       setFormData((s) => ({ ...s, type: e.target.value }))
                     }
                   >
-                    <option value="asset">Asset</option>
-                    <option value="liability">Liability</option>
-                    <option value="equity">Equity</option>
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
+                    <option value="asset">ຊັບສິນ</option>
+                    <option value="liability">ໜີ້ສິນ</option>
+                    <option value="equity">ທຶນ</option>
+                    <option value="income">ລາຍຮັບ</option>
+                    <option value="expense">ລາຍຈ່າຍ</option>
                   </Select>
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Category (for Expense split)</FormLabel>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                    ໝວດໝູ່ (ສຳຫລັບ ປະເພດລາຍຈ່າຍ 6 )
+                  </FormLabel>
                   <Select
+                    fontFamily="Noto Sans Lao, sans-serif"
                     value={formData.category}
                     onChange={(e) =>
                       setFormData((s) => ({ ...s, category: e.target.value }))
@@ -529,12 +626,12 @@ const ChartOfAccountsWithCostCenters = () => {
                     <option value="ຕົ້ນທຸນບໍລິຫານ">
                       ຕົ້ນທຸນບໍລິຫານ (Admin)
                     </option>
-                    <option value="ອື່ນໆ">Other</option>
+                    <option value="ອື່ນໆ">ອື່ນໆ</option>
                   </Select>
                 </FormControl>
 
-                <FormControl>
-                  <FormLabel>Is Main Account</FormLabel>
+                {/* <FormControl>
+                  <FormLabel fontFamily="Noto Sans Lao, sans-serif">Is Main Account</FormLabel>
                   <Switch
                     isChecked={formData.isMainAccount}
                     onChange={(e) =>
@@ -544,16 +641,24 @@ const ChartOfAccountsWithCostCenters = () => {
                       }))
                     }
                   />
-                </FormControl>
+                </FormControl> */}
               </VStack>
             </ModalBody>
 
             <ModalFooter>
-              <Button mr={3} onClick={onClose}>
-                Cancel
+              <Button
+                fontFamily="Noto Sans Lao, sans-serif"
+                mr={3}
+                onClick={onClose}
+              >
+                ຍົກເລີກ
               </Button>
-              <Button colorScheme="blue" onClick={handleSave}>
-                {editingAccount ? "Update" : "Create"}
+              <Button
+                fontFamily="Noto Sans Lao, sans-serif"
+                colorScheme="blue"
+                onClick={handleSave}
+              >
+                {editingAccount ? "ອັບເດດ" : "ເພີ່ມໝາຍເລກບັນຊີ"}
               </Button>
             </ModalFooter>
           </ModalContent>

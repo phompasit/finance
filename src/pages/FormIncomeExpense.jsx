@@ -159,7 +159,6 @@ const FormIncomeExpense = () => {
         amounts: form.amounts,
         note: form.note,
         status: form.status,
-        status_Ap: "pending",
         categoryId: form.categoryId,
       };
 

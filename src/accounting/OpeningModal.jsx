@@ -39,6 +39,7 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
     accountId: "",
     debit: 0,
     credit: 0,
+    year: 0,
   });
 
   /* --------------------- Load Account for Dropdown --------------------- */
@@ -54,9 +55,10 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
         accountId: editing.accountId._id,
         debit: editing.debit,
         credit: editing.credit,
+        year: editing?.year,
       });
     } else {
-      setForm({ accountId: "", debit: 0, credit: 0 });
+      setForm({ accountId: "", debit: 0, credit: 0, year: 0 });
     }
   }, [editing]);
 
@@ -139,7 +141,7 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
           duration: 3000,
         });
       } else {
-        await dispatch(createOpening({ ...form, year })).unwrap();
+        await dispatch(createOpening({ ...form })).unwrap();
 
         toast({
           title: "ເພີ່ມສຳເລັດ",
@@ -178,18 +180,31 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
       balance: d - c,
     };
   }, [form.debit, form.credit]);
+  const yearGroups = useMemo(() => {
+    const current = new Date().getFullYear();
+
+    return {
+      current,
+      future: Array.from({ length: 3 }, (_, i) => current + (i + 1)),
+      past: Array.from({ length: 6 }, (_, i) => current - (i + 1)),
+    };
+  }, []);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{editing ? "ແກ້ໄຂຍອດຍົກມາ" : "ເພີ່ມຍອດຍົກມາ"}</ModalHeader>
+        <ModalHeader fontFamily="Noto Sans Lao, sans-serif">
+          {editing ? "ແກ້ໄຂຍອດຍົກມາ" : "ເພີ່ມຍອດຍົກມາ"}
+        </ModalHeader>
 
         <ModalBody>
           <VStack spacing={4}>
             {/* Account Selection */}
             <FormControl isRequired>
-              <FormLabel>Account</FormLabel>
+              <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                ໝາຍເລກບັນຊີ
+              </FormLabel>
               <SelectReact
                 options={openingAccountOptions}
                 value={
@@ -211,8 +226,9 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
 
             {/* Debit */}
             <FormControl>
-              <FormLabel>Debit</FormLabel>
+              <FormLabel fontFamily="Noto Sans Lao, sans-serif">ໜີ້</FormLabel>
               <Input
+                fontFamily="Noto Sans Lao, sans-serif"
                 type="number"
                 value={form.debit}
                 onChange={(e) =>
@@ -223,14 +239,35 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
 
             {/* Credit */}
             <FormControl>
-              <FormLabel>Credit</FormLabel>
+              <FormLabel fontFamily="Noto Sans Lao, sans-serif">ມີ</FormLabel>
               <Input
+                fontFamily="Noto Sans Lao, sans-serif"
                 type="number"
                 value={form.credit}
                 onChange={(e) =>
                   setForm({ ...form, credit: Number(e.target.value) })
                 }
               />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel fontFamily="Noto Sans Lao, sans-serif">
+                ປີງວດ
+              </FormLabel>
+
+              <Select
+                value={form.year}
+                onChange={(e) =>
+                  setForm({ ...form, year: Number(e.target.value) })
+                }
+              >
+                <option value={2030}>2030</option>
+                <option value={2029}>2029</option>
+                <option value={2028}>2028</option>
+                <option value={2027}>2027</option>
+                <option value={2026}>2026</option>
+                <option value={2025}>2025</option>
+              </Select>
             </FormControl>
           </VStack>
           <Box
@@ -241,27 +278,46 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
             border="1px solid #eee"
             mt={4}
           >
-            <Text fontWeight="bold" mb={2}>
-              Summary
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontWeight="bold"
+              mb={2}
+            >
+              ຍອດລວມ
             </Text>
 
             <HStack justify="space-between">
-              <Text>Debit Total:</Text>
-              <Text fontWeight="bold" color="blue.600">
+              <Text fontFamily="Noto Sans Lao, sans-serif">
+                ຍອດລວມເບື້ອງໜີ້:
+              </Text>
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontWeight="bold"
+                color="blue.600"
+              >
                 {summary.debit.toLocaleString()}
               </Text>
             </HStack>
 
             <HStack justify="space-between">
-              <Text>Credit Total:</Text>
-              <Text fontWeight="bold" color="orange.600">
+              <Text fontFamily="Noto Sans Lao, sans-serif">
+                ຍອດລວມເບື້ອງມີ:
+              </Text>
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontWeight="bold"
+                color="orange.600"
+              >
                 {summary.credit.toLocaleString()}
               </Text>
             </HStack>
 
             <HStack justify="space-between">
-              <Text>Balance (Dr - Cr):</Text>
+              <Text fontFamily="Noto Sans Lao, sans-serif">
+                ຜົນລວມ (Dr - Cr):
+              </Text>
               <Text
+                fontFamily="Noto Sans Lao, sans-serif"
                 fontWeight="bold"
                 color={summary.balance >= 0 ? "green.600" : "red.600"}
               >
@@ -272,10 +328,19 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
+          <Button
+            fontFamily="Noto Sans Lao, sans-serif"
+            variant="ghost"
+            mr={3}
+            onClick={onClose}
+          >
             ຍົກເລີກ
           </Button>
-          <Button colorScheme="blue" onClick={handleSave}>
+          <Button
+            fontFamily="Noto Sans Lao, sans-serif"
+            colorScheme="blue"
+            onClick={handleSave}
+          >
             ບັນທຶກ
           </Button>
         </ModalFooter>

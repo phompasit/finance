@@ -1,37 +1,35 @@
-// src/store/accountingReducer/incomeSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../api/api"; // <-- adjust import to your API helper
+import api from "../../api/api";
 
 export const loadIncomeStatement = createAsyncThunk(
   "income/load",
-  async ({ startDate, endDate, preset } = {}, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const params = {};
-      if (preset) params.preset = preset;
-      else {
-        if (startDate) params.startDate = startDate;
-        if (endDate) params.endDate = endDate;
-      }
-      const r = await api.get("/api/income-statement/income-statement", {
-        params,
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      return r.data;
+      const qs = new URLSearchParams(params).toString();
+      const res = await api.get(`/api/income-statement/income-statement?${qs}`);
+      return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || "Server error");
+      return rejectWithValue(
+        err.response?.data?.error || err.message || "Server error"
+      );
     }
   }
 );
 
-const slice = createSlice({
+const incomeSlice = createSlice({
   name: "income",
   initialState: {
     loader: false,
-    data: null,
     error: null,
+
+    // 🔽 comparison meta
+    comparable: false,
+    currentYear: null,
+    previousYear: null,
+    mode:null,
+    period:null,
+    // 🔽 payload
+    data: null,
   },
   reducers: {
     clearIncomeError(state) {
@@ -40,20 +38,34 @@ const slice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loadIncomeStatement.pending, (s) => {
-        s.loader = true;
-        s.error = null;
+      /* ================= PENDING ================= */
+      .addCase(loadIncomeStatement.pending, (state) => {
+        state.loader = true;
+        state.error = null;
       })
-      .addCase(loadIncomeStatement.fulfilled, (s, a) => {
-        s.loader = false;
-        s.data = a.payload.data || a.payload;
+
+      /* ================= SUCCESS ================= */
+      .addCase(loadIncomeStatement.fulfilled, (state, action) => {
+        state.loader = false;
+
+        const payload = action.payload || {};
+
+        state.comparable = Boolean(payload.comparable);
+        state.currentYear = payload.currentYear ?? null;
+        state.previousYear = payload.previousYear ?? null;
+        (state.mode = payload.mode ?? null),
+          (state.period = payload.mode ?? null),
+          // รองรับทั้งแบบ compare และไม่ compare
+          (state.data = payload.data ?? payload);
       })
-      .addCase(loadIncomeStatement.rejected, (s, a) => {
-        s.loader = false;
-        s.error = a.payload || a.error?.message;
+
+      /* ================= ERROR ================= */
+      .addCase(loadIncomeStatement.rejected, (state, action) => {
+        state.loader = false;
+        state.error = action.payload || action.error?.message;
       });
   },
 });
 
-export const { clearIncomeError } = slice.actions;
-export default slice.reducer;
+export const { clearIncomeError } = incomeSlice.actions;
+export default incomeSlice.reducer;

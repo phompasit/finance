@@ -1,11 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
+// src/pages/reports/StatementOfFinancialPosition.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Flex,
   Text,
-  Button,
-  Select,
-  Input,
   Spinner,
   Table,
   Thead,
@@ -13,217 +11,488 @@ import {
   Tr,
   Th,
   Td,
+  Badge,
+  Divider,
+  Alert,
+  AlertIcon,
   HStack,
-  IconButton,
+  Button,
 } from "@chakra-ui/react";
-import { Download } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchStatement } from "../store/accountingReducer/reportsSlice";
-import { format } from "date-fns";
+import ReportFilter from "../components/Accounting_component/ReportFilter";
+import html2pdf from "html2pdf.js";
+import StatementOfFinancialPrint from "./PDF/StatementOfFinancialPrint";
+import { useAuth } from "../context/AuthContext";
+import LedgerLoading from "../components/Loading";
+import { exportBalanceSheetExcel } from "./PDF/excel";
 
-const circle = (n) => String.fromCodePoint(9311 + n);
+/* ================= FILTER MODE (เหมือน AssetsPage) ================= */
+const FILTER_MODE = {
+  YEAR: "YEAR",
+  MONTH: "MONTH",
+  PRESET: "PRESET",
+  RANGE: "RANGE",
+};
+const formatDate = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date)) return d;
+  return date.toLocaleDateString("en-GB");
+};
+/* ================= HELPERS ================= */
 const num = (n) => Number(n || 0).toLocaleString();
 
-const PRESETS = [
-  { label: "1 ເດືອນ", value: "1" },
-  { label: "3 ເດືອນ", value: "3" },
-  { label: "6 ເດືອນ", value: "6" },
-  { label: "12 ເດືອນ", value: "12" },
-];
-
-const EQUITY_TEMPLATE = [
-  "ທຶນຈົດທະບຽນ",
-  "ສ່ວນເພີ່ມມູນຄ່າຮຸ່ນ",
-  "ຄັງສຳຮອງ",
-  "ຜົນໄດ້ຮັບຍົກມາ",
-  "ຜົນກຳໄລສຸດທິ",
-  "ພູດສ່ວນ ຂອງຜົນປະໂຫຍດສ່ວນນ້ອຍ",
-  "ພູດສ່ວນຂອງກຸ່ມ",
-];
-
-const LABEL_MAP = {
-  "Bank overdrafts": "ເງິນເບີກເກິນບັນຊີ",
-  "Trade and other payables": "ໜີ້ຕ້ອງສົ່ງການຄ້າ",
-  "Financial liabilities, short-term borrowings":
-    "ໜີ້ສິນໄລຍະສັ້ນ",
-  "State-debts payable (Levies-taxes)": "ໜີ້ຕ້ອງສົ່ງລັດ",
-  "Short-term employee benefit obligations": "ພັນທະພະນັກງານໄລຍະສັ້ນ",
-  "Other current payables": "ໜີ້ຕ້ອງສົ່ງອື່ນໆ",
-  "Short-term provisions": "ເງິນແຮໄລຍະສັ້ນ",
-
-  "Financial liabilities, long-term borrowings": "ໜີ້ສິນໄລຍະຍາວ",
-  "Long-term employee benefit obligations": "ພັນທະພະນັກງານໄລຍະຍາວ",
-  "Other non-current payables": "ໜີ້ບໍ່ໝູນວຽນ",
-  "Provisions non-current liabilities": "ເງິນແຮບໍ່ໝູນວຽນ",
-  "Deferred tax": "ອາກອນເຍື່ອນຊຳລະ",
-
-  "Share capital": "ທຶນຈົດທະບຽນ",
-  "Share premium": "ມູນຄ່າເພີ່ມ",
-  Reserves: "ຄັງສຳຮອງ",
-  "Retained earnings": "ຜົນໄດ້ຮັບຍົກມາ",
-  "Net profit": "ກຳໄລສຸດທິ",
+const DiffBadge = ({ value }) => {
+  if (value === 0) return <Badge>0</Badge>;
+  return (
+    <Badge colorScheme={value > 0 ? "green" : "red"}>
+      {value > 0 ? "+" : ""}
+      {num(value)}
+    </Badge>
+  );
 };
 
+/* ================= PAGE ================= */
 const StatementOfFinancialPosition = () => {
   const dispatch = useDispatch();
-  const { data, loading, error } = useSelector((s) => s.reports || {});
+  const { user } = useAuth();
+  const printRef = useRef();
+  const {
+    loading,
+    error,
+    data,
+    comparable,
+    currentYear,
+    previousYear,
+    mode,
+    period,
+  } = useSelector((s) => s.reports || {});
 
-  const [preset, setPreset] = useState("12");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
+  /* ================= PRODUCTION FILTER STATE (เหมือน AssetsPage) ================= */
+  const [filter, setFilter] = useState({
+    mode: FILTER_MODE.YEAR,
+    year: new Date().getFullYear(),
+    month: null,
+    preset: null,
+    startDate: null,
+    endDate: null,
+  });
+  const [applyFilter, setApplyFilter] = useState();
+  const [search, setSearch] = useState("");
+
+  const yearOptions = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [y + 1, y, y - 1, y - 2, y - 3, y - 4];
+  }, []);
+
+  /* ================= BUILD PARAMS (เหมือน AssetsPage) ================= */
+  const buildParams = () => {
+    const params = { year: filter.year };
+
+    switch (filter.mode) {
+      case FILTER_MODE.MONTH:
+        params.month = filter.month;
+        break;
+
+      case FILTER_MODE.PRESET:
+        params.preset = filter.preset;
+        break;
+
+      case FILTER_MODE.RANGE:
+        if (filter.startDate && filter.endDate) {
+          params.startDate = filter.startDate;
+          params.endDate = filter.endDate;
+        }
+        break;
+
+      case FILTER_MODE.YEAR:
+      default:
+        break;
+    }
+
+    return params;
+  };
+
+  /* ================= FETCH ================= */
+  const handleFetch = () => {
+    dispatch(fetchStatement(buildParams()));
+    setApplyFilter(filter);
+  };
 
   useEffect(() => {
     handleFetch();
+    // eslint-disable-next-line
   }, []);
 
-  const handleFetch = () => {
-    const params = preset ? { preset } : { startDate, endDate };
-    dispatch(fetchStatement(params));
-  };
+  /* ================= DATA ================= */
+  const current = data?.current || [];
+  const previous = data?.previous || [];
 
-  // Group results
-  const grouped = useMemo(() => {
-    if (!data?.lines) return {};
-    return data.lines.reduce((acc, line) => {
-      if (!acc[line.section]) acc[line.section] = [];
-      acc[line.section].push(line);
-      return acc;
-    }, {});
-  }, [data]);
-
-  // Render Equity using template
-  const equityLines = useMemo(() => {
-    const lines = grouped["Equity"] || [];
-    return EQUITY_TEMPLATE.map((label, index) => {
-      const row = lines[index];
-
-      return {
-        label,
-        pattern: row?.pattern || "",
-        current: row?.ending || 0,
-        previous: row?.prevEnding || 0,
-      };
+  /* ================= MERGE DATA (SFP) ================= */
+  const { grouped, sectionTotals, grandTotal } = useMemo(() => {
+    const prevMap = {};
+    previous.forEach((i) => {
+      prevMap[i.key] = i.ending || 0;
     });
-  }, [grouped]);
 
-  /** RENDER ROWS **/
-  const renderRows = (section) => {
-    if (section === "Equity") {
-      return equityLines.map((r, i) => (
-        <Tr key={i}>
-          <Td>{circle(i + 1)} {r.label}</Td>
-          <Td>{r.pattern}</Td>
-          <Td isNumeric>{num(r.current)}</Td>
-          <Td isNumeric>{num(r.previous)}</Td>
-        </Tr>
-      ));
+    const groups = {};
+    const totals = {};
+
+    current.forEach((item) => {
+      if (!groups[item.section]) {
+        groups[item.section] = [];
+        totals[item.section] = { cur: 0, prev: 0 };
+      }
+
+      const prevEnding = prevMap[item.key] || 0;
+
+      groups[item.section].push({
+        ...item,
+        prevEnding,
+        diff: item.ending - prevEnding,
+      });
+
+      totals[item.section].cur += item.ending || 0;
+      totals[item.section].prev += prevEnding;
+    });
+
+    const grand = Object.values(totals).reduce(
+      (s, x) => ({
+        cur: s.cur + x.cur,
+        prev: s.prev + x.prev,
+      }),
+      { cur: 0, prev: 0 }
+    );
+
+    return { grouped: groups, sectionTotals: totals, grandTotal: grand };
+  }, [current, previous]);
+  /* ================= HEADER TEXT (เหมือน AssetsPage) ================= */
+  const getFilterLabel = (filter) => {
+    if (!filter) return "";
+
+    switch (filter.mode) {
+      case FILTER_MODE.YEAR:
+        return `ປີບັນຊີ: ${filter.year}`;
+
+      case FILTER_MODE.MONTH:
+        return `ເດືອນ: ${String(filter.month).padStart(2, "0")}/${filter.year}`;
+
+      case FILTER_MODE.RANGE:
+        return `ຊ່ວງວັນທີ: ${formatDate(filter.startDate)} – ${formatDate(
+          filter.endDate
+        )}`;
+
+      case FILTER_MODE.PRESET:
+        return `Preset: ${filter.preset}`;
+
+      default:
+        return "";
     }
+  };
+  const activeFilterLabel = useMemo(() => getFilterLabel(applyFilter), [
+    applyFilter,
+  ]);
+  const ActiveFilterBar = ({ label }) => {
+    if (!label) return null;
 
-    return (grouped[section] || []).map((r) => (
-      <Tr key={r.key}>
-        <Td>{LABEL_MAP[r.label] || r.label}</Td>
-        <Td>{r.pattern}</Td>
-        <Td isNumeric>{num(r.ending || 0)}</Td>
-        <Td isNumeric>{num(r.prevEnding || 0)}</Td>
-      </Tr>
-    ));
+    return (
+      <Box
+        px={4}
+        py={2}
+        border="1px solid"
+        borderColor="gray.200"
+        borderRadius="md"
+        bg="gray.50"
+      >
+        <HStack spacing={3}>
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.600"
+          >
+            ກຳລັງສະແດງຂໍ້ມູນ
+          </Text>
+
+          <Badge
+            colorScheme="blue"
+            px={3}
+            py={1}
+            borderRadius="full"
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="0.9em"
+          >
+            <HStack spacing={1}>
+              <span
+                style={{
+                  fontFamily: "Noto Sans Lao, sans-serif",
+                }}
+              >
+                {label}
+              </span>
+            </HStack>
+          </Badge>
+        </HStack>
+      </Box>
+    );
   };
 
+  /* ================= EXPORT PDF ================= */
+  const handleExportPDF = () => {
+    html2pdf()
+      .set({
+        margin: [2, 2, 2, 2], // mm
+        filename: "ໃບລາຍການໜີ້ສິນ.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait", // ✅ ต้องเป็น portrait
+        },
+      })
+      .from(printRef.current)
+      .save();
+  };
+  /* ================= STATES ================= */
+  if (loading) {
+    return <LedgerLoading />;
+  }
+
+  if (error) {
+    return (
+      <Box p={6}>
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
+  console.log(activeFilterLabel)
+  /* ================= UI ================= */
   return (
     <Box p={6}>
-      <Flex justify="space-between" mb={6}>
-        <Box>
-          <Text fontSize="xl" fontWeight="bold">ໃບຖານະການເງິນ – ຫນີ້ສິນ & ທຶນ</Text>
-          <Text fontSize="sm">ວັນທີ {format(new Date(endDate), "yyyy-MM-dd")}</Text>
-        </Box>
+      {/* ---------- HEADER ---------- */}
+      <Box mb={4}>
+        <Text
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="2xl"
+          fontWeight="bold"
+        >
+          ໃບລາຍງານຖານະ ໜີ້ສິນ
+        </Text>
+        <Text fontFamily="Noto Sans Lao, sans-serif" color="gray.600">
+          ໜີ້ສິນ & ທຶນ
+        </Text>
+      </Box>
+      {activeFilterLabel && <ActiveFilterBar label={activeFilterLabel} />}
+      <Divider mb={4} />
+      <Box display={"flex"} justifyContent={"flex-end"}>
+        <Button m="3" colorScheme="red" onClick={handleExportPDF}>
+          Export PDF
+        </Button>
+        <Button
+          onClick={() => {
+            exportBalanceSheetExcel({
+              current: current,
+              previous: previous,
+              currentYear: currentYear,
+              previousYear: previousYear,
+              comparable: comparable,
+              user: user,
+              period: period,
+              activeFilterLabel,
+              sectionTotals,
+              mode: mode,
+              dateText: "31/12/2025",
+            });
+          }}
+          m="3"
+          colorScheme="green"
+        >
+          Export Excel
+        </Button>
+      </Box>
+      {/* ---------- FILTER (ใช้ตัวเดียวกับ AssetsPage) ---------- */}
+      <ReportFilter
+        filter={filter}
+        setFilter={setFilter}
+        FILTER_MODE={FILTER_MODE}
+        search={search}
+        setSearch={setSearch}
+        yearOptions={yearOptions}
+        onApply={handleFetch}
+      />
+      <div style={{ display: "none" }}>
+        <StatementOfFinancialPrint
+          ref={printRef}
+          current={current}
+          previous={previous}
+          currentYear={currentYear}
+          previousYear={previousYear}
+          comparable={comparable}
+          user={user}
+          period={period}
+          mode={mode}
+          activeFilterLabel={activeFilterLabel}
+          dateText="31/12/2025"
+        />
+      </div>
+      {/* ---------- CONTENT ---------- */}
+      <Box bg="white" p={6} borderRadius="lg" shadow="sm">
+        {Object.keys(grouped).map(
+          (section) =>
+            section !== "Total" && (
+              <Box key={section} mb={8}>
+                <Flex justify="space-between" mb={2}>
+                  <Text
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontWeight="bold"
+                    fontSize="lg"
+                  >
+                    {section === "Current_Liabilities"
+                      ? "ໜີ້ສິນໝູນວຽນ I"
+                      : section === "Equity"
+                      ? "ທຶນ III"
+                      : "ໜີ້ສິນບໍ່ໝູນວຽນ II"}
+                  </Text>
+                  <Box>
+                    <Badge
+                      fontFamily="Noto Sans Lao, sans-serif"
+                      colorScheme="blue"
+                    >
+                      {" "}
+                      ສະກຸນເງິນ LAK
+                    </Badge>
+                  </Box>
+                </Flex>
 
-        <HStack spacing={3}>
-          <Select
-            value={preset}
-            onChange={(e) => {
-              setPreset(e.target.value);
-              setStartDate("");
-            }}
-            width="140px"
-          >
-            <option value="">ເລືອກວັນທີເອງ</option>
-            {PRESETS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </Select>
-
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setPreset("");
-              setStartDate(e.target.value);
-            }}
-          />
-
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-
-          <Button colorScheme="blue" onClick={handleFetch}>ສະແດງຜົນ</Button>
-        </HStack>
-      </Flex>
-
-      {/* TABLE */}
-      {loading ? (
-        <Flex justify="center" py={20}><Spinner size="xl" /></Flex>
-      ) : error ? (
-        <Box p={4} bg="red.100">{error}</Box>
-      ) : (
-        <Box bg="white" p={6} shadow="sm" borderRadius="md" overflowX="auto">
-          {["Current Liabilities", "Non-current Liabilities", "Equity"].map(
-            (section) => (
-              <Box key={section} mb={10}>
-                <Text fontWeight="bold" fontSize="lg" mb={2}>
-                  {section === "Current Liabilities" && "ໜີ້ສິນໝູນວຽນ"}
-                  {section === "Non-current Liabilities" && "ໜີ້ສິນບໍ່ໝູນວຽນ"}
-                  {section === "Equity" && "ທຶນຕົນເອງ"}
-                </Text>
+                <Divider mb={3} />
 
                 <Table size="sm">
-                  <Thead bg="gray.200">
+                  <Thead bg="gray.100">
                     <Tr>
-                      <Th>ລາຍການ</Th>
-                      <Th>ລະຫັດ</Th>
-                      <Th isNumeric>ປະຈຸບັນ</Th>
-                      <Th isNumeric>ປີກ່ອນ</Th>
+                      <Th fontFamily="Noto Sans Lao, sans-serif">ລາຍການ</Th>
+                      <Th fontFamily="Noto Sans Lao, sans-serif">
+                        ເລກໝາຍບັນຊີ
+                      </Th>
+                      <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                        {comparable ? currentYear : "Amount"}
+                      </Th>
+                      {comparable && (
+                        <>
+                          <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                            {previousYear}
+                          </Th>
+                          {/* <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                            ປ່ຽນແປງ +/-
+                          </Th> */}
+                        </>
+                      )}
                     </Tr>
                   </Thead>
 
                   <Tbody>
-                    {renderRows(section)}
+                    {grouped[section].map((r) => (
+                      <Tr key={r.key}>
+                        <Td fontFamily="Noto Sans Lao, sans-serif">
+                          {r.label}
+                        </Td>
+                        <Td
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          color="gray.500"
+                        >
+                          {r.pattern}
+                        </Td>
+                        <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                          {num(r.ending)}
+                        </Td>
 
-                    {/* TOTAL */}
-                    <Tr bg="gray.100" fontWeight="bold">
-                      <Td>
-                        {section === "Current Liabilities" && "ລວມ ( I )"}
-                        {section === "Non-current Liabilities" && "ລວມ ( II )"}
-                        {section === "Equity" && "ລວມ ( III )"}
-                      </Td>
-                      <Td></Td>
+                        {comparable && (
+                          <>
+                            <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              isNumeric
+                            >
+                              {num(r.prevEnding)}
+                            </Td>
+                            {/* <Td
+                              fontFamily="Noto Sans Lao, sans-serif"
+                              isNumeric
+                            >
+                              <DiffBadge value={r.diff} />
+                            </Td> */}
+                          </>
+                        )}
+                      </Tr>
+                    ))}
 
-                      <Td isNumeric>
-                        {num(data?.sections?.[section] || 0)}
+                    {/* SUBTOTAL */}
+                    <Tr bg="gray.50" fontWeight="bold">
+                      <Td fontFamily="Noto Sans Lao, sans-serif" colSpan={2}>
+                        ຍອດລວມ{" "}
+                        {section === "Current_Liabilities"
+                          ? "ໜີ້ສິນໝູນວຽນ I"
+                          : section === "Equity"
+                          ? "ທຶນ III"
+                          : "ໜີ້ສິນບໍ່ໝູນວຽນ II"}
                       </Td>
-
-                      <Td isNumeric>
-                        {num(data?.sections?.[section] || 0)}
+                      <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                        {num(sectionTotals[section].cur)}
                       </Td>
+                      {comparable && (
+                        <>
+                          <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                            {num(sectionTotals[section].prev)}
+                          </Td>
+                          {/* <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                            <DiffBadge
+                              value={
+                                sectionTotals[section].cur -
+                                sectionTotals[section].prev
+                              }
+                            />
+                          </Td> */}
+                        </>
+                      )}
                     </Tr>
                   </Tbody>
                 </Table>
               </Box>
             )
-          )}
-        </Box>
-      )}
+        )}
+
+        {/* ---------- GRAND TOTAL ---------- */}
+        <Divider my={6} />
+        <Flex justify="space-between" bg="blue.50" p={4} borderRadius="md">
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontWeight="bold"
+            fontSize="lg"
+          >
+            ລວມຍອດ ໜີ້ສິນ + ທຶນ (I + II + III )
+          </Text>
+          <HStack spacing={8}>
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
+              {comparable ? currentYear : "Total"}: {num(grandTotal.cur)}
+            </Text>
+
+            {comparable && (
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontWeight="bold"
+                color="gray.600"
+              >
+                {previousYear}: {num(grandTotal.prev)}
+              </Text>
+            )}
+          </HStack>
+        </Flex>
+      </Box>
     </Box>
   );
 };

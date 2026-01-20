@@ -6,7 +6,6 @@ const router = express.Router();
 router.post("/create-category", authenticate, async (req, res) => {
   try {
     const { name, type, description } = req.body;
-
     // 🛑 1) Validate only letters + numbers + spaces
     const nameRegex = /^[\u0E80-\u0EFFA-Za-z ]+$/;
 
@@ -63,6 +62,7 @@ router.post("/create-category", authenticate, async (req, res) => {
       category,
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Server error" });
   }
 });

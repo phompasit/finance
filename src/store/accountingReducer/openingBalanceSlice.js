@@ -6,13 +6,10 @@ export const loadOpeningBalance = createAsyncThunk(
   "openingBalance/load",
   async (year, { rejectWithValue }) => {
     try {
-      const { data } = await api.get(`/api/opening-balance/${year}`, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+      const { data } = await api.get(`/api/opening-balance`, {
+        params: { year },
       });
-      return data.list;
+      return data
     } catch (err) {
       return rejectWithValue(err.response?.data?.error);
     }
@@ -24,12 +21,7 @@ export const createOpening = createAsyncThunk(
   "openingBalance/create",
   async (formData, { rejectWithValue }) => {
     try {
-      const { data } = await api.post(`/api/opening-balance`, formData, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.post(`/api/opening-balance`, formData);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error);
@@ -42,12 +34,7 @@ export const updateOpening = createAsyncThunk(
   "openingBalance/update",
   async ({ id, formData }, { rejectWithValue }) => {
     try {
-      const { data } = await api.patch(`/api/opening-balance/${id}`, formData, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const { data } = await api.patch(`/api/opening-balance/${id}`, formData);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error);
@@ -60,12 +47,7 @@ export const deleteOpening = createAsyncThunk(
   "openingBalance/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/api/opening-balance/${id}`, {
-        withCredentials: true,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      await api.delete(`/api/opening-balance/${id}`);
       return id;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error);
@@ -77,6 +59,7 @@ const slice = createSlice({
   name: "openingBalance",
   initialState: {
     list: [],
+    meta: null,
     loader: false,
     success: "",
     error: "",
@@ -91,10 +74,13 @@ const slice = createSlice({
 
   extraReducers: (builder) => {
     builder
-      .addCase(loadOpeningBalance.pending, (s) => { s.loader = true; })
+      .addCase(loadOpeningBalance.pending, (s) => {
+        s.loader = true;
+      })
       .addCase(loadOpeningBalance.fulfilled, (s, a) => {
         s.loader = false;
-        s.list = a.payload;
+        s.list = a.payload.list
+        s.meta = a.payload.meta;
       })
       .addCase(loadOpeningBalance.rejected, (s, a) => {
         s.loader = false;

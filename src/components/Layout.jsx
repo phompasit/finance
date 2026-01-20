@@ -5,434 +5,292 @@ import { useAuth } from "../context/AuthContext";
 import {
   Box,
   Flex,
-  HStack,
-  Button,
-  Text,
-  Container,
-  Avatar,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
-  Icon,
-  Badge,
-  useColorModeValue,
-  IconButton,
-  Drawer,
-  DrawerBody,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
-  useDisclosure,
   VStack,
+  HStack,
+  Text,
+  IconButton,
+  Button,
   Divider,
+  Avatar,
+  Badge,
+  useColorMode,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import {
   FiHome,
   FiDollarSign,
   FiFileText,
-  FiCreditCard,
-  FiBarChart2,
   FiUsers,
   FiLogOut,
+  FiMoon,
+  FiSun,
   FiMenu,
-  FiChevronDown,
+  FiBook,
+  FiLayers,
+  FiTrendingUp,
 } from "react-icons/fi";
-import PWAInstallBanner from "./PWAInstallBanner";
+import React from "react";
+
+/* ===================== MENU CONFIG ===================== */
+
+const MAIN_MENU = [
+  {
+    label: "ໜ້າຫຼັກ",
+    path: "/dashboard",
+    icon: FiHome,
+    roles: ["admin", "master"],
+  },
+  {
+    label: "ຈັດການລາຍຮັບ-ລາຍຈ່າຍ",
+    path: "/income-expense",
+    icon: FiDollarSign,
+    roles: ["admin", "master"],
+  },
+  {
+    label: "ຈັດການລາຍຈ່າຍລ່ວງໜ້າ",
+    path: "/prepaid",
+    icon: FiDollarSign,
+    roles: ["admin", "master"],
+  },
+  {
+    label: "ອອກໃບສັ່ງຊື້",
+    path: "/opo",
+    icon: FiFileText,
+    roles: ["admin", "master"],
+  },
+  {
+    label: "ຈັດການໜີ້ສິນ",
+    path: "/debt",
+    icon: FiFileText,
+    roles: ["admin", "master"],
+  },
+  {
+    label: "ຈັດການອື່ນໆ",
+    path: "/partner",
+    icon: FiFileText,
+    roles: ["admin", "master"],
+  },
+  {
+    label: "ຈັດການຜູ້ໃຊ້ງານ",
+    path: "/users",
+    icon: FiUsers,
+    roles: ["admin"],
+  },
+];
+
+const ACCOUNTING_MENU = [
+  {
+    section: "ສະມຸດບັນຊີ",
+    items: [
+      { label: "ໃບດຸ່ນດຽງທົ່ວໄປ", path: "/balance-sheet", icon: FiBook },
+      {
+        label: "ໃບດຸ່ນດ່ຽງຫລັງສ້າງຜົນດຳເນີນງານ",
+        path: "/balance-sheet-before",
+        icon: FiBook,
+      },
+      {
+        label: "ໃບສັງລວມລາຍຮັບ-ລາຍຈ່າຍ",
+        path: "/income-expense-balance-sheet",
+        icon: FiBook,
+      },
+      {
+        label: "ຊັບສິນ",
+        path: "/fixed-assets",
+        icon: FiBook,
+      },
+    ],
+  },
+  {
+    section: "ງົບການເງິນ",
+    items: [
+      { label: "ໃບລາຍງານໜີ້ສິນ", path: "/statement", icon: FiBook },
+      {
+        label: "ໃບລາຍງານຊັບສິນ",
+        path: "/assets",
+        icon: FiBook,
+      },
+      {
+        label: "ໃບລາຍງານຜົນດຳເນີນງານ",
+        path: "/income-statement",
+        icon: FiTrendingUp,
+      },
+    ],
+  },
+  {
+    section: "ລະບົບບັນຊີ",
+    items: [
+      { label: "ຜັງບັນຊີ", path: "/chart-account", icon: FiLayers },
+      { label: "ຍອດຍົກມາ", path: "/opening-balance", icon: FiTrendingUp },
+      { label: "ປື້ມບັນຊີປະຈຳວັນ", path: "/journal", icon: FiBook },
+      { label: "ປື້ມຕິດຕາມ", path: "/ledger", icon: FiBook },
+      { label: "ປິດບັນຊີ", path: "/closing_account", icon: FiBook },
+    ],
+  },
+];
+
+/* ===================== COMPONENT ===================== */
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { colorMode, toggleColorMode } = useColorMode();
 
-  const bgColor = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
-  const hoverBg = useColorModeValue("blue.50", "gray.700");
+  const bg = useColorModeValue("gray.50", "gray.900");
+  const sidebarBg = useColorModeValue("white", "gray.800");
   const activeBg = useColorModeValue("blue.100", "blue.900");
-  const activeColor = useColorModeValue("blue.600", "blue.200");
+
+  const [collapsed, setCollapsed] = React.useState(
+    localStorage.getItem("sidebar") === "collapsed"
+  );
+
+  const toggleSidebar = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("sidebar", next ? "collapsed" : "open");
+  };
+
+  const isActive = (path) => location.pathname.startsWith(path);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
-  const navItems = [
-    {
-      name: "ໜ້າຫຼັກ",
-      path: "/dashboard",
-      icon: FiHome,
-      show: user?.role === "admin" || user.role == "master",
-    },
-    {
-      name: "ລາຍຮັບ-ລາຍຈ່າຍ",
-      path: "/income-expense",
-      icon: FiDollarSign,
-      // admin และ staff
-      show:
-        user?.role === "admin" ||
-        user?.role === "staff" ||
-        user.role == "master",
-    },
-    {
-      name: "ລາຍຈ່າຍຈ່າຍລ່ວງໜ້າ",
-      path: "/prepaid",
-      icon: FiDollarSign,
-      // admin และ staff
-      show: user?.role === "admin" || user.role == "master",
-    },
-    {
-      name: "OPO",
-      path: "/opo",
-      icon: FiFileText,
-      // admin และ staff
-      show:
-        user?.role === "admin" ||
-        user?.role === "staff" ||
-        user.role == "master",
-    },
-    {
-      name: "ໜີ້ສິນ",
-      path: "/debt",
-      icon: FiCreditCard,
-      show: user?.role === "admin" || user.role == "master",
-    },
-    {
-      name: "ລາຍງານ",
-      path: "/reports",
-      icon: FiBarChart2,
-      show: user?.role === "admin" || user.role == "master",
-    },
-    {
-      name: "ລູກໜີ້/ຜູ້ສະໜອງ",
-      path: "/partner",
-      icon: FiBarChart2,
-      show: user?.role === "admin" || user.role == "master",
-    },
-    {
-      name: "ຜູ້ໃຊ້ງານ",
-      path: "/users",
-      icon: FiUsers,
-      show: user?.role === "admin",
-    },
-  ];
-
-  const isActive = (path) => location.pathname === path;
-
-  const getRoleBadgeColor = (role) => {
-    switch (role) {
-      case "admin":
-        return "red";
-      case "manager":
-        return "purple";
-      default:
-        return "blue";
-    }
-  };
-
-  const getRoleText = (role) => {
-    switch (role) {
-      case "isSuperAdmin":
-        return "ຜູ້ດູແລລະບົບ";
-      case "admin":
-        return "ຜູ້ດູແລລະບົບ";
-      case "staff":
-        return "ພະນັກງານ";
-      case "master":
-        return "master";
-      default:
-        return "ຜູ້ໃຊ້ງານ";
-    }
-  };
 
   return (
-    <Box minH="100vh" bg={useColorModeValue("gray.50", "gray.900")}>
-      {/* Navigation Bar */}
+    <Flex minH="100vh" bg={bg}>
+      {/* ================= SIDEBAR ================= */}
       <Box
-        as="nav"
-        bg={bgColor}
-        borderBottom="1px"
-        borderColor={borderColor}
-        px={4}
-        position="sticky"
-        top={0}
-        zIndex={1000}
-        boxShadow="sm"
+        w={collapsed ? "80px" : "280px"}
+        bg={sidebarBg}
+        borderRight="1px solid"
+        borderColor="gray.200"
+        transition="0.25s"
       >
-        <PWAInstallBanner />
-        <Container maxW="7xl">
-          <Flex h={16} alignItems="center" justifyContent="space-between">
-            {/* Logo & Title */}
-            <Flex alignItems="center" gap={3}>
-              <IconButton
-                display={{ base: "flex", md: "none" }}
-                onClick={onOpen}
-                icon={<FiMenu />}
-                variant="ghost"
-                aria-label="Open menu"
-              />
-              <Flex alignItems="center" gap={2}>
-                <Box
-                  bg="gradient-to-r from-blue-500 to-purple-600"
-                  p={2}
-                  borderRadius="lg"
-                >
-                  <Icon as={FiDollarSign} color="white" boxSize={5} />
-                </Box>
-                <Text
-                  fontSize="xl"
-                  fontWeight="bold"
-                  bgGradient="linear(to-r, blue.500, purple.600)"
-                  bgClip="text"
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                >
-                  ລະບົບຈັດການການເງິນ
-                </Text>
-              </Flex>
-            </Flex>
+        {/* Logo */}
+        <Flex p={4} align="center" justify="space-between">
+          {!collapsed && (
+            <Text fontWeight="bold" fontSize="lg">
+              TECH FINANCIAL
+            </Text>
+          )}
+          <IconButton icon={<FiMenu />} size="sm" onClick={toggleSidebar} />
+        </Flex>
 
-            {/* Desktop Navigation */}
-            <HStack
-              spacing={1}
-              display={{ base: "none", md: "flex" }}
-              flex={1}
-              justify="center"
+        {/* ===== MAIN MENU ===== */}
+        <VStack align="stretch" spacing={1} px={2}>
+          {MAIN_MENU.filter((m) => m.roles.includes(user?.role)).map((item) => (
+            <Button
+              fontFamily="Noto Sans Lao, sans-serif"
+              key={item.path}
+              as={Link}
+              to={item.path}
+              justifyContent={collapsed ? "center" : "flex-start"}
+              leftIcon={<item.icon />}
+              variant="ghost"
+              bg={isActive(item.path) ? activeBg : "transparent"}
             >
-              {navItems.map(
-                (item) =>
-                  item.show && (
+              {!collapsed && item.label}
+            </Button>
+          ))}
+        </VStack>
+
+        {/* ===== ACCOUNTING MENU ===== */}
+        {(user?.role === "admin" || user?.role === "master") && (
+          <>
+            <Divider my={4} />
+            {!collapsed && (
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                px={4}
+                fontSize="sm"
+                color="gray.500"
+              >
+                Accounting
+              </Text>
+            )}
+            <VStack align="stretch" spacing={3} px={2} mt={2}>
+              {ACCOUNTING_MENU.map((group) => (
+                <Box key={group.section}>
+                  {!collapsed && (
+                    <Text
+                      px={3}
+                      py={1}
+                      fontSize="xs"
+                      fontWeight="bold"
+                      color="gray.500"
+                      fontFamily="Noto Sans Lao, sans-serif"
+                    >
+                      {group.section}
+                    </Text>
+                  )}
+
+                  {group.items.map((item) => (
                     <Button
-                      fontFamily={"Noto Sans Lao, sans-serif"}
+                      fontFamily="Noto Sans Lao, sans-serif"
                       key={item.path}
                       as={Link}
                       to={item.path}
-                      leftIcon={<Icon as={item.icon} />}
-                      variant={isActive(item.path) ? "solid" : "ghost"}
-                      colorScheme={isActive(item.path) ? "blue" : "gray"}
+                      justifyContent={collapsed ? "center" : "flex-start"}
+                      leftIcon={<item.icon />}
+                      variant="ghost"
                       bg={isActive(item.path) ? activeBg : "transparent"}
-                      color={isActive(item.path) ? activeColor : "gray.600"}
-                      _hover={{
-                        bg: isActive(item.path) ? activeBg : hoverBg,
-                      }}
-                      size="sm"
-                      fontWeight="medium"
                     >
-                      {item.name}
+                      {!collapsed && item.label}
                     </Button>
-                  )
-              )}
-            </HStack>
-
-            {/* User Menu */}
-            <Menu>
-              <MenuButton
-                as={Button}
-                fontFamily={"Noto Sans Lao, sans-serif"}
-                rightIcon={<FiChevronDown />}
-                leftIcon={
-                  <Avatar
-                    size="sm"
-                    name={user?.username}
-                    bg="blue.500"
-                    color="white"
-                  />
-                }
-                variant="ghost"
-                _hover={{ bg: hoverBg }}
-              >
-                <VStack
-                  spacing={0}
-                  align="start"
-                  display={{ base: "none", md: "flex" }}
-                >
-                  <Text
-                    fontFamily={"Noto Sans Lao, sans-serif"}
-                    fontSize="sm"
-                    fontWeight="medium"
-                  >
-                    {user?.username}
-                  </Text>
-                  <Badge
-                    fontFamily={"Noto Sans Lao, sans-serif"}
-                    colorScheme={getRoleBadgeColor(user?.role)}
-                    fontSize="xs"
-                  >
-                    {getRoleText(user?.role)}
-                  </Badge>
-                </VStack>
-              </MenuButton>
-              <MenuList>
-                <MenuItem>
-                  <VStack align="start" spacing={0}>
-                    <Text
-                      fontFamily={"Noto Sans Lao, sans-serif"}
-                      fontWeight="medium"
-                    >
-                      {user?.companyId?.name}
-                    </Text>
-                    <Badge
-                      fontFamily={"Noto Sans Lao, sans-serif"}
-                      colorScheme={getRoleBadgeColor(user?.role)}
-                      fontSize="xs"
-                    >
-                      {getRoleText(user?.role)}
-                    </Badge>
-                  </VStack>
-                </MenuItem>
-                <MenuDivider />
-                {/* <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/chartAccount")}
-                  color="blue"
-                >
-                  ຜັງບັນຊີ
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/openingBalance")}
-                  color="blue"
-                >
-                  ຍອດຍົກມາ
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/journal")}
-                  color="blue"
-                >
-                  ປື້ມບັນຊີປະຈຳວັນ
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/balanceSheet")}
-                  color="blue"
-                >
-                  Balance Sheet
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/leger")}
-                  color="blue"
-                >
-                  ປື້ມບັນຊີໃຫ່ຍແຍກປະເພດ
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/statement")}
-                  color="blue"
-                >
-                  ໃບລາຍງານຖານະການເງິນ-ໜີ້ສິນ & ທຶນ
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/statement-assets")}
-                  color="blue"
-                >
-                  ໃບລາຍງານຖານະການເງິນ-ຊັບສິນ
-                </MenuItem>
-                <MenuItem
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  icon={<FiLogOut />}
-                  onClick={() => navigate("/income-statement")}
-                  color="blue"
-                >
-                  ໃບລາຍງານຜົນດຳເນີນງານ
-                </MenuItem> */}
-
-                <MenuItem
-                  fontFamily="Noto Sans Lao, sans-serif"
-                  icon={<FiLogOut />}
-                  onClick={handleLogout}
-                  color="red.500"
-                >
-                  ອອກຈາກລະບົບ
-                </MenuItem>
-              </MenuList>
-            </Menu>
-          </Flex>
-        </Container>
+                  ))}
+                </Box>
+              ))}
+            </VStack>
+          </>
+        )}
       </Box>
 
-      {/* Mobile Drawer */}
-      <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader borderBottomWidth="1px">
-            <Flex alignItems="center" gap={2}>
-              <Box
-                bg="gradient-to-r from-blue-500 to-purple-600"
-                p={2}
-                borderRadius="lg"
-              >
-                <Icon
-                  fontFamily={"Noto Sans Lao, sans-serif"}
-                  as={FiDollarSign}
-                  color="white"
-                  boxSize={5}
-                />
-              </Box>
-              <Text
-                fontSize="lg"
-                fontWeight="bold"
-                bgGradient="linear(to-r, blue.500, purple.600)"
-                bgClip="text"
-                fontFamily={"Noto Sans Lao, sans-serif"}
-              >
-                ເມນູ
+      {/* ================= CONTENT ================= */}
+      <Flex flex="1" direction="column">
+        {/* TOPBAR */}
+        <Flex
+          h="64px"
+          px={6}
+          align="center"
+          justify="space-between"
+          borderBottom="1px solid"
+          borderColor="gray.200"
+          bg={sidebarBg}
+        >
+          <HStack>
+            <IconButton
+              icon={colorMode === "light" ? <FiMoon /> : <FiSun />}
+              onClick={toggleColorMode}
+              variant="ghost"
+            />
+          </HStack>
+
+          <HStack>
+            <Avatar size="sm" name={user?.username} />
+            <VStack spacing={0} align="start">
+              <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="sm">
+                {user?.username}
               </Text>
-            </Flex>
-          </DrawerHeader>
-
-          <DrawerBody>
-            <VStack spacing={2} align="stretch" mt={4}>
-              {navItems.map(
-                (item) =>
-                  item.show && (
-                    <Button
-                      fontFamily={"Noto Sans Lao, sans-serif"}
-                      key={item.path}
-                      as={Link}
-                      to={item.path}
-                      leftIcon={<Icon as={item.icon} />}
-                      variant={isActive(item.path) ? "solid" : "ghost"}
-                      colorScheme={isActive(item.path) ? "blue" : "gray"}
-                      justifyContent="flex-start"
-                      onClick={onClose}
-                      bg={isActive(item.path) ? activeBg : "transparent"}
-                      color={isActive(item.path) ? activeColor : "gray.600"}
-                    >
-                      {user?.companyId?.name}
-                    </Button>
-                  )
-              )}
-              <Divider my={4} />
-              <Button
-                leftIcon={<FiLogOut />}
-                colorScheme="red"
-                fontFamily={"Noto Sans Lao, sans-serif"}
-                variant="ghost"
-                justifyContent="flex-start"
-                onClick={handleLogout}
-              >
-                ອອກຈາກລະບົບ
-              </Button>
+              <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
+                {user?.role}
+              </Badge>
             </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+            <IconButton
+              fontFamily="Noto Sans Lao, sans-serif"
+              icon={<FiLogOut />}
+              variant="ghost"
+              colorScheme="red"
+              onClick={handleLogout}
+            />
+          </HStack>
+        </Flex>
 
-      {/* Main Content */}
-      <Container maxW="7xl" py={6}>
-        <Outlet />
-      </Container>
-    </Box>
+        {/* PAGE CONTENT */}
+        <Box p={6}>
+          <Outlet />
+        </Box>
+      </Flex>
+    </Flex>
   );
 }

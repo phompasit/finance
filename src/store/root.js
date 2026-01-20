@@ -10,7 +10,8 @@ import balanceReducer from "./accountingReducer/balanceSlice";
 import generalLegerReducer from "./accountingReducer/generalLedgerSlice";
 import reportsReducer from "./accountingReducer/reportsSlice";
 import assetsReducer from "./accountingReducer/assetsSlice";
-import incomeReducer from "./accountingReducer/incomeSlice"
+import incomeReducer from "./accountingReducer/incomeSlice";
+import fixedAssetReducer from "./accountingReducer/fixedAssetSlice.js";
 const rootReducer = combineReducers({
   incomeExpense: incomeExpenseReducer,
   partner: partnerReducer,
@@ -23,6 +24,7 @@ const rootReducer = combineReducers({
   ledger: generalLegerReducer,
   reports: reportsReducer,
   assets: assetsReducer,
-  income:incomeReducer
+  income: incomeReducer,
+  fixedAsset: fixedAssetReducer,
 });
 export default rootReducer;

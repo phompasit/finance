@@ -18,6 +18,7 @@ import {
   useToast,
   Select,
   HStack,
+  SimpleGrid,
 } from "@chakra-ui/react";
 import {
   Plus,
@@ -40,27 +41,75 @@ import {
 import { getAccounts } from "../../store/accountingReducer/chartAccounting"; // adjust if your path differs
 import JournalModal from "./JournalModal";
 import { useNavigate } from "react-router-dom";
+import {
+  formatDate,
+  shortDesc,
+} from "../../components/Income_Expense/formatter";
+import JournalFilterModal from "./JournalFilterModal";
+import JournalPrintModal from "./JournalPrintModal";
+import pdfJournal from "../PDF/pdf";
+import { useAuth } from "../../context/AuthContext";
+import journalPdfTemplate from "./journalPdfTemplate";
+import LedgerLoading from "../../components/Loading";
 
 const PAGE_SIZES = [10, 25, 50];
 
 const JournalEntryPage = () => {
   const dispatch = useDispatch();
   const toast = useToast();
-
-  const { journals = [], loader, success, error, pagination } = useSelector(
-    (s) => s.journal || {}
-  );
+  const { user } = useAuth();
+  const {
+    journals = [],
+    loader,
+    success,
+    error,
+    pagination,
+    activeYear,
+  } = useSelector((s) => s.journal || {});
   const navigate = useNavigate();
+
+  const [selectedMonth, setSelectedMonth] = useState(null); // 1-12
+
+  // year ที่กำลังดู
+  const [selectedYear, setSelectedYear] = useState(null);
+  const displayYear = useMemo(
+    () => selectedYear || activeYear || new Date().getFullYear(),
+    [selectedYear, activeYear]
+  );
+  const isReadOnlyYear = selectedYear && selectedYear !== activeYear;
+  ////
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return [
+      current + 1, // ปีหน้า
+      current,
+      ...Array.from({ length: 6 }, (_, i) => current - (i + 1)),
+    ];
+  }, []);
+
+  const getMonthRange = (year, month) => {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0); // วันสุดท้ายของเดือน
+
+    return {
+      startDate: startDate.toISOString().slice(0, 10),
+      endDate: endDate.toISOString().slice(0, 10),
+    };
+  };
+
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [openId, setOpenId] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [filterCurrency, setFilterCurrency] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [editingId, setEditingId] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  const [filters, setFilters] = useState({
+    search: "",
+    startDate: "",
+    endDate: "",
+    currency: "",
+    status: "",
+  });
   useEffect(() => {
     dispatch(getJournals());
   }, [dispatch]);
@@ -75,30 +124,7 @@ const JournalEntryPage = () => {
       dispatch(clearMessage());
     }
   }, [success, error]);
-
-  const filtered = useMemo(() => {
-    let list = [...journals];
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((j) =>
-        `${j.description || ""} ${j.reference || ""}`.toLowerCase().includes(q)
-      );
-    }
-    if (filterCurrency) {
-      list = list.filter((j) =>
-        (j.lines || []).some((ln) => ln.currency === filterCurrency)
-      );
-    }
-    if (filterStatus) {
-      list = list.filter((j) => (j.status || "draft") === filterStatus);
-    }
-    return list;
-  }, [journals, search, filterCurrency, filterStatus]);
-
   // pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
-
   const handleDelete = async (id) => {
     try {
       await dispatch(deleteJournal(id)).unwrap();
@@ -109,95 +135,235 @@ const JournalEntryPage = () => {
     }
   };
 
-  const currencySummary = (j) => {
-    const counts = {};
-    (j.lines || []).forEach((ln) => {
-      counts[ln.currency] = (counts[ln.currency] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .map(([c, n]) => `${n} ${c}`)
-      .join(", ");
+  const handleSelectMonth = (month) => {
+    if (selectedMonth === month) {
+      setSelectedMonth(null);
+      setFilters((prev) => ({ ...prev, startDate: "", endDate: "" }));
+
+      dispatch(
+        getJournals({
+          ...filters,
+          year: displayYear,
+          month: month,
+          startDate: "",
+          endDate: "",
+          page: 1,
+          limit: pageSize,
+        })
+      );
+      return;
+    }
+    // ✅ ใช้ displayYear แทน currentYear
+    const { startDate, endDate } = getMonthRange(displayYear, month);
+
+    setSelectedMonth(month);
+    const newFilter = {
+      ...filters,
+      startDate,
+      endDate,
+      year: displayYear,
+      month: month,
+    };
+
+    setFilters(newFilter);
+    setPage(1);
+
+    dispatch(
+      getJournals({
+        ...newFilter,
+        page: 1,
+        year: displayYear,
+        month: month,
+        limit: pageSize,
+      })
+    );
   };
-console.log("j.lines",pageData)
+
+  const handleApplyFilter = (newFilter) => {
+    setFilters(newFilter);
+    setPage(1);
+
+    dispatch(
+      getJournals({
+        ...newFilter,
+        page: 1,
+        limit: pageSize,
+      })
+    );
+  };
+  if (loader) {
+    return <LedgerLoading />;
+  }
   return (
     <Box p={6}>
-      <Flex justify="space-between" align="center" mb={6}>
+      {/* ================= HEADER ================= */}
+      <Flex
+        justify="space-between"
+        align="flex-start"
+        mb={6}
+        wrap="wrap"
+        gap={4}
+      >
         <Box>
-          <Text fontSize="2xl" fontWeight="bold">
-            Journal Entries
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="2xl"
+            fontWeight="bold"
+          >
+            ປື້ມບັນຊີປະຈຳວັນ
           </Text>
-          <Text color="gray.500">Create, edit and review journal entries</Text>
+
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.500"
+          >
+            ຈັດການບັນຊີຢ່າງເປັນລະບຽບ ແລະ ທັນສະໄໝ
+          </Text>
         </Box>
 
         <HStack spacing={3}>
-          <Button colorScheme="green" onClick={() => setPrintModalOpen(true)}>
-            Print Journals
+          <Button
+            fontFamily="Noto Sans Lao, sans-serif"
+            variant="outline"
+            colorScheme="gray"
+            onClick={() => setIsFilterOpen(true)}
+          >
+            ຄົ້ນຫາ
           </Button>
+
+          <Button
+            colorScheme="green"
+            onClick={() => journalPdfTemplate({ data: journals, user })}
+          >
+            Print
+          </Button>
+
           <Button
             leftIcon={<Plus size={16} />}
             colorScheme="blue"
-            onClick={() => {
-              setEditingId(null);
-              setModalOpen(true);
-            }}
+            isDisabled={isReadOnlyYear}
+            fontFamily="Noto Sans Lao, sans-serif"
+            onClick={() => navigate("/journal_add&edit")}
           >
-            Create Journal
+            ເພີ່ມບັນຊີ
           </Button>
         </HStack>
       </Flex>
 
-      <Flex gap={3} mb={4}>
-        <Input
-          placeholder="Search description or reference..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-        <Select
-          placeholder="Filter by currency"
-          value={filterCurrency}
-          onChange={(e) => {
-            setFilterCurrency(e.target.value);
-            setPage(1);
-          }}
-          width="180px"
+      {/* ================= YEAR SELECT ================= */}
+      <Box
+        bg="white"
+        p={4}
+        mb={4}
+        borderRadius="md"
+        border="1px solid"
+        borderColor="gray.200"
+      >
+        <Flex align="center" gap={4} wrap="wrap">
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.600"
+          >
+            ເລືອກປີ:
+          </Text>
+
+          <Select
+            w="140px"
+            value={selectedYear || activeYear}
+            size="sm"
+            onChange={(e) => {
+              const y = Number(e.target.value);
+              setSelectedYear(y);
+              setSelectedMonth(null);
+
+              dispatch(
+                getJournals({
+                  ...filters,
+                  year: y,
+                  startDate: `${y}-01-01`,
+                  endDate: `${y}-12-31`,
+                  page: 1,
+                  limit: pageSize,
+                })
+              );
+            }}
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </Select>
+
+          <HStack mb={2}>
+            <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
+              ໃຊ້ງານໃນປີ: {displayYear}
+            </Badge>
+            {selectedYear && selectedYear !== activeYear && (
+              <Badge
+                fontFamily="Noto Sans Lao, sans-serif"
+                colorScheme="orange"
+              >
+                ຂໍ້ມູນຍ້ອນຫຼັງ
+              </Badge>
+            )}
+          </HStack>
+        </Flex>
+      </Box>
+
+      {/* ================= MONTH SELECT ================= */}
+      <Box
+        bg="white"
+        p={4}
+        borderRadius="md"
+        border="1px solid"
+        borderColor="gray.200"
+      >
+        <Text
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="sm"
+          color="gray.600"
+          mb={3}
         >
-          <option value="LAK">LAK</option>
-          <option value="USD">USD</option>
-          <option value="THB">THB</option>
-          <option value="CNY">CNY</option>
-        </Select>
-        <Select
-          placeholder="Filter by status"
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            setPage(1);
-          }}
-          width="140px"
-        >
-          <option value="draft">draft</option>
-          <option value="posted">posted</option>
-        </Select>
-      </Flex>
+          ເລືອກເດືອນ:
+        </Text>
+
+        <SimpleGrid columns={[4, 6, 12]} spacing={2}>
+          {Array.from({ length: 12 }, (_, i) => {
+            const month = i + 1;
+            return (
+              <Button
+                key={month}
+                size="sm"
+                variant={selectedMonth === month ? "solid" : "outline"}
+                colorScheme={selectedMonth === month ? "blue" : "gray"}
+                onClick={() => handleSelectMonth(month)}
+              >
+                {month}
+              </Button>
+            );
+          })}
+        </SimpleGrid>
+      </Box>
 
       <Table variant="simple" bg="white" borderRadius="md" overflow="hidden">
         <Thead bg="gray.50">
           <Tr>
             <Th />
-            <Th>Date</Th>
-            <Th>Description</Th>
-            <Th>Debit (LAK)</Th>
-            <Th>Credit (LAK)</Th>
-            <Th>Currency Summary</Th>
-            <Th>Status</Th>
-            <Th>Actions</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ວັນທີ/ເດືອນ/ປີ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ຄຳອະທິບາຍ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງໜີ້ (LAK)</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງມີ (LAK)</Th>
+
+            <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
+            <Th fontFamily="Noto Sans Lao, sans-serif">ກະທຳ</Th>
           </Tr>
         </Thead>
         <Tbody>
-          {pageData.map((j) => {
+          {journals?.map((j, index) => {
             const isOpen = openId === j._id;
             const totalDebit =
               j.totalDebitLAK ||
@@ -214,6 +380,7 @@ console.log("j.lines",pageData)
             return (
               <React.Fragment key={j._id}>
                 <Tr>
+                  <Td>{index + 1}</Td>
                   <Td>
                     <IconButton
                       aria-label="toggle"
@@ -228,18 +395,17 @@ console.log("j.lines",pageData)
                       onClick={() => setOpenId(isOpen ? null : j._id)}
                     />
                   </Td>
-                  <Td>{j.date ? j.date.slice(0, 10) : ""}</Td>
+                  <Td>{formatDate(j.date ? j.date.slice(0, 10) : "")}</Td>
                   <Td>
-                    <Text fontWeight="semibold">{j.description}</Text>
+                    <Text fontWeight="semibold">
+                      {shortDesc(j.description)}
+                    </Text>
                     <Text fontSize="sm" color="gray.500">
                       {j?.reference}
                     </Text>
                   </Td>
                   <Td>{Number(totalDebit)?.toLocaleString()}</Td>
                   <Td>{Number(totalCredit)?.toLocaleString()}</Td>
-                  <Td>
-                    <Badge colorScheme="gray">{currencySummary(j)}</Badge>
-                  </Td>
                   <Td>
                     <Badge
                       colorScheme={j.status === "posted" ? "green" : "orange"}
@@ -252,10 +418,15 @@ console.log("j.lines",pageData)
                       <IconButton
                         aria-label="edit"
                         icon={<Edit size={14} />}
+                        isDisabled={isReadOnlyYear}
                         size="sm"
                         onClick={() => {
-                          setEditingId(j._id);
-                          setModalOpen(true);
+                          navigate("/journal_add&edit", {
+                            state: {
+                              editingId: j._id,
+                              isReadOnlyYear,
+                            },
+                          });
                         }}
                       />
                       <IconButton
@@ -269,6 +440,7 @@ console.log("j.lines",pageData)
                       <IconButton
                         aria-label="delete"
                         icon={<Trash2 size={14} />}
+                        isDisabled={isReadOnlyYear}
                         size="sm"
                         colorScheme="red"
                         onClick={() => handleDelete(j._id)}
@@ -284,27 +456,53 @@ console.log("j.lines",pageData)
                         <Table size="sm" variant="simple">
                           <Thead>
                             <Tr>
-                              <Th>Account</Th>
-                              <Th>Original</Th>
-                              <Th>Currency</Th>
-                              <Th>Rate</Th>
-                              <Th isNumeric>Amount (LAK)</Th>
-                              <Th>DR (LAK)</Th>
-                              <Th>CR (LAK)</Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ເລກໝາຍບັນຊີ
+                              </Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ມູນຄ່າເດິມ (ເບື້ອງໜີ້)
+                              </Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ມູນຄ່າເດິມ (ເບື້ອງມີ)
+                              </Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ສະກຸນເງິນ
+                              </Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ອັດຕາແລກປ່ຽນ
+                              </Th>
+                              <Th
+                                fontFamily="Noto Sans Lao, sans-serif"
+                                isNumeric
+                              >
+                                ຈຳນວນເງິນ (LAK)
+                              </Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ເບື້ອງໜີ້ (LAK)
+                              </Th>
+                              <Th fontFamily="Noto Sans Lao, sans-serif">
+                                ເບື້ອງມີ (LAK)
+                              </Th>
                             </Tr>
                           </Thead>
                           <Tbody>
                             {(j.lines || []).map((ln, idx) => (
                               <Tr key={idx}>
-                                <Td>
+                                <Td fontFamily="Noto Sans Lao, sans-serif">
                                   {ln.accountId?.code || ln.accountId} -{" "}
                                   {ln.accountId?.name || ""}
                                 </Td>
-                                <Td>
-                                  {Number(
-                                    ln.amountOriginal || 0
-                                  ).toLocaleString()}
+                                <Td isNumeric>
+                                  {ln.side === "dr"
+                                    ? Number(ln.debitOriginal).toLocaleString()
+                                    : "-"}
                                 </Td>
+                                <Td isNumeric>
+                                  {ln.side === "cr"
+                                    ? Number(ln.creditOriginal).toLocaleString()
+                                    : "-"}
+                                </Td>
+
                                 <Td>{ln.currency}</Td>
                                 <Td>
                                   {Number(
@@ -345,7 +543,7 @@ console.log("j.lines",pageData)
       <Flex justify="space-between" align="center" mt={4}>
         <Box>
           <Text>
-            Page {page} / {totalPages}
+            Page {page} / {pagination?.totalPages}
           </Text>
         </Box>
 
@@ -370,18 +568,26 @@ console.log("j.lines",pageData)
             Prev
           </Button>
           <Button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
+            onClick={() =>
+              setPage((p) => Math.min(pagination.totalPages, p + 1))
+            }
+            disabled={page === pagination.totalPages}
           >
             Next
           </Button>
         </HStack>
       </Flex>
-
-      <JournalModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        editingId={editingId}
+      <JournalPrintModal
+        isOpen={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        journals={journals}
+        filters={filters}
+      />
+      <JournalFilterModal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        onApply={handleApplyFilter}
+        initialFilter={filters}
       />
     </Box>
   );

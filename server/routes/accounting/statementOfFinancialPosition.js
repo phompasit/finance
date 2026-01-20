@@ -1,5 +1,5 @@
 // ============================================================
-// Statement of Financial Position (Final Fixed Version - FULL)
+// Statement of Financial Position (Improved / Read-only Net Profit)
 // ============================================================
 
 import express from "express";
@@ -7,27 +7,32 @@ import Account from "../../models/accouting_system_models/Account_document.js";
 import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.js";
 import JournalEntry from "../../models/accouting_system_models/journalEntry_models.js";
 import { authenticate } from "../../middleware/auth.js";
-
+import Period from "../../models/accouting_system_models/accountingPeriod.js";
+import { resolveReportFilter } from "../../utils/balanceSheetFuntions.js";
 const router = express.Router();
 
-/** ------------------ DATE RANGE ------------------ **/
+/* ============================================================
+   DATE RANGE
+============================================================ */
 function parseDateRange(query) {
   const { preset, startDate, endDate } = query;
 
-  let end = endDate ? new Date(endDate) : new Date();
+  const end = endDate ? new Date(endDate) : new Date();
   end.setHours(23, 59, 59, 999);
 
   let start;
   if (preset) {
-    const months = Number(preset);
-    start = new Date(end.getFullYear(), end.getMonth() - (months - 1), 1);
+    start = new Date(
+      end.getFullYear(),
+      end.getMonth() - (Number(preset) - 1),
+      1
+    );
   } else if (startDate) {
     start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
   } else {
     start = new Date(end.getFullYear(), 0, 1);
-    start.setHours(0, 0, 0, 0);
   }
+  start.setHours(0, 0, 0, 0);
 
   const prevStart = new Date(start);
   prevStart.setFullYear(prevStart.getFullYear() - 1);
@@ -38,376 +43,480 @@ function parseDateRange(query) {
   return { start, end, prevStart, prevEnd };
 }
 
-/** ---------------- PATTERN PARSER ---------------- **/
-function parsePattern(pat) {
-  if (!pat) return [];
+/* ============================================================
+   NET PROFIT (READ ONLY)
+============================================================ */
+async function getNetProfit(companyId, start, end) {
+  const [journals, accounts] = await Promise.all([
+    JournalEntry.find({
+      companyId,
+      date: { $gte: start, $lte: end },
+    }).lean(),
+    Account.find({ companyId }).lean(),
+  ]);
 
-  return String(pat)
+  const accById = {};
+  accounts.forEach((a) => (accById[String(a._id)] = a));
+
+  let revenue = 0;
+  let expense = 0;
+
+  journals.forEach((j) => {
+    (j.lines || []).forEach((l) => {
+      const acc = accById[String(l.accountId)];
+      if (!acc) return;
+
+      const amt = Number(l.amountLAK || 0);
+      const code = String(acc.code);
+
+      if (code.startsWith("7")) {
+        revenue += l.side === "cr" ? amt : -amt;
+      }
+
+      if (code.startsWith("6")) {
+        expense += l.side === "dr" ? amt : -amt;
+      }
+    });
+  });
+
+  return revenue - expense;
+}
+
+/* ============================================================
+   PATTERN PARSER
+============================================================ */
+function parsePattern(pattern = "") {
+  return String(pattern)
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p) => {
       if (p.includes("-")) {
-        const [a, b] = p.split("-").map((x) => x.trim());
-        return {
-          type: "range",
-          start: Number(a),
-          end: Number(b),
-          len: String(a).length,
-        };
+        const [s, e] = p.split("-");
+        return { type: "range", start: +s, end: +e, len: s.length };
       }
-      return {
-        type: "single",
-        value: p,
-        len: String(p).length,
-      };
+      return { type: "single", value: p, len: p.length };
     });
 }
 
-/** ------- MATCH CODE WITH PATTERN -------- **/
-function codeMatchesPattern(codeStr, parsedPatterns) {
-  if (!codeStr || !parsedPatterns.length) return false;
+function codeMatchesPattern(code, parsed) {
+  if (!code || !parsed.length) return false;
+  const clean = String(code).trim();
 
-  const clean = String(codeStr).trim();
-
-  for (const p of parsedPatterns) {
+  return parsed.some((p) => {
     const prefix = clean.slice(0, p.len);
-
-    // debug
-    console.log(
-      `[MATCH] code=${clean} prefix=${prefix} pat=${JSON.stringify(p)}`
-    );
-
-    if (p.type === "single") {
-      if (prefix === p.value) return true;
-    }
-
-    if (p.type === "range") {
-      const num = parseInt(prefix, 10);
-      if (!isNaN(num) && num >= p.start && num <= p.end) return true;
-    }
-  }
-  return false;
+    if (p.type === "single") return prefix === p.value;
+    const n = Number(prefix);
+    return !isNaN(n) && n >= p.start && n <= p.end;
+  });
 }
 
-/** ---------- MAP CONFIG ----------- **/
+/* ============================================================
+   MAPPING CONFIG
+============================================================ */
 const MAPPING = [
-  // I — Current liabilities
+  // Current Liabilities
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_bank_overdrafts",
-    label: "Bank overdrafts",
+    label: " ເງິນເບີກເກິນບັນຊີ",
     pattern: "411",
     type: "liability",
   },
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_trade_payables",
-    label: "Trade and other payables",
+    label: " ໜີ້ຕ້ອງສົ່ງການຄ້າ ແລະ ອື່ນໆ",
     pattern: "401,402,403,404,405,406,407,408",
     type: "liability",
   },
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_fin_short_borrowings",
-    label: "Financial liabilities, short-term borrowings",
-    pattern: "412,413,414,415,416,417,418",
+    label: "ໜີ້ສິນການເງິນ, ເງິນກູ້ຢືມ ໄລຍະສັ້ນ",
+    pattern: "412-418",
     type: "liability",
   },
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_state_debts",
-    label: "State-debts payable (Levies-taxes)",
+    label: "ໜີ້ຕ້ອງສົ່ງລັດ (ຄ່າພາສີ-ອາກອນ)",
     pattern: "43",
     type: "liability",
   },
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_short_emp_benefit",
-    label: "Short-term employee benefit obligations",
+    label: "ພັນທະໄລຍະສັ້ນ ຜົນປະໂຫຍດຂອງພະນັກງານ",
     pattern: "420,462,463",
     type: "liability",
   },
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_other_current_payables",
-    label: "Other current payables",
+    label: " ໜີ້ຕ້ອງສົ່ງ ໝູນວຽນອື່ນໆ",
     pattern: "421,422,44,45",
     type: "liability",
   },
   {
-    section: "Current Liabilities",
+    section: "Current_Liabilities",
     key: "cl_short_term_provisions",
-    label: "Short-term provisions",
-    pattern: "461,464,465,466,467,468",
+    label: "ເງິນແຮ-ໜີ້ສິນໝູນວຽນ",
+    pattern: "461,464-468",
     type: "liability",
   },
 
-  // II — Non-current liabilities
+  // Non-current Liabilities
   {
-    section: "Non-current Liabilities",
+    section: "Non_current_Liabilities",
     key: "ncl_fin_long_borrowings",
-    label: "Financial liabilities, long-term borrowings",
+    label: "ໜີ້ສິນທາງການເງິນ, ເງິນກູ້ຢືມ ໄລຍະຍາວ",
     pattern: "47",
     type: "liability",
   },
   {
-    section: "Non-current Liabilities",
+    section: "Non_current_Liabilities",
     key: "ncl_long_emp_benefit",
-    label: "Long-term employee benefit obligations",
+    label: "ພັນທະໄລຍະຍາວ ຜົນປະໂຫຍດຂອງພະນັກງານ",
     pattern: "491",
     type: "liability",
   },
   {
-    section: "Non-current Liabilities",
+    section: "Non_current_Liabilities",
     key: "ncl_other_noncurrent",
-    label: "Other non-current payables",
+    label: "ໜີ້ຕ້ອງສົ່ງ ບໍ່ໝູນວຽນອື່ນໆ",
     pattern: "481,482",
     type: "liability",
   },
   {
-    section: "Non-current Liabilities",
+    section: "Non_current_Liabilities",
     key: "ncl_provisions",
-    label: "Provisions non-current liabilities",
-    pattern: "492,493,494,495,496,497,498",
+    label: " ເງິນແຮ-ໜີ້ສິນບໍ່ໝູນວຽນ",
+    pattern: "492-498",
     type: "liability",
   },
   {
-    section: "Non-current Liabilities",
-    key: "ncl_deferred_tax",
-    label: "Deferred tax",
-    pattern: "493",
+    section: "Non_current_Liabilities",
+    key: "tax_",
+    label: "ອາກອນເຍຶ່ອນຊຳລະ",
+    pattern: "483",
     type: "liability",
   },
-
-  // III — Equity
+  // Equity
   {
     section: "Equity",
     key: "eq_share_capital",
-    label: "Share capital",
-    pattern: "301,302,303,308,309",
+    label: " ທຶນຈົດທະບຽນ",
+    pattern: "301-303,308,309",
     type: "equity",
   },
   {
     section: "Equity",
     key: "eq_share_premium",
-    label: "Share premium",
+    label: "ສ່ວນເພີ່ມມູນຄ່າຮຸ່ນ",
     pattern: "304",
     type: "equity",
   },
   {
     section: "Equity",
     key: "eq_reserves",
-    label: "Reserves",
+    label: "ຄັງສຳຮອງ",
     pattern: "31",
     type: "equity",
   },
   {
     section: "Equity",
     key: "eq_retained",
-    label: "Retained earnings",
+    label: " ຜົນໄດ້ຮັບຍົກມາ (ກຳໄລ ຫຼື ຂາດທຶນຍົກມາ)",
     pattern: "321,329",
     type: "equity",
   },
+
+  // 🔴 Read-only
   {
     section: "Equity",
     key: "eq_net_profit",
-    label: "Net profit for the year",
-    pattern: "331,339",
-    type: "equity",
-  },
-  {
-    section: "Equity",
-    key: "eq_minority",
-    label: "Minority interests",
+    label: " ຜົນໄດ້ຮັບສຸດທິ ໃນປີ",
     pattern: "",
     type: "equity",
   },
   {
     section: "Equity",
-    key: "eq_group_share",
-    label: "Group share",
+    key: "eq_2",
+    label: "ພູດສ່ວນ ຂອງຜົນປະໂຫຍດສ່ວນນ້ອຍ (1)",
     pattern: "",
     type: "equity",
   },
-];
+  {
+    section: "Equity",
+    key: "eq_1",
+    label: "ພູດສ່ວນ ຂອງກຸ່ມ (1)",
+    pattern: "",
+    type: "equity",
+  },
 
-/** ============================================================ **/
+];
+async function buildSFP({ companyId, start, end, accounts }) {
+  const accById = {};
+  const accByCode = {};
+  accounts.forEach((a) => {
+    accById[String(a._id)] = a;
+    accByCode[String(a.code)] = a;
+  });
+
+  /* ===== ancestor ===== */
+  const ancestorCache = {};
+  function getAncestors(code) {
+    if (ancestorCache[code]) return ancestorCache[code];
+    const set = new Set([code]);
+    let cur = code;
+    while (accByCode[cur]?.parentCode) {
+      cur = String(accByCode[cur].parentCode);
+      set.add(cur);
+    }
+    ancestorCache[code] = [...set];
+    return ancestorCache[code];
+  }
+
+  const parsedMap = MAPPING.map((m) => ({
+    ...m,
+    parsed: parsePattern(m.pattern),
+  }));
+
+  const bucket = {};
+  parsedMap.forEach((m) => {
+    bucket[m.key] = { ...m, opening: 0, movement: 0 };
+  });
+
+  /* ===== OPENING ===== */
+  const openings = await OpeningBalance.find({
+    companyId,
+    year: start.getFullYear(),
+  }).lean();
+
+  openings.forEach((ob) => {
+    const acc = accById[String(ob.accountId)];
+    if (!acc) return;
+    const ancestors = getAncestors(String(acc.code));
+    parsedMap.forEach((m) => {
+      if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
+        bucket[m.key].opening += Number(ob.credit || 0) - Number(ob.debit || 0);
+      }
+    });
+  });
+
+  /* ===== MOVEMENT ===== */
+  const journals = await JournalEntry.find({
+    companyId,
+    date: { $gte: start, $lte: end },
+  }).lean();
+
+  journals.forEach((j) => {
+    (j.lines || []).forEach((l) => {
+      const acc = accById[String(l.accountId)];
+      if (!acc) return;
+      const amt = Number(l.amountLAK || 0);
+      const ancestors = getAncestors(String(acc.code));
+      parsedMap.forEach((m) => {
+        if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
+          bucket[m.key].movement += l.side === "cr" ? amt : -amt;
+        }
+      });
+    });
+  });
+
+  /* ===== NET PROFIT ===== */
+  const netProfit = await getNetProfit(companyId, start, end);
+  bucket.eq_net_profit.movement = netProfit;
+
+  const lines = Object.values(bucket).map((l) => ({
+    ...l,
+    ending: l.opening + l.movement,
+  }));
+
+  return lines;
+}
+
+function buildYearRange(year) {
+  const start = new Date(year, 0, 1);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(year, 11, 31);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
 router.get(
   "/statement-of-financial-position",
   authenticate,
   async (req, res) => {
     try {
       const companyId = req.user.companyId;
-      const { start, end, prevStart, prevEnd } = parseDateRange(req.query);
-
-      /** Load accounts */
+      const periods = await Period.find({ companyId }).lean();
       const accounts = await Account.find({ companyId }).lean();
 
-      /** Build account lookups */
-      const accById = {};
-      const accByCode = {};
-
-      accounts.forEach((a) => {
-        accById[String(a._id)] = a;
-        accByCode[String(a.code).trim()] = a;
+      const {
+        year,
+        month,
+        startDate,
+        endDate,
+        mode,
+        systemDefaultYear,
+      } = resolveReportFilter({
+        query: req.query,
+        periods,
       });
 
-      console.log("====== ACCOUNT MAP BUILT ======");
-      function getAncestorsCodes(code) {
-        const out = new Set();
-        console.log("code", code);
-        let curCode = String(code).trim();
+      const closedYears = periods
+        .filter((p) => p.isClosed)
+        .map((p) => p.year)
+        .sort((a, b) => a - b);
 
-        // 1) add itself
-        out.add(curCode);
+      /* =====================================================
+         MODE 1: MONTH → COMPARE SAME MONTH LAST YEAR ✅
+      ===================================================== */
+      if (mode === "month") {
+        const current = await buildSFP({
+          companyId,
+          start: startDate,
+          end: endDate,
+          accounts,
+        });
 
-        // 2) climb parentCode → root
-        while (true) {
-          const acc = accByCode[curCode];
-          if (!acc) break;
+        const prevStart = new Date(year - 1, month - 1, 1, 0, 0, 0);
+        const prevEnd = new Date(year - 1, month, 0, 23, 59, 59, 999);
 
-          if (!acc.parentCode) break; // reached main account
+        const previous = await buildSFP({
+          companyId,
+          start: prevStart,
+          end: prevEnd,
+          accounts,
+        });
 
-          out.add(String(acc.parentCode).trim());
-          curCode = String(acc.parentCode).trim();
-        }
-
-        console.log(`[ANCESTOR] for ${code}:`, [...out]);
-        return [...out];
+        return res.json({
+          success: true,
+          comparable: true,
+          mode: "month-compare",
+          currentYear: `${year}-${month}`,
+          previousYear: `${year - 1}-${month}`,
+          data: { current, previous },
+        });
       }
-      /** Prepare mapping patterns */
-      const parsedMap = MAPPING.map((m) => ({
-        ...m,
-        parsed: parsePattern(m.pattern),
-      }));
-      /** init results */
-      const bucket = {};
-      parsedMap.forEach((m) => {
-        bucket[m.key] = {
-          ...m,
-          opening: 0,
-          movement: 0,
-          prevMovement: 0,
-        };
-      });
-      /** ------------------ OPENING BALANCES ------------------ **/
-      const openings = await OpeningBalance.find({
-        companyId,
-        year: start.getFullYear(),
-      }).lean();
 
-      openings.forEach((ob) => {
-        const acc = accById[String(ob.accountId)];
-        if (!acc) return;
-
-        const ancestors = getAncestorsCodes(acc.code);
-
-        parsedMap.forEach((m) => {
-          if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
-            const amount =
-              m.type === "liability" || m.type === "equity"
-                ? Number(ob.credit) - Number(ob.debit)
-                : Number(ob.debit) - Number(ob.credit);
-
-            bucket[m.key].opening += amount;
-          }
+      /* =====================================================
+         MODE 2: PRESET → COMPARE SAME RANGE LAST YEAR ✅
+      ===================================================== */
+      if (mode === "preset") {
+        const current = await buildSFP({
+          companyId,
+          start: startDate,
+          end: endDate,
+          accounts,
         });
-      });
-      /** ------------------ CURRENT JOURNALS ------------------ **/
-      const journals = await JournalEntry.find({
-        companyId,
-        // date: { $gte: start, $lte: end },
-      }).lean();
-      journals.forEach((j) => {
-        j.lines.forEach((l) => {
-          const accId = l.accountId?._id
-            ? String(l.accountId._id)
-            : String(l.accountId);
-          const acc = accById[accId];
-          console.log("acc ", acc);
-          if (!acc) return;
-          const ancestors = getAncestorsCodes(acc.code);
-          const amt = Number(l.amountLAK);
 
-          parsedMap.forEach((m) => {
-            if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
-              const net =
-                m.type === "liability" || m.type === "equity"
-                  ? l.side === "cr"
-                    ? amt
-                    : -amt
-                  : l.side === "dr"
-                  ? amt
-                  : -amt;
-
-              bucket[m.key].movement += net;
-            }
-          });
+        const previous = await buildSFP({
+          companyId,
+          start: shiftYear(startDate, -1),
+          end: shiftYear(endDate, -1),
+          accounts,
         });
-      });
-      /** ------------------ PREVIOUS PERIOD ------------------ **/
-      const prev = await JournalEntry.find({
-        companyId,
-        // date: { $gte: prevStart, $lte: prevEnd },
-      }).lean();
 
-      prev.forEach((j) => {
-        j.lines.forEach((l) => {
-          const accId = l.accountId?._id
-            ? String(l.accountId._id)
-            : String(l.accountId);
-          const acc = accById[accId];
-          if (!acc) return;
-
-          const ancestors = getAncestorsCodes(acc.code);
-          const amt = Number(l.amountLAK);
-
-          parsedMap.forEach((m) => {
-            if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
-              const net =
-                m.type === "liability" || m.type === "equity"
-                  ? l.side === "cr"
-                    ? amt
-                    : -amt
-                  : l.side === "dr"
-                  ? amt
-                  : -amt;
-
-              bucket[m.key].prevMovement += net;
-            }
-          });
+        return res.json({
+          success: true,
+          comparable: true,
+          mode: "preset-compare",
+          data: { current, previous },
         });
+      }
+
+      /* =====================================================
+         MODE 3: CUSTOM RANGE → NO COMPARE
+      ===================================================== */
+      if (mode === "custom") {
+        const current = await buildSFP({
+          companyId,
+          start: startDate,
+          end: endDate,
+          accounts,
+        });
+
+        return res.json({
+          success: true,
+          comparable: false,
+          mode: "custom",
+          data: { current },
+        });
+      }
+
+      /* =====================================================
+         MODE 4: USER SELECT YEAR → COMPARE YEAR
+      ===================================================== */
+      if (mode === "year" && year !== systemDefaultYear) {
+        const current = await buildSFP({
+          companyId,
+          start: new Date(year, 0, 1),
+          end: new Date(year, 11, 31, 23, 59, 59, 999),
+          accounts,
+        });
+
+        const previous = await buildSFP({
+          companyId,
+          start: new Date(year - 1, 0, 1),
+          end: new Date(year - 1, 11, 31, 23, 59, 59, 999),
+          accounts,
+        });
+
+        return res.json({
+          success: true,
+          comparable: true,
+          currentYear: year,
+          previousYear: year - 1,
+          mode: "year-compare",
+          data: { current, previous },
+        });
+      }
+
+      /* =====================================================
+         MODE 5: DEFAULT → LAST CLOSED YEAR
+      ===================================================== */
+      if (!closedYears.length) {
+        return res.json({
+          success: true,
+          comparable: false,
+          message: "ยังไม่มีปีที่ปิดบัญชี",
+        });
+      }
+
+      const previousYear = closedYears.at(-1);
+      const currentYear = previousYear + 1;
+
+      const current = await buildSFP({
+        companyId,
+        start: new Date(currentYear, 0, 1),
+        end: new Date(currentYear, 11, 31, 23, 59, 59, 999),
+        accounts,
       });
 
-      /** Build output */
-      const lines = Object.values(bucket).map((m) => {
-        const ending = m.opening + m.movement;
-        const prevEnding = m.opening + m.prevMovement;
-
-        return {
-          ...m,
-          ending,
-          prevEnding,
-        };
+      const previous = await buildSFP({
+        companyId,
+        start: new Date(previousYear, 0, 1),
+        end: new Date(previousYear, 11, 31, 23, 59, 59, 999),
+        accounts,
       });
 
-      /** Section totals */
-      const sections = {};
-      lines.forEach((l) => {
-        if (!sections[l.section]) sections[l.section] = 0;
-        sections[l.section] += l.ending;
-      });
       return res.json({
         success: true,
-        lines,
-        sections,
+        comparable: true,
+        currentYear,
+        previousYear,
+        mode: "default-compare",
+        data: { current, previous },
       });
     } catch (err) {
-      console.error("SOP ERROR:", err);
-      return res.status(500).json({ success: false, error: err.message });
+      console.error("SFP ERROR:", err);
+      res.status(500).json({ success: false, error: err.message });
     }
   }
 );
-
 export default router;

@@ -112,7 +112,7 @@ function TransactionTable({
                 key={h}
                 fontSize="xs"
                 fontWeight="700"
-                color="white"
+                color="black"
                 letterSpacing="wide"
               >
                 {h}
@@ -127,7 +127,7 @@ function TransactionTable({
             <Tr>
               <Td colSpan={12} py={16}>
                 <VStack spacing={4}>
-                  <Icon as={FileText} boxSize={14} color="gray.400" />
+                  <Icon as={FileText} boxSize={14} color="black" />
                   <Text
                     fontFamily="Noto Sans Lao, sans-serif"
                     fontSize="lg"
@@ -142,7 +142,7 @@ function TransactionTable({
             pageDataSorted.map((transaction, idx) => (
               <Tr
                 key={transaction._id}
-                bg="white"
+                bg=""
                 rounded="2xl"
                 _hover={{
                   bg: "gray.50",

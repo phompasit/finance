@@ -21,7 +21,11 @@ const openingBalanceSchema = new mongoose.Schema(
     },
 
     year: { type: Number, required: true },
-
+    status_close: {
+      type: String,
+      enum: ["locked", "unlocked"],
+      default: "unlocked",
+    },
     debit: { type: Number, default: 0 },
     credit: { type: Number, default: 0 },
 

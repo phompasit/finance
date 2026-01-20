@@ -3,8 +3,39 @@ import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.
 import Account_document from "../../models/accouting_system_models/Account_document.js";
 import { authenticate } from "../../middleware/auth.js";
 import mongoose from "mongoose";
+import accountingPeriod from "../../models/accouting_system_models/accountingPeriod.js";
 
 const router = express.Router();
+async function blockClosedJournal(req, res, next) {
+  try {
+    if (!req.params.id) return next();
+
+    const opennigbalance = await accountingPeriod
+      .findOne({
+        companyId: req.user.companyId,
+      })
+      .select("status_close");
+
+    if (!opennigbalance) {
+      return res.status(404).json({
+        success: false,
+        error: "Journal not found",
+      });
+    }
+
+    if (opennigbalance.status_close === "locked") {
+      return res.status(403).json({
+        success: false,
+        error: "❌ ປີນີ້ຖືກປິດແລ້ວບໍ່ສາມາດແກ້ໄຂໄດ້",
+      });
+    }
+
+    next();
+  } catch (err) {
+    console.error("blockClosedJournal error:", err);
+    res.status(500).json({ success: false });
+  }
+}
 
 /**
  * Helper: validate amounts and account relation
@@ -33,7 +64,9 @@ async function validateOpeningInput({ companyId, accountId, debit, credit }) {
 
   // both > 0 is not allowed
   if (d > 0 && c > 0) {
-    throw new Error("Both debit and credit cannot be greater than zero at the same time");
+    throw new Error(
+      "Both debit and credit cannot be greater than zero at the same time"
+    );
   }
 
   // at least one > 0 (change this rule if you want to allow zero-zero)
@@ -43,40 +76,113 @@ async function validateOpeningInput({ companyId, accountId, debit, credit }) {
 
   // enforce normal side
   if (account.normalSide === "Dr" && c > 0) {
-    throw new Error(`Account normal side is Dr — please put amount in debit (not credit)`);
+    throw new Error(
+      `Account normal side is Dr — please put amount in debit (not credit)`
+    );
   }
   if (account.normalSide === "Cr" && d > 0) {
-    throw new Error(`Account normal side is Cr — please put amount in credit (not debit)`);
+    throw new Error(
+      `Account normal side is Cr — please put amount in credit (not debit)`
+    );
   }
 
   return { account, debit: d, credit: c };
 }
-
-/* -------------------------- GET ALL BY YEAR -------------------------- */
-router.get("/:year", authenticate, async (req, res) => {
+/* -------------------------- GET OPENING BALANCE BY YEAR -------------------------- */
+router.get("/", authenticate, async (req, res) => {
   try {
-    const list = await OpeningBalance.find({
-      companyId: req.user.companyId,
-      year: req.params.year,
-    })
+    const companyId = req.user.companyId;
+    const selectedYear = req.query.year ? Number(req.query.year) : null;
+
+    /* ============================================================
+       1) GET CLOSED PERIODS
+    ============================================================ */
+    const closedPeriods = await accountingPeriod
+      .find({ companyId, isClosed: true })
+      .select("year -_id")
+      .lean();
+
+    const closedYears = closedPeriods.map(p => p.year);
+
+    /* ============================================================
+       2) CALCULATE SYSTEM DEFAULT YEAR
+       - ปีถัดไปจากปีที่ปิดล่าสุด
+       - ถ้าไม่มีปีปิด → ปีปัจจุบัน
+    ============================================================ */
+    const defaultYear =
+      closedYears.length > 0
+        ? Math.max(...closedYears) + 1
+        : new Date().getFullYear();
+
+    /* ============================================================
+       3) DECIDE TARGET YEAR
+    ============================================================ */
+    const targetYear = selectedYear ?? defaultYear;
+
+    /* ============================================================
+       4) BUILD QUERY
+    ============================================================ */
+    const query = {
+      companyId,
+      year: targetYear,
+    };
+
+    /* ============================================================
+       5) GET OPENING BALANCE
+    ============================================================ */
+    const list = await OpeningBalance.find(query)
       .populate({
         path: "accountId",
         model: "Account_document",
         select: "code name normalSide type",
       })
+      .select("-companyId -status_close")
       .lean();
 
-    res.json({ success: true, list });
+    /* ============================================================
+       6) META FOR MODAL
+    ============================================================ */
+    const editable = !closedYears.includes(targetYear);
+    return res.json({
+      success: true,
+      list,
+      meta: {
+        selectedYear: targetYear,
+        defaultYear,
+        closedYears,
+        editable,
+      },
+    });
+
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("GET OpeningBalance error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
+
+
 
 /* ---------------------------- ADD OPENING ---------------------------- */
 router.post("/", authenticate, async (req, res) => {
   try {
     const { accountId, debit, credit, year, note } = req.body;
+    // 1️⃣ ดึงปีที่ปิดแล้ว
+    const periods = await accountingPeriod
+      .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
+      .lean();
+    console.log(year);
+    const closedYears = periods.map((p) => Number(p.year));
 
+    // 3️⃣ ตรวจสอบ ❌ ห้ามบันทึกในปีที่ปิดแล้ว
+    if (closedYears.includes(year)) {
+      return res.status(400).json({
+        success: false,
+        error: `❌ ປີ${year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+      });
+    }
     // validation (throws error message)
     const { account, debit: d, credit: c } = await validateOpeningInput({
       companyId: req.user.companyId,
@@ -84,17 +190,6 @@ router.post("/", authenticate, async (req, res) => {
       debit,
       credit,
     });
-
-    // optional: check duplicate for same account/year
-    const exists = await OpeningBalance.findOne({
-      companyId: req.user.companyId,
-      accountId,
-      year,
-    });
-    if (exists) {
-      return res.status(400).json({ error: "Opening balance for this account and year already exists" });
-    }
-
     const data = await OpeningBalance.create({
       companyId: req.user.companyId,
       userId: req.user._id,
@@ -118,11 +213,24 @@ router.post("/", authenticate, async (req, res) => {
 });
 
 /* ---------------------------- UPDATE OPENING --------------------------- */
-router.patch("/:id", authenticate, async (req, res) => {
+router.patch("/:id", authenticate, blockClosedJournal, async (req, res) => {
   try {
     const found = await OpeningBalance.findById(req.params.id);
-    if (!found) return res.status(404).json({ error: "Opening balance not found" });
+    if (!found)
+      return res.status(404).json({ error: "Opening balance not found" });
+    const periods = await accountingPeriod
+      .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
+      .lean();
 
+    const closedYears = periods.map((p) => Number(p.year));
+
+    // 3️⃣ ตรวจสอบ ❌ ห้ามบันทึกในปีที่ปิดแล้ว
+    if (closedYears.includes(found.year)) {
+      return res.status(400).json({
+        success: false,
+        error: `❌ ປີ${found.year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+      });
+    }
     // ensure same company
     if (String(found.companyId) !== String(req.user.companyId)) {
       return res.status(403).json({ error: "Not allowed" });
@@ -130,8 +238,8 @@ router.patch("/:id", authenticate, async (req, res) => {
 
     // Determine accountId for validation: either new provided or existing
     const accountIdToValidate = req.body.accountId || found.accountId;
-    const debit = ("debit" in req.body) ? req.body.debit : found.debit;
-    const credit = ("credit" in req.body) ? req.body.credit : found.credit;
+    const debit = "debit" in req.body ? req.body.debit : found.debit;
+    const credit = "credit" in req.body ? req.body.credit : found.credit;
 
     const { account, debit: d, credit: c } = await validateOpeningInput({
       companyId: req.user.companyId,
@@ -160,11 +268,24 @@ router.patch("/:id", authenticate, async (req, res) => {
 });
 
 /* ---------------------------- DELETE OPENING --------------------------- */
-router.delete("/:id", authenticate, async (req, res) => {
+router.delete("/:id", authenticate, blockClosedJournal, async (req, res) => {
   try {
     const found = await OpeningBalance.findById(req.params.id);
-    if (!found) return res.status(404).json({ error: "Opening balance not found" });
+    if (!found)
+      return res.status(404).json({ error: "Opening balance not found" });
+    const periods = await accountingPeriod
+      .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
+      .lean();
 
+    const closedYears = periods.map((p) => Number(p.year));
+
+    // 3️⃣ ตรวจสอบ ❌ ห้ามบันทึกในปีที่ปิดแล้ว
+    if (closedYears.includes(found.year)) {
+      return res.status(400).json({
+        success: false,
+        error: `❌ ປີ${found.year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+      });
+    }
     if (String(found.companyId) !== String(req.user.companyId)) {
       return res.status(403).json({ error: "Not allowed" });
     }

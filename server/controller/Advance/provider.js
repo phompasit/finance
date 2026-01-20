@@ -3,6 +3,7 @@ import AdvanceClosure from "../../models/advanceClosure.js";
 import IncomeExpense from "../../models/IncomeExpense.js";
 import mongoose from "mongoose";
 import Company from "../../models/company.js";
+import { applyBalance, rollbackBalance } from "../../utils/balanceEngine.js";
 
 // ✅ ดึงรายการเบิกทั้งหมด
 export const getAllAdvances = async (req, res) => {
@@ -620,6 +621,7 @@ export const closeAdvance = async (req, res) => {
           currency,
           amount: Math.abs(net_amount),
           type: net_amount > 0 ? "additional_expense" : "return",
+          accountId: requested.accountId,
         });
       }
     }
@@ -669,12 +671,27 @@ export const closeAdvance = async (req, res) => {
         amounts: remainingAmounts,
         note: ` Employee: ${advance.employee_id?.full_name || "Unknown"}`,
         createdBy: req.user?._id,
-        status: advance.status_payment || "unpaid",
+        // status: "unpaid",
+        status: advance.status_payment || "paid",
         status_Ap: advance.status_Ap || "pending",
         advance: "advance",
         referance: id,
       });
     }
+    /////15
+    // const incomeFind = await IncomeExpense.findOne({ referance: id });
+
+    // if (
+    //   incomeFind &&
+    //   incomeFind.status === "paid" &&
+    //   incomeFind.status_Ap === "approve"
+    // ) {
+    //   await applyBalance({
+    //     companyId: incomeFind.companyId,
+    //     type: incomeFind.type, // "income" | "expense"
+    //     amounts: incomeFind.amounts, // [{ accountId, amount }]
+    //   });
+    // }
 
     // 🧩 13. Return success
     return res.json({
@@ -742,6 +759,11 @@ export const reopen = async (req, res) => {
       await IncomeExpense.findOneAndDelete({
         referance: req.params.id,
       });
+      // await rollbackBalance({
+      //   companyId: req.user.companyId,
+      //   type: advance.type,
+      //   amounts: [{ amounts: advance.amounts, accountId: advance.accountId }],
+      // });
       res.json({
         success: true,
         message: "Advance reopened successfully",

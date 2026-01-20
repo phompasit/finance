@@ -34,6 +34,13 @@ import RenderFieldPrepaid from "./components/Prepaid_components/RenderFieldPrepa
 import EditForm from "./components/Prepaid_components/EditForm";
 import RenderOpoForm from "./components/Opo_components/RenderOpoForm";
 import RenderForm_Debt from "./components/Debt/RenderForm_Debt";
+import JournalModal from "./accounting/Journal/JournalModal";
+import ClosePeriodPage from "./accounting/ClosePeriodPage";
+import Balanc_sheet_before from "./accounting/Balanc_sheet_before";
+import BalanceSheetIncomeAndExpense from "./accounting/BalanceSheetIncomeAndExpense";
+import FixedAssetApp from "./accounting/FixedAssetApp";
+import AddAssetModal from "./components/FixedAsset/AddAssetModal";
+import DepreciationPreviewModal from "./components/FixedAsset/DepreciationPreviewModal";
 
 function App() {
   return (
@@ -84,9 +91,30 @@ function App() {
           <Route path="journal/print" element={<PrintJournalPage />} />
           <Route path="income-statement" element={<IncomeStatementPage />} />
           <Route path="balance-sheet" element={<BalanceSheetPage />} />
+          <Route
+            path="balance-sheet-before"
+            element={<Balanc_sheet_before />}
+          />
+          <Route
+            path="income-expense-balance-sheet"
+            element={<BalanceSheetIncomeAndExpense />}
+          />
           <Route path="ledger" element={<GeneralLedgerPage />} />
           <Route path="statement" element={<StatementOfFinancialPosition />} />
-          <Route path="statement-assets" element={<AssetsPage />} />
+          <Route path="assets" element={<AssetsPage />} />
+
+          {/* ////// */}
+          <Route path="fixed-assets" element={<FixedAssetApp />} />
+          <Route path="fixed-add/:id" element={<AddAssetModal />} />
+          <Route
+            path="fixed-add-Depreciation"
+            element={<DepreciationPreviewModal />}
+          />
+
+          {/* accounting component */}
+          <Route path="journal_add&edit" element={<JournalModal />} />
+
+          <Route path="closing_account" element={<ClosePeriodPage />} />
         </Route>
 
         {/* ================= FALLBACK ================= */}

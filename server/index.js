@@ -20,16 +20,20 @@ import debtRoutes from "./routes/debt.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import reportRoutes from "./routes/report.js";
 import advanceRoutes from "./routes/advance.js";
-import categoryRoutes from "./routes/category.js"
-import companyRoutes from "./routes/company.js"
-import accountRoutes from "./routes/accounting/accountingL.js"
-import opening_balanceRoutes from "./routes/accounting/openingBalance.js"
-import journalRoutes from "./routes/accounting/journal.js"
-import financialReportsRoutes from "./routes/accounting/balanceSlice.js"
-import generalLedgerRoutes from "./routes/accounting/generalLedger.js"
-import statementRoutes from "./routes/accounting/statementOfFinancialPosition.js"
-import statementAssetsRoutes from "./routes/accounting/assets.js"
-import income_statementRoutes from "./routes/accounting/incomeStatement.js"
+import categoryRoutes from "./routes/category.js";
+import companyRoutes from "./routes/company.js";
+import accountRoutes from "./routes/accounting/accountingL.js";
+import opening_balanceRoutes from "./routes/accounting/openingBalance.js";
+import journalRoutes from "./routes/accounting/journal.js";
+import financialReportsRoutes from "./routes/accounting/balanceSlice.js";
+import generalLedgerRoutes from "./routes/accounting/generalLedger.js";
+import statementRoutes from "./routes/accounting/statementOfFinancialPosition.js";
+import statementAssetsRoutes from "./routes/accounting/assets.js";
+import income_statementRoutes from "./routes/accounting/incomeStatement.js";
+import closingRoutes from "./routes/accounting/close_accounting.js";
+import BooksRoutes from "./routes/accounting/cashBook.js";
+
+import fixedAssetRoutes from "./routes/accounting/fixedAsset.js"
 // Security middleware
 import {
   corsOptions,
@@ -47,7 +51,7 @@ app.use(helmet());
 
 app.use(securityHeaders);
 app.use(cors(corsOptions));
-app.use(cookieParser())
+app.use(cookieParser());
 // 4. Body parsing with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -148,18 +152,19 @@ app.use("/api/debt", debtRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/report", reportRoutes);
 app.use("/api/advances", advanceRoutes);
-app.use("/api/category",categoryRoutes)
-app.use("/api/company",companyRoutes)
-app.use("/api/account-document",accountRoutes)
-app.use("/api/opening-balance",opening_balanceRoutes)
-app.use("/api/journal",journalRoutes)
-app.use("/api/reports",financialReportsRoutes)
-app.use("/api/generalLedger",generalLedgerRoutes)
-app.use("/api/statement",statementRoutes)
-app.use("/api/statement-assets",statementAssetsRoutes)
-app.use("/api/income-statement",income_statementRoutes)
-
-
+app.use("/api/category", categoryRoutes);
+app.use("/api/company", companyRoutes);
+app.use("/api/account-document", accountRoutes);
+app.use("/api/opening-balance", opening_balanceRoutes);
+app.use("/api/journal", journalRoutes);
+app.use("/api/reports", financialReportsRoutes);
+app.use("/api/generalLedger", generalLedgerRoutes);
+app.use("/api/statement", statementRoutes);
+app.use("/api/statement-assets", statementAssetsRoutes);
+app.use("/api/income-statement", income_statementRoutes);
+app.use("/api/accounting", closingRoutes);
+app.use("/api/book", BooksRoutes);
+app.use('/api/fixAsset' ,fixedAssetRoutes)
 // ============================================
 // 🔒 STATIC FILES & SPA (Last priority)
 // ============================================

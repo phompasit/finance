@@ -1,310 +1,315 @@
 // src/pages/reports/BalanceSheetPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Flex,
   Text,
   Button,
-  Input,
-  Select,
-  Spinner,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   useToast,
   HStack,
-  IconButton,
-  Collapse,
+  Badge,
 } from "@chakra-ui/react";
 import { useDispatch, useSelector } from "react-redux";
+import { Download } from "lucide-react";
+import html2pdf from "html2pdf.js";
+
 import { fetchDetailedBalance } from "../store/accountingReducer/balanceSlice";
-import { Download, ChevronDown, ChevronRight } from "lucide-react";
-
-const presets = [
-  { label: "1 month", value: "1" },
-  { label: "3 months", value: "3" },
-  { label: "6 months", value: "6" },
-  { label: "12 months", value: "12" },
-];
-
-const formatNum = (n) => Number(n || 0).toLocaleString();
-
+import ReportFilter from "../components/Accounting_component/ReportFilter";
+import AccountTreeTable from "../components/Accounting_component/AccountTreeTable";
+import { useAccountTree } from "../ีีutils/useAccountTree";
+import BalanceSheetPrint from "./PDF/BalanceSheetPrint";
+import { useAuth } from "../context/AuthContext";
+import LedgerLoading from "../components/Loading";
+import { exportBalanceToExcel } from "./PDF/excel";
+/* ================= FILTER MODES ================= */
+const FILTER_MODE = {
+  YEAR: "YEAR",
+  MONTH: "MONTH",
+  PRESET: "PRESET",
+  RANGE: "RANGE",
+};
+const formatDate = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date)) return d;
+  return date.toLocaleDateString("en-GB");
+};
 const BalanceSheetPage = () => {
   const dispatch = useDispatch();
   const toast = useToast();
+  const printRef = useRef();
+  const { user } = useAuth();
+  const { list = [], totals = {}, error, loader } = useSelector(
+    (s) => s.balance || {}
+  );
 
-  const { list, totals, loader, error } = useSelector((s) => s.balance || {});
-
-  const [preset, setPreset] = useState("12");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
+  /* ================= PRODUCTION FILTER STATE ================= */
+  const [filter, setFilter] = useState({
+    mode: FILTER_MODE.YEAR,
+    year: new Date().getFullYear(),
+    month: null,
+    preset: null,
+    startDate: null,
+    endDate: null,
+  });
+  console.log(filter)
   const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState({}); // expand map by code (or accountId)
+  const [applyFilter, setApplyFilter] = useState();
+  /* ================= YEAR OPTIONS ================= */
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return [
+      current + 1,
+      current,
+      ...Array.from({ length: 6 }, (_, i) => current - (i + 1)),
+    ];
+  }, []);
+
+  /* ================= BUILD PARAMS (NO UNDEFINED) ================= */
+  const buildParams = () => {
+    const params = { year: filter.year };
+
+    switch (filter.mode) {
+      case FILTER_MODE.MONTH:
+        params.month = filter.month;
+        break;
+
+      case FILTER_MODE.PRESET:
+        params.preset = filter.preset;
+        break;
+
+      case FILTER_MODE.RANGE:
+        params.startDate = filter.startDate;
+        params.endDate = filter.endDate;
+        break;
+
+      case FILTER_MODE.YEAR:
+      default:
+        break;
+    }
+
+    return params;
+  };
+  /* ================= HEADER TEXT (เหมือน AssetsPage) ================= */
+  const getFilterLabel = (filter) => {
+    if (!filter) return "";
+
+    switch (filter.mode) {
+      case FILTER_MODE.YEAR:
+        return `ປີບັນຊີ: ${filter.year}`;
+
+      case FILTER_MODE.MONTH:
+        return `ເດືອນ: ${String(filter.month).padStart(2, "0")}/${filter.year}`;
+
+      case FILTER_MODE.RANGE:
+        return `ຊ່ວງວັນທີ: ${formatDate(filter.startDate)} – ${formatDate(
+          filter.endDate
+        )}`;
+
+      case FILTER_MODE.PRESET:
+        return `Preset: ${filter.preset}`;
+
+      default:
+        return "";
+    }
+  };
+  const activeFilterLabel = useMemo(() => getFilterLabel(applyFilter), [
+    applyFilter,
+  ]);
+  const ActiveFilterBar = ({ label }) => {
+    if (!label) return null;
+
+    return (
+      <Box
+        px={4}
+        py={2}
+        border="1px solid"
+        borderColor="gray.200"
+        borderRadius="md"
+        bg="gray.50"
+      >
+        <HStack spacing={3}>
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.600"
+          >
+            ກຳລັງສະແດງຂໍ້ມູນ
+          </Text>
+
+          <Badge
+            colorScheme="blue"
+            px={3}
+            py={1}
+            borderRadius="full"
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="0.9em"
+          >
+            <HStack spacing={1}>
+              <span
+                style={{
+                  fontFamily: "Noto Sans Lao, sans-serif",
+                }}
+              >
+                {label}
+              </span>
+            </HStack>
+          </Badge>
+        </HStack>
+      </Box>
+    );
+  };
+
+  /* ================= FETCH ================= */
+  const handleFetch = () => {
+    dispatch(fetchDetailedBalance(buildParams()));
+    setApplyFilter(filter);
+  };
 
   useEffect(() => {
     handleFetch();
   }, []);
-
   useEffect(() => {
     if (error) toast({ title: error, status: "error" });
   }, [error]);
 
-  const handleFetch = () => {
-    const params = {};
-    if (preset) params.preset = preset;
-    else {
-      if (startDate) params.startDate = startDate;
-      params.endDate = endDate;
-    }
-    params.endDate = endDate;
-    dispatch(fetchDetailedBalance(params));
+  /* ================= TREE ================= */
+  const { tree, expanded, toggle } = useAccountTree(list, search);
+
+  if (loader) {
+    return <LedgerLoading />;
+  }
+  /* ================= EXPORT PDF ================= */
+  const handleExportPDF = () => {
+    html2pdf()
+      .set({
+        margin: [10, 10, 10, 10],
+        filename: "balance-sheet.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "landscape",
+        },
+      })
+      .from(printRef.current)
+      .save();
   };
-
-  // Build tree from list using parentCode
-  const tree = useMemo(() => {
-    const map = {};
-    (list || []).forEach((r) => {
-      // ensure parentCode present on item (backend provides parentCode)
-      map[r.code] = { ...r, children: [] };
-    });
-
-    const roots = [];
-    (list || []).forEach((r) => {
-      const node = map[r.code];
-      const pcode = r.parentCode || null;
-      if (pcode && map[pcode]) {
-        map[pcode].children.push(node);
-      } else {
-        roots.push(node);
-      }
-    });
-
-    // optional: sort children by code
-    const sortTree = (nodes) => {
-      nodes.sort((a, b) => (a.code > b.code ? 1 : -1));
-      nodes.forEach((n) => n.children && sortTree(n.children));
-    };
-    sortTree(roots);
-    return roots;
-  }, [list]);
-
-  // filter by search - we want to keep parents if any child matches
-  const filteredTree = useMemo(() => {
-    if (!search) return tree;
-
-    const q = search.toLowerCase();
-    const filterNode = (node) => {
-      const match = (node.code || "").toLowerCase().includes(q) || (node.name || "").toLowerCase().includes(q);
-      const children = (node.children || []).map(filterNode).filter(Boolean);
-      if (match || children.length) {
-        return { ...node, children };
-      }
-      return null;
-    };
-
-    return tree.map(filterNode).filter(Boolean);
-  }, [tree, search]);
-
-  // Toggle expand
-  const toggle = (code) => {
-    setExpanded((p) => ({ ...p, [code]: !p[code] }));
-  };
-
-  // CSV export (flatten visible rows in filteredTree order)
-  const exportCSV = () => {
-    const header = [
-      "Account Number",
-      "Account Name",
-      "Opening DR",
-      "Opening CR",
-      "Movement DR",
-      "Movement CR",
-      "Ending DR",
-      "Ending CR",
-    ];
-
+  const flattenAccountTree = (tree) => {
     const rows = [];
+
     const walk = (node, level = 0) => {
-      rows.push([
-        node.code,
-        "  ".repeat(level) + node.name,
-        node.openingDr,
-        node.openingCr,
-        node.movementDr,
-        node.movementCr,
-        node.endingDr,
-        node.endingCr,
-      ]);
-      (node.children || []).forEach((c) => walk(c, level + 1));
+      const isParent = node.children && node.children.length > 0;
+
+      rows.push({
+        code: node.code,
+        name: node.name,
+        level,
+        isParent,
+
+        openingDr: node.openingDr || 0,
+        openingCr: node.openingCr || 0,
+        movementDr: node.movementDr || 0,
+        movementCr: node.movementCr || 0,
+        endingDr: node.endingDr || 0,
+        endingCr: node.endingCr || 0,
+      });
+
+      if (isParent) {
+        node.children.forEach((c) => walk(c, level + 1));
+      }
     };
 
-    filteredTree.forEach((root) => walk(root, 0));
-
-    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `balance-summary-${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    tree.forEach((root) => walk(root, 0));
+    return rows;
   };
 
-  // render a node row and optionally children
- const renderNode = (node, level = 0) => {
-  const isParent = (node.children || []).length > 0;
-  const isExpanded = expanded[node.code];
-
-  return (
-    <React.Fragment key={node.code}>
-
-      {/* PARENT ROW */}
-      <Tr fontWeight={isParent ? "bold" : "normal"} bg={isParent ? "gray.50" : undefined}>
-        <Td>
-          <Flex align="center" gap={2}>
-            {isParent ? (
-              <IconButton
-                size="xs"
-                variant="ghost"
-                aria-label="toggle"
-                icon={isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                onClick={() => toggle(node.code)}
-              />
-            ) : (
-              // preserve space alignment
-              <Box width="20px" />
-            )}
-
-            <Text ml={level * 6} fontFamily="mono">
-              {node.code}
-            </Text>
-          </Flex>
-        </Td>
-
-        <Td>
-          <Text ml={level * 6}>{node.name}</Text>
-        </Td>
-
-        <Td textAlign="right">{formatNum(node.openingDr)}</Td>
-        <Td textAlign="right">{formatNum(node.openingCr)}</Td>
-        <Td textAlign="right">{formatNum(node.movementDr)}</Td>
-        <Td textAlign="right">{formatNum(node.movementCr)}</Td>
-        <Td textAlign="right">{formatNum(node.endingDr)}</Td>
-        <Td textAlign="right">{formatNum(node.endingCr)}</Td>
-      </Tr>
-
-      {/* CHILDREN (NO NEW TABLE!!) */}
-      {isParent && isExpanded &&
-        node.children.map((child) => renderNode(child, level + 1))
-      }
-    </React.Fragment>
-  );
-};
   return (
     <Box p={6}>
-      {/* Header */}
-      <Flex justify="space-between" align="center" mb={4}>
+      {/* ================= HEADER ================= */}
+      <Flex
+        justify="space-between"
+        align="center"
+        mb={6}
+        p={6}
+        bg="white"
+        borderRadius="xl"
+        boxShadow="sm"
+      >
         <Box>
-          <Text fontSize="2xl" fontWeight="bold">
-            Balance Summary / Trial Balance
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="2xl"
+            fontWeight="bold"
+          >
+            ໃບດຸ່ນດຽງທົ່ວໄປ
           </Text>
-          <Text color="gray.500">
-            Opening | Movement Period | Ending (parent shows aggregated totals)
-          </Text>
+          {activeFilterLabel && <ActiveFilterBar label={activeFilterLabel} />}
         </Box>
 
-        <Button onClick={exportCSV} leftIcon={<Download />}>Export CSV</Button>
+        {/* PRINT (HIDDEN) */}
+        <Box display="none">
+          <BalanceSheetPrint
+            ref={printRef}
+            tree={tree}
+            totals={totals}
+            filter={filter}
+            user={user}
+            activeFilterLabel={activeFilterLabel}
+            name={"ໃບດຸ່ນດຽງທົ່ວໄປ"}
+          />
+        </Box>
+        <HStack>
+          <Button
+            leftIcon={<Download />}
+            variant="outline"
+            colorScheme="blue"
+            fontFamily="Noto Sans Lao, sans-serif"
+            onClick={handleExportPDF}
+          >
+            ສົ່ງອອກ PDF
+          </Button>
+          <Button
+            leftIcon={<Download />}
+            variant="outline"
+            fontFamily="Noto Sans Lao, sans-serif"
+            colorScheme="blue"
+            onClick={() => {
+              const flatData = flattenAccountTree(tree);
+
+              exportBalanceToExcel({
+                user,
+                data: flatData, // ✅ ส่ง array ที่ flatten แล้ว
+                activeFilterLabel,
+                heading: "ໃບດຸນດ່ຽງທົ່ວໄປ",
+                totals: totals,
+              });
+            }}
+          >
+            ສົ່ງອອກ Excel
+          </Button>
+        </HStack>
       </Flex>
 
-      {/* Filters */}
-      <HStack mb={4} spacing={3}>
-        <Input
-          placeholder="Search account..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          width="250px"
-        />
+      {/* ================= FILTER ================= */}
+      <ReportFilter
+        filter={filter}
+        setFilter={setFilter}
+        yearOptions={yearOptions}
+        search={search}
+        setSearch={setSearch}
+        onApply={handleFetch}
+        FILTER_MODE={FILTER_MODE}
+      />
 
-        <Select
-          value={preset}
-          onChange={(e) => {
-            setPreset(e.target.value);
-            setStartDate("");
-          }}
-          width="160px"
-        >
-          <option value="">Custom Range</option>
-          {presets.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </Select>
-
-        <Input
-          type="date"
-          value={startDate}
-          onChange={(e) => {
-            setStartDate(e.target.value);
-            setPreset("");
-          }}
-        />
-
-        <Input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-
-        <Button colorScheme="blue" onClick={handleFetch}>
-          Apply
-        </Button>
-      </HStack>
-
-      {/* Table */}
-      {loader ? (
-        <Flex justify="center" py={20}>
-          <Spinner size="xl" />
-        </Flex>
-      ) : (
-        <Box bg="white" p={4} borderRadius="md" overflowX="auto">
-          <Table size="sm" variant="simple">
-            <Thead bg="gray.50">
-              <Tr>
-                <Th>Account Number</Th>
-                <Th>Account Name</Th>
-                <Th textAlign="center">Opening DR</Th>
-                <Th textAlign="center">Opening CR</Th>
-                <Th textAlign="center">Movement DR</Th>
-                <Th textAlign="center">Movement CR</Th>
-                <Th textAlign="center">Ending DR</Th>
-                <Th textAlign="center">Ending CR</Th>
-              </Tr>
-            </Thead>
-
-            <Tbody>
-              {filteredTree.map((root) => renderNode(root, 0))}
-
-              {/* SUMMARY ROW */}
-              <Tr bg="gray.100" fontWeight="bold">
-                <Td colSpan={2}>TOTAL</Td>
-
-                <Td textAlign="right">{formatNum(totals.openingDr)}</Td>
-                <Td textAlign="right">{formatNum(totals.openingCr)}</Td>
-
-                <Td textAlign="right">{formatNum(totals.movementDr)}</Td>
-                <Td textAlign="right">{formatNum(totals.movementCr)}</Td>
-
-                <Td textAlign="right">{formatNum(totals.endingDr)}</Td>
-                <Td textAlign="right">{formatNum(totals.endingCr)}</Td>
-              </Tr>
-            </Tbody>
-          </Table>
-        </Box>
-      )}
+      {/* ================= TABLE ================= */}
+      <AccountTreeTable
+        tree={tree}
+        expanded={expanded}
+        toggle={toggle}
+        totals={totals}
+      />
     </Box>
   );
 };

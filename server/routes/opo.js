@@ -5,38 +5,83 @@ import User from "../models/User.js";
 const router = express.Router();
 import sanitizeHtml from "sanitize-html";
 import Joi from "joi";
+import mongoose from "mongoose";
+import sanitize from "dompurify";
 // Get all OPO records
+import AuditLog from "../models/AuditLog.js";
 router.get("/", authenticate, async (req, res) => {
   try {
-    const { status, startDate, endDate } = req.query;
-    const query = {};
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const page = parseInt(req.query.page) || 30;
-    const skip = (page - 1) * limit;
-    /////
-    query.companyId = req.user.companyId;
-    /////
-    if (status) query.status = status;
-    /////
+    const {
+      status,
+      search,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    // 1️⃣ pagination (safe)
+    const safeLimit = Math.min(parseInt(limit) || 20, 30);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+    const skip = (safePage - 1) * safeLimit;
+
+    // 2️⃣ base query (company isolation)
+    const query = {
+      companyId: req.user.companyId,
+    };
+
+    // 3️⃣ status filter (whitelist)
+    const ALLOWED_STATUS = ["PENDING", "APPROVED", "CANCELLED"];
+    if (status && status !== "ALL") {
+      if (!ALLOWED_STATUS.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      query.status_Ap = status;
+    }
+
+    // 4️⃣ search (safe regex)
+    if (search) {
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.$or = [
+        { serial: { $regex: safeSearch, $options: "i" } },
+        { number: { $regex: safeSearch, $options: "i" } },
+        { "items.description": { $regex: safeSearch, $options: "i" } },
+      ];
+    }
+
+    // 5️⃣ date filter
     if (startDate || endDate) {
       query.date = {};
-      if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate))
-        return res.status(400).json({ message: "Invalid startDate format" });
-      if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate))
-        return res.status(400).json({ message: "Invalid endDate format" });
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate + "T23:59:59.999Z");
     }
-    /////
-    const records = await OPO.find(query)
-      .populate("userId", "username email role companyInfo")
-      .populate("staff", "username email role")
-      .sort({ date: -1 });
 
-    res.json(records);
+    // 6️⃣ query
+    const [data, total] = await Promise.all([
+      OPO.find(query)
+        .select("serial number date status_Ap items staff createdBy")
+        .populate("staff", "username")
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean(),
+      OPO.countDocuments(query),
+    ]);
+
+    return res.json({
+      data,
+      pagination: {
+        total,
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
+      },
+    });
   } catch (error) {
-    res.status(500).json({ message: "เกิดข้อผิดพลาด", error: error.message });
+    console.error("GET OPO error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
 // Get single OPO record by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
@@ -192,7 +237,12 @@ router.put("/:id", authenticate, async (req, res) => {
   try {
     const opoId = req.params.id;
 
-    // 1️⃣ Find exact OPO of this company
+    // 1️⃣ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(opoId)) {
+      return res.status(400).json({ message: "Invalid OPO ID" });
+    }
+
+    // 2️⃣ Find exact OPO
     const opo = await OPO.findOne({
       _id: opoId,
       companyId: req.user.companyId,
@@ -200,155 +250,187 @@ router.put("/:id", authenticate, async (req, res) => {
 
     if (!opo) {
       return res.status(404).json({
-        message: "ບໍ່ພົບຂໍ້ມູນ OPO ຫຼື ບໍ່ມີສິດແກ້ໄຂ",
+        message: "ບໍ່ພົບຂໍ້ມູນ OPO",
       });
     }
 
-    // 2️⃣ Check permission (creator or admin)
+    // 3️⃣ Permission
     if (
       req.user.role !== "admin" &&
       String(opo.createdBy) !== String(req.user._id)
     ) {
-      return res.status(403).json({
-        message: "ທ່ານບໍ່ມີສິດແກ້ໄຂ OPO ນີ້",
-      });
+      return res.status(403).json({ message: "ບໍ່ມີສິດແກ້ໄຂ" });
     }
 
-    // 3️⃣ Prevent editing approved/cancelled OPO
+    // 4️⃣ Lock approved / cancelled
     if (["APPROVED", "CANCELLED"].includes(opo.status_Ap)) {
       return res.status(403).json({
-        message: "OPO ທີ່ອະນຸມັດ ຫຼື ຍົກເລີກ ບໍ່ສາມາດແກ້ໄຂໄດ້",
+        message: "OPO ນີ້ຖືກ lock ແລ້ວ",
       });
     }
 
-    // 4️⃣ Validate input (server side)
-    if (!req.body.serial) {
+    // 5️⃣ Validate input
+    if (!req.body.serial?.trim()) {
       return res.status(400).json({ message: "Serial ບໍ່ຖືກຕ້ອງ" });
     }
 
     if (!Array.isArray(req.body.items) || req.body.items.length === 0) {
       return res.status(400).json({
-        message: "ກະລຸນາປ້ອນລາຍການຢ່າງໜ້ອຍ 1 ລາຍການ",
+        message: "ຕ້ອງມີ item ຢ່າງໜ້ອຍ 1 ລາຍການ",
       });
     }
 
-    // 5️⃣ Validate each item
-    for (const item of req.body.items) {
-      if (!item.description || !item.paymentMethod || !item.reason) {
-        return res.status(400).json({
-          message: "ລາຍການບໍ່ຄົບຖ້ວນ",
-        });
-      }
-    }
+    // 6️⃣ Sanitize & whitelist items
+    const safeItems = req.body.items.map((i) => ({
+      description: i.description,
+      paymentMethod: i.paymentMethod,
+      reason: i.reason,
+      amount: Number(i.amount || 0),
+    }));
 
-    // 6️⃣ Allowed fields only
-    const allowedUpdate = {
+    // 7️⃣ Build update (NO status / createdBy)
+    const updateData = {
       serial: req.body.serial,
-      status: req.body.status,
-      items: req.body.items,
+      items: safeItems,
       note: req.body.note || "",
-      manager: req.body.manager,
-      requester: req.body.requester,
-      createdBy: req.body.createdBy,
-      updatedBy: req.user.username,
+      manager: req.body.manager || "",
+      requester: req.body.requester || "",
+      updatedBy: req.user._id,
       updatedAt: new Date(),
+      totalAmount: safeItems.reduce((s, i) => s + i.amount, 0),
     };
 
-    // 7️⃣ Recalculate totals
-    allowedUpdate.totalAmount = req.body.items.reduce(
-      (sum, i) => sum + Number(i.amount || 0),
-      0
-    );
-
-    // 8️⃣ Update safely
+    // 8️⃣ Atomic update
     const updated = await OPO.findOneAndUpdate(
-      { _id: opoId, companyId: req.user.companyId },
-      allowedUpdate,
+      {
+        _id: opoId,
+        companyId: req.user.companyId,
+        status_Ap: { $nin: ["APPROVED", "CANCELLED"] },
+      },
+      updateData,
       { new: true }
     );
+
+    if (!updated) {
+      return res.status(409).json({
+        message: "ข้อมูลถูกเปลี่ยนโดยผู้อื่น",
+      });
+    }
 
     return res.json({
       message: "ອັບເດດ OPO ສຳເລັດ",
       data: updated,
     });
   } catch (error) {
-    console.error("Error updating OPO:", error);
-    return res.status(500).json({
-      message: "ການອັບເດດ OPO ລົ້ມເຫລວ",
-      error: error.message,
-    });
+    console.error("PUT OPO error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
 // Update OPO status (admin/staff only)
+
 router.patch("/:id/status", authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1️⃣ Allowed roles for approving / rejecting / cancel
-    const CAN_UPDATE_STATUS = ["admin", "finance", "manager"];
+    // 1️⃣ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
 
+    // 2️⃣ Role-based access
+    const CAN_UPDATE_STATUS = ["admin", "finance", "manager"];
     if (!CAN_UPDATE_STATUS.includes(req.user.role)) {
       return res.status(403).json({ message: "ບໍ່ມີສິດປ່ຽນສະຖານະ" });
     }
 
-    // 2️⃣ Validate input
+    // 3️⃣ Validate input
     const schema = Joi.object({
       status: Joi.string()
         .valid("PENDING", "APPROVED", "PAID", "CANCELLED")
         .required(),
-      approvedBy: Joi.string().allow("").optional(),
-      rejectionReason: Joi.string().allow("").optional(),
+      rejectionReason: Joi.string().allow("").max(500).optional(),
     });
 
     const { error, value } = schema.validate(req.body);
-    if (error) return res.status(400).json({ message: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" });
+    if (error) {
+      return res.status(400).json({ message: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ" });
+    }
 
-    // 3️⃣ Get existing record (important for business rules)
+    // 4️⃣ Fetch existing
     const existing = await OPO.findOne({
       _id: id,
       companyId: req.user.companyId,
-    });
+    }).lean();
 
     if (!existing) {
       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
 
-    // 4️⃣ Prevent modifications on locked statuses
-    if (["PAID", "CANCELLED"].includes(existing.status)) {
-      return res.status(403).json({
-        message: "ບໍ່ສາມາດປ່ຽນສະຖານະໄດ້ເມື່ອລາຍການແມ່ນ PAID ຫຼື CANCELLED",
+    // 5️⃣ State transition rules
+    const TRANSITIONS = {
+      PENDING: ["APPROVED", "CANCELLED"],
+      APPROVED: ["PAID", "CANCELLED"],
+      PAID: [],
+      CANCELLED: [],
+    };
+
+    if (!TRANSITIONS[existing.status]?.includes(value.status)) {
+      return res.status(400).json({
+        message: `ບໍ່ສາມາດປ່ຽນ ${existing.status} → ${value.status}`,
       });
     }
 
-    // 5️⃣ Sanitize only unsafe inputs
-    const sanitizedReason = sanitize(value.rejectionReason || "");
-
-    // 6️⃣ Only update allowed fields (whitelist)
+    // 6️⃣ Build update (server-controlled fields)
     const updateData = {
       status: value.status,
-      approvedBy: CAN_UPDATE_STATUS.includes(req.user.role)
-        ? value.approvedBy
-        : existing.approvedBy,
-      rejectionReason: sanitizedReason,
-      updatedBy: sanitize(req.user.username),
+      updatedBy: req.user._id,
       updatedAt: new Date(),
     };
 
-    // 7️⃣ Update safely
+    if (value.status === "APPROVED") {
+      updateData.approvedBy = req.user._id;
+      updateData.approvedAt = new Date();
+    }
+
+    if (value.status === "CANCELLED") {
+      updateData.rejectionReason = sanitize(value.rejectionReason || "");
+    }
+
+    // 7️⃣ Atomic update (re-check status)
     const updated = await OPO.findOneAndUpdate(
-      { _id: id, companyId: req.user.companyId },
+      {
+        _id: id,
+        companyId: req.user.companyId,
+        status: existing.status,
+      },
       updateData,
       { new: true }
     );
+
+    if (!updated) {
+      return res.status(409).json({
+        message: "สถานะถูกเปลี่ยนโดยผู้อื่น กรุณาลองใหม่",
+      });
+    }
+
+    // 8️⃣ Audit log (สำคัญมาก)
+    await AuditLog.create({
+      action: "OPO_STATUS_UPDATE",
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      opoId: id,
+      beforeStatus: existing.status,
+      afterStatus: value.status,
+      timestamp: new Date(),
+    });
 
     return res.json({
       message: "ອັບເດດສະຖານະສຳເລັດ",
       data: updated,
     });
   } catch (error) {
-    console.error("Update status error:", error);
-    res.status(500).json({ message: "ເກີດຂໍ້ຜິດພາດ" });
+    console.error("PATCH status error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -356,6 +438,10 @@ router.patch("/:id/status", authenticate, async (req, res) => {
 router.delete("/:id", authenticate, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
+
     // 1️⃣ หาเฉพาะเอกสารของบริษัทนี้ + ID ต้องตรง
     const opo = await OPO.findOne({
       _id: id,
@@ -384,37 +470,39 @@ router.delete("/:id", authenticate, async (req, res) => {
         message: "OPO ທີ່ອະນຸມັດ ຫຼື ຍົກເລີກ ບໍ່ສາມາດລຶບໄດ້",
       });
     }
-
-    // 4️⃣ ตรวจว่ามีการเชื่อมโยงกับ Invoice หรือ Payment ไหม
-    // const linked = await Invoice.findOne({ opoId: id });
-    // if (linked) {
-    //   return res.status(400).json({
-    //     message: "OPO ຖືກນຳໃຊ້ໃນ Invoice ແລ້ວ ບໍ່ສາມາດລຶບ",
-    //   });
-    // }
-
-    // TODO: เพิ่มตรวจใน Stock, Payment, GRN ถ้ามีระบบนั้น
-
     // 5️⃣ ลบเอกสาร
-    await OPO.deleteOne({ _id: id });
-
+    const result = await OPO.deleteOne({
+      _id: id,
+      companyId: req.user.companyId,
+      status_Ap: { $nin: ["APPROVED", "CANCELLED", "PAID"] },
+    });
+    if (result.deletedCount !== 1) {
+      return res.status(409).json({
+        message: "ບໍ່ສາມາດລົບໄດ້ (ສະຖານະຖືກປ່ຽນລະຫວ່າງດຳເນີນງານ)",
+      });
+    }
     return res.json({
       message: "ລຶບຂໍ້ມູນສຳເລັດ",
       deletedId: id,
     });
   } catch (error) {
-    console.error(error);
+    console.error("DELETE OPO error:", error);
     return res.status(500).json({
-      message: "ເກີດຂໍ້ຜິດພາດ",
-      error: error.message,
+      message: "Internal Server Error",
     });
   }
 });
-
+/////////////check pass list
 router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
   try {
     const { id, itemId } = req.params;
 
+    if (
+      !mongoose.Types.ObjectId.isValid(id) ||
+      !mongoose.Types.ObjectId.isValid(itemId)
+    ) {
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
     // 1️⃣ ค้นหา OPO เฉพาะบริษัทของ user เพื่อป้องกันข้อมูลรั่ว
     const opo = await OPO.findOne({
       _id: id,
@@ -460,13 +548,21 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
       (sum, i) => sum + Number(i.subTotal || 0),
       0
     );
-
     opo.taxAmount = (opo.totalAmount * (opo.taxRate || 0)) / 100;
     opo.finalAmount = opo.totalAmount + opo.taxAmount - (opo.discount || 0);
+    // 5️⃣ Ensure item exists
 
     // 7️⃣ Save OPO
     await opo.save();
-
+    // 9️⃣ Audit log (สำคัญมาก)
+    await AuditLog.create({
+      action: "OPO_ITEM_DELETE",
+      userId: req.user._id,
+      companyId: req.user.companyId,
+      opoId: id,
+      itemId,
+      timestamp: new Date(),
+    });
     return res.json({
       message: "Item removed successfully",
       opo,
@@ -475,7 +571,6 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
     console.error("DELETE /opoId/:id/item/:itemId error:", error);
     return res.status(500).json({
       message: "Error removing item",
-      error: error.message,
     });
   }
 });
@@ -483,7 +578,9 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
 router.patch("/status/:id", authenticate, async (req, res) => {
   try {
     const id = req.params.id;
-
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid ID" });
+    }
     // 1️⃣ ดึงข้อมูลก่อนอัปเดต
     const existing = await OPO.findOne({
       _id: id,
@@ -491,7 +588,7 @@ router.patch("/status/:id", authenticate, async (req, res) => {
     }).lean();
 
     if (!existing) {
-      return res.status(404).json({ message: "ไม่พบข้อมูล" });
+      return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
 
     // 2️⃣ ป้องกัน user แก้ไขรายการที่ approve แล้ว
@@ -531,21 +628,20 @@ router.patch("/status/:id", authenticate, async (req, res) => {
 
     // ถ้าไม่มี field ให้อัปเดตที่ปลอดภัย
     if (Object.keys(update).length === 0) {
-      return res.status(400).json({ message: "ไม่มีข้อมูลที่สามารถอัปเดตได้" });
+      return res.status(400).json({ message: "ບໍ່ມີຂໍ້ມູນທີ່ສາມາດອັບເດດໄດ້" });
     }
 
     // 6️⃣ อัปเดตอย่างปลอดภัย
     const updated = await OPO.findByIdAndUpdate(id, update, { new: true });
 
     return res.json({
-      message: "อัปเดตสถานะสำเร็จ",
+      message: "ອັບເດດສະຖານະສຳເລັດ",
       data: updated,
     });
   } catch (error) {
-    console.error(error);
+    console.error("update status approve:", error);
     res.status(500).json({
-      message: "เกิดข้อผิดพลาด",
-      error: error.message,
+      message: "Something with Wrong please try again ",
     });
   }
 });

@@ -390,6 +390,7 @@ const EditForm = () => {
               ສະຖານະການຊຳລະ
             </FormLabel>
             <Select
+            placeholder="ເລືອກ"
               value={editForm.status_payment}
               onChange={(e) =>
                 setEditForm({ ...editForm, status_payment: e.target.value })

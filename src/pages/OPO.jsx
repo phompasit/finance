@@ -202,16 +202,16 @@ const OPOTable = ({
             const totals = groupByCurrency(opo.items || []);
             return (
               <Tr key={opo._id} _hover={{ bg: "gray.50" }}>
-                <Td  fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
+                <Td fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
                   {opo.serial || opo.number}
                 </Td>
-                <Td  fontFamily="Noto Sans Lao, sans-serif">
+                <Td fontFamily="Noto Sans Lao, sans-serif">
                   {formatDate(opo.date)}
                 </Td>
-                <Td  fontFamily="Noto Sans Lao, sans-serif">
+                <Td fontFamily="Noto Sans Lao, sans-serif">
                   {(opo.items || []).length}
                 </Td>
-                <Td >
+                <Td>
                   <Box
                     display="flex"
                     flexDirection="column"
@@ -464,6 +464,7 @@ const OPOSystem = () => {
   const toast = useToast();
   const pageSize = 100;
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState();
   const navigate = useNavigate();
   // API Functions with improved error handling
   const fetchOPOs = useCallback(async () => {
@@ -471,23 +472,28 @@ const OPOSystem = () => {
     setError(null);
 
     try {
-      const { data } = await api.get("/api/opo");
+      const params = {
+        page,
+        limit: pageSize,
+        status: filterStatus === "all" ? "ALL" : filterStatus,
+        search: searchTerm || undefined,
+        startDate: filterDateFrom || undefined,
+        endDate: filterDateTo || undefined,
+      };
 
-      const sorted = Array.isArray(data)
-        ? data.sort((a, b) => new Date(b.date) - new Date(a.date))
-        : [];
-
-      setOpos(sorted);
+      const { data } = await api.get("/api/opo", { params });
+      console.log("data",data)
+      setOpos(data.data);
+      setPage(data.pagination.page);
+      setTotalPages(data.pagination.totalPages);
     } catch (error) {
-      console.error("Fetch OPOs error:", error);
-
       setError(
         error?.response?.data?.message || error?.message || "ດຶງຂໍ້ມູນບໍ່ສຳເລັດ"
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, filterStatus, searchTerm, filterDateFrom, filterDateTo]);
 
   const deleteOpo = useCallback(
     async (id) => {
@@ -553,46 +559,6 @@ const OPOSystem = () => {
     });
   };
 
-  const filteredOpos = useMemo(() => {
-    return opos.filter((opo) => {
-      const matchSearch =
-        searchTerm === "" ||
-        (opo.items || []).some(
-          (item) =>
-            item.description
-              ?.toLowerCase()
-              .includes(searchTerm.toLowerCase()) ||
-            item.notes?.toLowerCase().includes(searchTerm.toLowerCase())
-        ) ||
-        (opo.serial || opo.number || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase());
-
-      const matchStatus =
-        filterStatus === "all" || opo.status_Ap === filterStatus;
-
-      // ✅ Normalize วันที่: เปรียบเทียบแค่ yyyy-mm-dd
-      const opoDateOnly = new Date(opo.date).toISOString().split("T")[0];
-      const fromDateOnly = filterDateFrom
-        ? new Date(filterDateFrom).toISOString().split("T")[0]
-        : null;
-      const toDateOnly = filterDateTo
-        ? new Date(filterDateTo).toISOString().split("T")[0]
-        : null;
-
-      const matchDate =
-        (!fromDateOnly || opoDateOnly >= fromDateOnly) &&
-        (!toDateOnly || opoDateOnly <= toDateOnly);
-
-      return matchSearch && matchStatus && matchDate;
-    });
-  }, [opos, searchTerm, filterStatus, filterDateFrom, filterDateTo]);
-
-  const totalPages = Math.ceil(filteredOpos.length / pageSize);
-  const pageData = useMemo(() => {
-    const s = (page - 1) * pageSize;
-    return filteredOpos.slice(s, s + pageSize);
-  }, [filteredOpos, page]);
   const exportPDF = (opo) => {
     setSelectedOpo(opo);
     setSelectedItems([]);
@@ -1211,6 +1177,10 @@ const OPOSystem = () => {
   };
 
   useEffect(() => {
+    setPage(1); // reset page ทุกครั้งที่ filter เปลี่ยน
+  }, [searchTerm, filterStatus, filterDateFrom, filterDateTo]);
+
+  useEffect(() => {
     fetchOPOs();
   }, [fetchOPOs]);
 
@@ -1373,13 +1343,13 @@ const OPOSystem = () => {
                     fetchOPOs={fetchOPOs}
                     toast={toast}
                     user={user}
-                    opos={pageData}
-                    totalPages={totalPages}
                     onEdit={editOpo}
                     onDelete={deleteOpo}
                     onExportPDF={exportPDF}
                     setPage={setPage}
+                    opos={opos}
                     page={page}
+                    totalPages={totalPages}
                   />
                 )}
               </CardBody>

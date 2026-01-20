@@ -63,6 +63,7 @@ import {
   Wallet,
 } from "lucide-react";
 import api from "../api/api";
+import Swal from "sweetalert2";
 // Constants
 const TOAST_DURATION = 3000;
 
@@ -190,64 +191,86 @@ export default function Users() {
       if (!userId || !newRole) return;
 
       try {
+        // 🔔 Loading
+        Swal.fire({
+          title: "ກຳລັງອັບເດດບົດບາດ...",
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading(),
+        });
+
         await api.patch(`/api/auth/users/${userId}/role`, {
           role: newRole,
         });
 
         await fetchUsers();
 
-        toast({
-          title: "ອັບເດດສຳເລັດ",
-          status: "success",
-          duration: 2000,
-          isClosable: true,
+        // ✅ Success
+        Swal.fire({
+          icon: "success",
+          title: "ອັບເດດບົດບາດສຳເລັດ",
+          timer: 2000,
+          showConfirmButton: false,
         });
       } catch (error) {
-        toast({
+        // ❌ Error
+        Swal.fire({
+          icon: "error",
           title: "ບໍ່ສາມາດອັບເດດບົດບາດໄດ້",
-          description: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
+          text: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
         });
       }
     },
-    [fetchUsers, toast]
+    [fetchUsers]
   );
-
-  // Handle delete user with confirmation
   const handleDeleteUser = useCallback(
     async (userId) => {
       if (!userId) return;
 
-      const confirmed = window.confirm(
-        "ເຈົ້າແນ່ໃຈບໍ່ທີ່ຈະລົບບັນຊີນີ້?\n\nຄຳເຕືອນ: ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ຂໍ້ມູນທັງໝົດ ແລະບໍ່ສາມາດກູ້ຄືນໄດ້"
-      );
+      // ⚠️ Confirm
+      const result = await Swal.fire({
+        title: "ຢືນຢັນການລົບຜູ້ໃຊ້?",
+        html: `
+        <p>ການລົບຈະສົ່ງຜົນກະທົບຕໍ່ຂໍ້ມູນທັງໝົດ</p>
+        <strong style="color:red">ບໍ່ສາມາດກູ້ຄືນໄດ້</strong>
+      `,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#e53e3e",
+        confirmButtonText: "ລົບ",
+        cancelButtonText: "ຍົກເລີກ",
+      });
 
-      if (!confirmed) return;
+      if (!result.isConfirmed) return;
 
       try {
+        // 🔔 Loading
+        Swal.fire({
+          title: "ກຳລັງລົບ...",
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading(),
+        });
+
         await api.delete(`/api/auth/users/${userId}`);
 
         await fetchUsers();
 
-        toast({
-          title: "ລົບຜູ້ໃຊ້ງານສຳເລັດແລ້ວ",
-          status: "success",
-          duration: 2000,
-          isClosable: true,
+        // ✅ Success
+        Swal.fire({
+          icon: "success",
+          title: "ລົບຜູ້ໃຊ້ສຳເລັດ",
+          timer: 2000,
+          showConfirmButton: false,
         });
       } catch (error) {
-        toast({
-          title: "ບໍ່ສາມາດລົບຜູ້ໃຊ້ງານໄດ້",
-          description: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
+        // ❌ Error
+        Swal.fire({
+          icon: "error",
+          title: "ບໍ່ສາມາດລົບຜູ້ໃຊ້ໄດ້",
+          text: error?.response?.data?.message || "ກະລຸນາລອງໃໝ່",
         });
       }
     },
-    [fetchUsers, toast]
+    [fetchUsers]
   );
 
   // Validate user input
@@ -270,44 +293,55 @@ export default function Users() {
       validateUserInput(newUser);
       setIsSubmitting(true);
 
+      Swal.fire({
+        title: "ກຳລັງເພີ່ມຜູ້ໃຊ້...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       await api.post("/api/auth/register", newUser);
 
-      toast({
-        title: "ເພີ່ມຜູ້ໃຊ້ງານເຮັດສຳເລັດແລ້ວ",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
+      Swal.fire({
+        icon: "success",
+        title: "ເພີ່ມຜູ້ໃຊ້ສຳເລັດ",
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       await fetchUsers();
       setNewUser(INITIAL_USER_STATE);
       onClose();
     } catch (error) {
-      toast({
-        title: "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້",
-        description:
+      Swal.fire({
+        icon: "error",
+        title: "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້",
+        text:
           error?.response?.data?.message || error?.message || "ກະລຸນາລອງໃໝ່",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
       });
+      onClose();
     } finally {
       setIsSubmitting(false);
     }
-  }, [newUser, fetchUsers, toast, onClose]);
+  }, [newUser, fetchUsers, onClose]);
 
   const addBankAccount = async () => {
     try {
+      Swal.fire({
+        title: "ກຳລັງເພີ່ມບັນຊີ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       await api.patch(
         `/api/company/${authUser.companyId._id}/add-bank`,
         newBank
       );
 
-      toast({
+      Swal.fire({
+        icon: "success",
         title: "ເພີ່ມບັນຊີສຳເລັດ",
-        status: "success",
-        duration: 2500,
-        isClosable: true,
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       onCloseBank();
@@ -320,29 +354,35 @@ export default function Users() {
         balance: 0,
       });
     } catch (error) {
-      toast({
+      Swal.fire({
+        icon: "error",
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description:
+        text:
           error?.response?.data?.message ||
           error?.message ||
           "ບໍ່ສາມາດເພີ່ມບັນຊີໄດ້",
-        status: "error",
       });
     }
   };
 
   const addCashAccount = async () => {
     try {
+      Swal.fire({
+        title: "ກຳລັງເພີ່ມບັນຊີເງິນສົດ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       await api.patch(
         `/api/company/${authUser.companyId._id}/add-cash`,
         newCash
       );
 
-      toast({
+      Swal.fire({
+        icon: "success",
         title: "ເພີ່ມບັນຊີເງິນສົດສຳເລັດ",
-        status: "success",
-        duration: 2500,
-        isClosable: true,
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       await fetchUsers();
@@ -354,113 +394,157 @@ export default function Users() {
         balance: 0,
       });
     } catch (error) {
-      toast({
+      Swal.fire({
+        icon: "error",
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description:
+        text:
           error?.response?.data?.message ||
           error?.message ||
           "ບໍ່ສາມາດເພີ່ມບັນຊີເງິນສົດໄດ້",
-        status: "error",
       });
     }
   };
 
   const updateBankAccount = async () => {
     try {
+      Swal.fire({
+        title: "ກຳລັງອັບເດດ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       await api.patch(`/api/company/update-bank/${editBank._id}`, editBank);
 
-      toast({
+      Swal.fire({
+        icon: "success",
         title: "ອັບເດດບັນຊີສຳເລັດ",
-        status: "success",
-        duration: 2500,
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       await fetchUsers();
       onCloseEditBank();
     } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິດພາດ",
-        description:
+      Swal.fire({
+        icon: "error",
+        title: "ອັບເດດບໍ່ສຳເລັດ",
+        text:
           error?.response?.data?.message ||
           error?.message ||
           "ບໍ່ສາມາດອັບເດດບັນຊີໄດ້",
-        status: "error",
       });
     }
   };
 
   const deleteBankAccount = async (bankId) => {
-    if (!confirm("ຢືນຢັນການລົບບັນຊີນີ້?")) return;
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການລົບ?",
+      text: "ບັນຊີນີ້ຈະຖືກລົບຖາວອນ",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e53e3e",
+      confirmButtonText: "ລົບ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
+      Swal.fire({ didOpen: () => Swal.showLoading() });
+
       await api.patch(`/api/company/remove-bank/${bankId}`);
 
-      toast({
+      Swal.fire({
+        icon: "success",
         title: "ລົບບັນຊີສຳເລັດ",
-        status: "success",
-        duration: 2500,
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       await fetchUsers();
     } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິດພາດ",
-        description:
+      Swal.fire({
+        icon: "error",
+        title: "ລົບບໍ່ສຳເລັດ",
+        text:
           error?.response?.data?.message ||
           error?.message ||
           "ບໍ່ສາມາດລົບບັນຊີໄດ້",
-        status: "error",
       });
     }
   };
 
   const updateCashAccount = async () => {
     try {
+      // 🔔 Loading
+      Swal.fire({
+        title: "ກຳລັງອັບເດດ...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
       await api.patch(
         `/api/company/${company._id}/update-cash/${editCash._id}`,
         editCash
       );
 
-      toast({
+      // ✅ Success
+      Swal.fire({
+        icon: "success",
         title: "ອັບເດດບັນຊີເງິນສົດສຳເລັດ",
-        status: "success",
-        duration: 2500,
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       await fetchUsers();
       onCloseEditCash();
     } catch (error) {
-      toast({
+      // ❌ Error
+      Swal.fire({
+        icon: "error",
         title: "ເກີດຂໍ້ຜິດພາດ",
-        description:
+        text:
           error?.response?.data?.message ||
           error?.message ||
           "ບໍ່ສາມາດອັບເດດບັນຊີເງິນສົດໄດ້",
-        status: "error",
       });
     }
   };
+
   const deleteCashAccount = async (cashId) => {
-    if (!confirm("ຢືນຢັນການລົບບັນຊີເງິນສົດນີ້?")) return;
+    const result = await Swal.fire({
+      title: "ຢືນຢັນການລົບ?",
+      text: "ບັນຊີເງິນສົດນີ້ຈະຖືກລົບຖາວອນ",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e53e3e",
+      confirmButtonText: "ລົບ",
+      cancelButtonText: "ຍົກເລີກ",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
+      Swal.fire({ didOpen: () => Swal.showLoading() });
+
       await api.patch(`/api/company/remove-cash/${cashId}`);
 
-      toast({
+      Swal.fire({
+        icon: "success",
         title: "ລົບບັນຊີເງິນສົດສຳເລັດ",
-        status: "success",
-        duration: 2500,
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       await fetchUsers();
     } catch (error) {
-      toast({
-        title: "ເກີດຂໍ້ຜິດພາດ",
-        description:
+      Swal.fire({
+        icon: "error",
+        title: "ລົບບໍ່ສຳເລັດ",
+        text:
           error?.response?.data?.message ||
           error?.message ||
           "ບໍ່ສາມາດລົບບັນຊີເງິນສົດໄດ້",
-        status: "error",
       });
     }
   };
@@ -490,11 +574,20 @@ export default function Users() {
     [onEditOpen]
   );
 
-  // Handle update user (with logo upload)
   const handleUpdateUser = useCallback(async () => {
     try {
       validateUserInput(editUser);
+
       setIsSubmitting(true);
+
+      // 🔔 Loading
+      Swal.fire({
+        title: "ກຳລັງອັບເດດ...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
 
       const formData = new FormData();
 
@@ -511,42 +604,42 @@ export default function Users() {
         formData.append("password", editUser.password);
       }
 
-      // companyId ส่งเป็น JSON string
+      // companyId → JSON string
       if (editUser.companyId) {
         formData.append("companyId", JSON.stringify(editUser.companyId));
       }
 
-      // logo (ถ้าเป็นไฟล์ใหม่)
+      // logo (เฉพาะไฟล์ใหม่)
       if (editUser.companyId?.logo instanceof File) {
         formData.append("logo", editUser.companyId.logo);
       }
 
-      // 🚀 axios รองรับ FormData โดยตรง
       await api.patch(`/api/auth/user/${editUser._id}`, formData);
 
       await fetchUsers();
 
-      toast({
-        title: "ອັບເດດຂໍ້ມູນສຳເລັດ",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
+      // ✅ Success
+      Swal.fire({
+        icon: "success",
+        title: "ອັບເດດສຳເລັດ",
+        text: "ຂໍ້ມູນຜູ້ໃຊ້ຖືກອັບເດດແລ້ວ",
+        timer: 2000,
+        showConfirmButton: false,
       });
 
       onEditClose();
     } catch (error) {
-      toast({
-        title: "ບໍ່ສາມາດອັບເດດຂໍ້ມູນໄດ້",
-        description:
+      // ❌ Error
+      Swal.fire({
+        icon: "error",
+        title: "ອັບເດດບໍ່ສຳເລັດ",
+        text:
           error?.response?.data?.message || error?.message || "ກະລຸນາລອງໃໝ່",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
       });
     } finally {
       setIsSubmitting(false);
     }
-  }, [editUser, fetchUsers, toast, onEditClose]);
+  }, [editUser, fetchUsers, onEditClose]);
 
   // Check if user is admin
   const isAdmin = useMemo(
@@ -558,6 +651,31 @@ export default function Users() {
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const iconColor = useColorModeValue("blue.500", "blue.300");
   const textSecondary = useColorModeValue("gray.600", "gray.400");
+
+  const getRoleBadge = (role) => {
+    const map = {
+      admin: { color: "purple", label: "Admin" },
+      master: { color: "blue", label: "master" },
+      staff: { color: "green", label: "Staff" },
+    };
+
+    const r = map[role] || { color: "gray", label: role };
+
+    return (
+      <Badge
+        colorScheme={r.color}
+        variant="subtle"
+        px={2.5}
+        py={1}
+        borderRadius="md"
+        fontSize="11px"
+        fontWeight="600"
+        textTransform="uppercase"
+      >
+        {r.label}
+      </Badge>
+    );
+  };
   const CompanyAdminDashboard = (company, admin) => {
     const InfoRow = ({ icon, label, value, badge }) => (
       <HStack spacing={3} align="start">

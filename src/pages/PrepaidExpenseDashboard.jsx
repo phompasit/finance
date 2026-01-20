@@ -473,7 +473,7 @@ export default function PrepaidExpenseDashboard() {
         `/api/advances/transation/${id}/${item._id}`
       );
 
-      if (!data?.success) {
+      if (!data) {
         throw new Error(data?.message || "ບໍ່ສາມາດລົບລາຍການໄດ້");
       }
 
@@ -491,7 +491,7 @@ export default function PrepaidExpenseDashboard() {
 
       Swal.fire({
         title: "ລົບບໍ່ສໍາເລັດ",
-        text: err.message || "ມີບາງຢ່າງຜິດພາດ",
+        text: err.response.data.message ||  "ມີບາງຢ່າງຜິດພາດ",
         icon: "error",
       });
     }
@@ -520,8 +520,8 @@ export default function PrepaidExpenseDashboard() {
 
       const endpoint = `/api/advances/advance/${id}`;
       const { data } = await api.patch(endpoint, { status_Ap: status });
-
-      if (!data?.success) {
+      console.log(data);
+      if (!data) {
         throw new Error(data?.message || "ປ່ຽນສະຖານະບໍ່ສໍາເລັດ");
       }
 

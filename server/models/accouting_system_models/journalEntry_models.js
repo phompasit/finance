@@ -7,14 +7,21 @@ const JournalLineSchema = new mongoose.Schema({
     required: true,
   },
 
-  amountOriginal: { type: Number, required: true },
+  amountOriginal: { type: Number },
 
   currency: {
     type: String,
     enum: ["LAK", "USD", "THB", "CNY"],
     required: true,
   },
-
+  debitOriginal: {
+    type: Number,
+    required: true,
+  },
+  creditOriginal: {
+    type: Number,
+    required: true,
+  },
   exchangeRate: { type: Number, required: true },
 
   amountLAK: { type: Number, required: true },
@@ -54,7 +61,30 @@ const JournalEntrySchema = new mongoose.Schema(
       enum: ["draft", "posted"],
       default: "draft",
     },
-
+    status_close: {
+      type: String,
+      enum: ["locked", "unlocked"],
+      default: "unlocked",
+    },
+    periodId: {
+      type: String,
+    },
+    type: {
+      type: String,
+      enum: ["normal", "closing","depreciation","fiexdAsset"],
+      default: "normal",
+    },
+    source: {
+      type: String,
+      enum: ["depreciation", "asset_sale", "manual"],
+    },
+    source: {
+      type: String,
+      required: true,
+    },
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
     totalDebitLAK: { type: Number, required: true },
     totalCreditLAK: { type: Number, required: true },
 

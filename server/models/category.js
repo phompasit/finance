@@ -9,7 +9,14 @@ const CategorySchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["income", "expense", "selling-expense", "admin-expense"], // รายรับ หรือ รายจ่าย
+      enum: [
+        "income",
+        "asset",
+        "cogs",
+        "expense",
+        "selling-expense",
+        "admin-expense",
+      ], // รายรับ หรือ รายจ่าย
       required: true,
     },
     description: {

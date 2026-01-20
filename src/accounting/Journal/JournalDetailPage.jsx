@@ -24,13 +24,16 @@ import {
   deleteJournal,
 } from "../../store/accountingReducer/journalSlice";
 import { useNavigate, useParams } from "react-router-dom";
+import { formatDate } from "../../components/Income_Expense/formatter";
+import pdfJournal from "../PDF/pdf";
+import { useAuth } from "../../context/AuthContext";
 
 const JournalDetailPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const toast = useToast();
   const navigate = useNavigate();
-
+  const { user } = useAuth();
   const { selectedJournal: j, loader, error } = useSelector((s) => s.journal);
 
   useEffect(() => {
@@ -69,12 +72,18 @@ const JournalDetailPage = () => {
 
         <HStack>
           <IconButton
+            onClick={() =>
+              pdfJournal({
+                data: j,
+                user: user,
+              })
+            }
             icon={<Printer size={16} />}
             size="md"
             colorScheme="gray"
             aria-label="print"
           />
-          <IconButton
+          {/* <IconButton
             icon={<Edit size={16} />}
             size="md"
             colorScheme="blue"
@@ -87,7 +96,7 @@ const JournalDetailPage = () => {
             colorScheme="red"
             aria-label="delete"
             onClick={handleDelete}
-          />
+          /> */}
         </HStack>
       </Flex>
 
@@ -101,11 +110,12 @@ const JournalDetailPage = () => {
       >
         <Flex justify="space-between" mb={4}>
           <Box>
-            <Text fontSize="lg" fontWeight="bold">
-              Journal Entry
-            </Text>
-            <Text fontSize="sm" color="gray.600">
-              #{j._id}
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="lg"
+              fontWeight="bold"
+            >
+              ປື້ມບັນຊີປະຈຳວັນ
             </Text>
           </Box>
 
@@ -116,27 +126,47 @@ const JournalDetailPage = () => {
 
         <Flex gap={12} mt={4}>
           <Box>
-            <Text fontSize="sm" color="gray.500">
-              Date
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              color="gray.500"
+            >
+              ວັນທີ່/ເດືອນ/ປີ
             </Text>
-            <Text fontSize="md" fontWeight="600">
-              {j.date?.slice(0, 10)}
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="md"
+              fontWeight="600"
+            >
+              {formatDate(j.date?.slice(0, 10))}
             </Text>
           </Box>
 
           <Box>
-            <Text fontSize="sm" color="gray.500">
-              Reference
+            <Text
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+              color="gray.500"
+            >
+              ເລກທີ່ເອກະສານອ້າງອີງ
             </Text>
-            <Text fontSize="md">{j.reference || "-"}</Text>
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="md">
+              {j.reference || "-"}
+            </Text>
           </Box>
         </Flex>
 
         <Box mt={4}>
-          <Text fontSize="sm" color="gray.500">
-            Description
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.500"
+          >
+            ຄຳອະທິບາຍ
           </Text>
-          <Text fontSize="md">{j.description || "-"}</Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="md">
+            {j.description || "-"}
+          </Text>
         </Box>
       </Box>
 
@@ -144,88 +174,145 @@ const JournalDetailPage = () => {
       <Box
         mt={8}
         bg="white"
-        shadow="sm"
-        borderRadius="md"
+        shadow="md"
+        borderRadius="lg"
         p={6}
-        border="1px solid #eaeaea"
+        border="1px solid"
+        borderColor="gray.200"
       >
-        <Text fontSize="lg" fontWeight="bold" mb={4}>
-          Journal Lines
-        </Text>
+        <Flex justify="space-between" align="center" mb={4}>
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="lg"
+            fontWeight="bold"
+          >
+            ລາຍການບັນທຶກ (Journal Lines)
+          </Text>
 
-        <Table size="md" variant="simple">
-          <Thead bg="gray.50">
-            <Tr>
-              <Th textAlign="center">DR</Th>
-              <Th textAlign="center">CR</Th>
-              <Th textAlign="center">DR</Th>
-              <Th textAlign="center">CR</Th>
-              <Th textAlign="center">DR</Th>
-              <Th textAlign="center">CR</Th>
+          <Text fontSize="sm" color="gray.500">
+            Debit / Credit Breakdown
+          </Text>
+        </Flex>
 
-              <Th textAlign="center">Original</Th>
-              <Th textAlign="center">Currency</Th>
-              <Th textAlign="center">Rate</Th>
-            </Tr>
-          </Thead>
+        <Box overflowX="auto">
+          <Table size="sm" variant="striped" colorScheme="gray">
+            <Thead position="sticky" top={0} zIndex={1} bg="gray.100">
+              <Tr>
+                {/* Account Code */}
+                <Th textAlign="center" colSpan={2}>
+                  Account Code
+                </Th>
 
-          <Tbody>
-            {j.lines.map((ln, idx) => (
-              <Tr key={idx}>
-                {/* ------- คอลัมน์ชุด 1: เลขบัญชี ------- */}
-                <Td textAlign="center">
-                  {ln.side === "dr" ? ln.accountId?.code : ""}
-                </Td>
-                <Td textAlign="center">
-                  {ln.side === "cr" ? ln.accountId?.code : ""}
-                </Td>
+                {/* Account Name */}
+                <Th textAlign="center" colSpan={2}>
+                  Account Name
+                </Th>
 
-                {/* ------- คอลัมน์ชุด 2: ชื่อบัญชี ------- */}
-                <Td textAlign="center">
-                  {ln.side === "dr" ? ln.accountId?.name : ""}
-                </Td>
-                <Td textAlign="center">
-                  {ln.side === "cr" ? ln.accountId?.name : ""}
-                </Td>
+                {/* LAK Amount */}
+                <Th textAlign="center" colSpan={2}>
+                  Amount (LAK)
+                </Th>
 
-                {/* ------- คอลัมน์ชุด 3: มูลค่า LAK ------- */}
-                <Td textAlign="center">
-                  {ln.side === "dr"
-                    ? Number(ln.amountLAK).toLocaleString()
-                    : ""}
-                </Td>
-                <Td textAlign="center">
-                  {ln.side === "cr"
-                    ? Number(ln.amountLAK).toLocaleString()
-                    : ""}
-                </Td>
+                {/* Original */}
+                <Th textAlign="center" colSpan={2}>
+                  Original Amount
+                </Th>
 
-                {/* ------- คอลัมน์ 4: Original Amount ------- */}
-                <Td textAlign="center">
-                  {Number(ln.amountOriginal).toLocaleString()}
-                </Td>
-
-                {/* ------- คอลัมน์ 5: Currency ------- */}
-                <Td textAlign="center">{ln.currency}</Td>
-
-                {/* ------- คอลัมน์ 6: Rate ------- */}
-                <Td textAlign="center">
-                  {Number(ln.exchangeRate).toLocaleString()}
-                </Td>
+                <Th textAlign="center">Currency</Th>
+                <Th textAlign="center">Rate</Th>
               </Tr>
-            ))}
-          </Tbody>
-        </Table>
+
+              <Tr>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <>
+                    <Th key={`dr-${i}`} textAlign="center" color="green.600">
+                      DR
+                    </Th>
+                    <Th key={`cr-${i}`} textAlign="center" color="red.600">
+                      CR
+                    </Th>
+                  </>
+                ))}
+                <Th />
+                <Th />
+              </Tr>
+            </Thead>
+
+            <Tbody>
+              {j.lines.map((ln, idx) => (
+                <Tr key={idx} _hover={{ bg: "blue.50" }}>
+                  {/* Account Code */}
+                  <Td
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    textAlign="center"
+                    fontWeight="medium"
+                  >
+                    {ln.side === "dr" ? ln.accountId?.code : ""}
+                  </Td>
+                  <Td
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    textAlign="center"
+                    fontWeight="medium"
+                  >
+                    {ln.side === "cr" ? ln.accountId?.code : ""}
+                  </Td>
+
+                  {/* Account Name */}
+                  <Td fontFamily="Noto Sans Lao, sans-serif" textAlign="center">
+                    {ln.side === "dr" ? ln.accountId?.name : ""}
+                  </Td>
+                  <Td fontFamily="Noto Sans Lao, sans-serif" textAlign="center">
+                    {ln.side === "cr" ? ln.accountId?.name : ""}
+                  </Td>
+
+                  {/* LAK */}
+                  <Td textAlign="right" color="green.700">
+                    {ln.side === "dr"
+                      ? Number(ln.amountLAK).toLocaleString()
+                      : ""}
+                  </Td>
+                  <Td textAlign="right" color="red.700">
+                    {ln.side === "cr"
+                      ? Number(ln.amountLAK).toLocaleString()
+                      : ""}
+                  </Td>
+
+                  {/* Original */}
+                  <Td textAlign="right">
+                    {ln.side === "dr"
+                      ? Number(ln.debitOriginal).toLocaleString()
+                      : "-"}
+                  </Td>
+                  <Td textAlign="right">
+                    {ln.side === "cr"
+                      ? Number(ln.creditOriginal).toLocaleString()
+                      : "-"}
+                  </Td>
+
+                  {/* Currency */}
+                  <Td textAlign="center" fontWeight="semibold">
+                    {ln.currency}
+                  </Td>
+
+                  {/* Rate */}
+                  <Td textAlign="right" color="gray.600">
+                    {Number(ln.exchangeRate).toLocaleString()}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
 
         {/* TOTALS */}
-        <Divider my={5} />
+        <Divider my={6} />
 
-        <Flex justify="flex-end" gap={12}>
+        <Flex justify="flex-end" gap={10}>
           <Box textAlign="right">
             <Text fontSize="sm" color="gray.500">
               Total Debit (LAK)
             </Text>
-            <Text fontSize="xl" fontWeight="bold" color="green.600">
+            <Text fontSize="2xl" fontWeight="bold" color="green.600">
               {Number(j.totalDebitLAK).toLocaleString()}
             </Text>
           </Box>
@@ -234,7 +321,7 @@ const JournalDetailPage = () => {
             <Text fontSize="sm" color="gray.500">
               Total Credit (LAK)
             </Text>
-            <Text fontSize="xl" fontWeight="bold" color="green.600">
+            <Text fontSize="2xl" fontWeight="bold" color="red.600">
               {Number(j.totalCreditLAK).toLocaleString()}
             </Text>
           </Box>

@@ -314,6 +314,11 @@ router.post("/bulk", authenticate, async (req, res) => {
         });
       }
     }
+    // if (transactions.status !== "unpaid") {
+    //   return res.status(400).json({
+    //     message: `ສະຖານະຊຳລະເງິນຕ້ອງ ມີສະຖານະເປັນ ບໍ່ຊຳລະເປັນອັນດັບທຳອິດ`,
+    //   });
+    // }
     // 6️⃣ Save (not insertMany because only 1 record)
     const record = await IncomeExpense.create({
       userId: req.user._id,
@@ -327,7 +332,8 @@ router.post("/bulk", authenticate, async (req, res) => {
       note: transactions.note,
       createdBy: req.user._id,
       status: transactions.status,
-      status_Ap: transactions.status_Ap,
+      status_Ap:
+        transactions.type === "income" ? "approve" : transactions.status_Ap,
       categoryId: transactions.categoryId,
     });
 
@@ -480,12 +486,117 @@ router.put("/:id", authenticate, async (req, res) => {
       "status_Ap",
       "categoryId",
     ];
+    if (req.body.status === "paid" && existing.status_Ap !== "approve") {
+      return res.status(400).json({
+        message: `ບໍ່ສາມາດຕັດຍອດຊຳລະເງຶນໄດ້ ຈົນກວ່າຈະໄດ້ຮັບອະນຸມັດລາຍຈ່າຍ ກະລຸນາອະນຸມັດກ່ອນ`,
+      });
+    }
+    // ===== PREPARE =====
+    // const company = await Company.findById(req.user.companyId);
 
+    // const oldAmounts = existing.amounts ?? [];
+    // const newAmounts = req.body.amounts ?? [];
+
+    // // 🔑 type
+    // const oldType = existing.type; // "income" | "expense"
+    // const newType = req.body.type ?? oldType;
+
+    // // 🔑 direction
+    // const oldDirection = oldType === "income" ? 1 : -1;
+    // const newDirection = newType === "income" ? 1 : -1;
+
+    // // 🔑 state
+    // const wasPaidApproved =
+    //   existing.status === "paid" && existing.status_Ap === "approve";
+
+    // const willBePaidApproved =
+    //   req.body.status === "paid" && existing.status_Ap === "approve";
+
+    // const willBeUnpaid =
+    //   req.body.status === "unpaid" && existing.status_Ap === "approve";
+    // // ===== LOOKUP MAPS =====
+    // const cashMap = new Map(
+    //   company.cashAccounts.map((acc) => [acc._id.toString(), acc])
+    // );
+
+    // const bankMap = new Map(
+    //   company.bankAccounts.map((acc) => [acc._id.toString(), acc])
+    // );
+
+    // // ===== HELPERS =====
+    // const findAccount = (accountId) => {
+    //   const id = accountId.toString();
+    //   if (cashMap.has(id)) return cashMap.get(id);
+    //   if (bankMap.has(id)) return bankMap.get(id);
+    //   throw new Error("AccountId ไม่ถูกต้อง");
+    // };
+
+    // const oldMap = new Map(oldAmounts.map((i) => [i.accountId.toString(), i]));
+    // const newMap = new Map(newAmounts.map((i) => [i.accountId.toString(), i]));
+
+    // const allAccountIds = new Set([...oldMap.keys(), ...newMap.keys()]);
+
+    // // ===== CORE LOGIC =====
+
+    // // ─────────────────────────────
+    // // CASE 1: paid → unpaid (rollback เดิมทั้งหมด)
+    // // ─────────────────────────────
+    // if (wasPaidApproved && willBeUnpaid) {
+    //   for (const [accountId, oldItem] of oldMap.entries()) {
+    //     const account = findAccount(accountId);
+    //     account.balance -= oldDirection * Number(oldItem.amount);
+    //   }
+    // }
+
+    // // ─────────────────────────────
+    // // CASE 2: unpaid → paid (apply ใหม่ครั้งแรก)
+    // // ─────────────────────────────
+    // if (!wasPaidApproved && willBePaidApproved) {
+    //   for (const [accountId, newItem] of newMap.entries()) {
+    //     const account = findAccount(accountId);
+    //     account.balance += newDirection * Number(newItem.amount);
+    //   }
+    // }
+
+    // // ─────────────────────────────
+    // // CASE 3: paid → paid
+    // // ─────────────────────────────
+    // if (wasPaidApproved && willBePaidApproved) {
+    //   // 🔴 3.1 type เปลี่ยน (expense ↔ income)
+    //   if (oldDirection !== newDirection) {
+    //     // rollback ของเก่า
+    //     for (const [accountId, oldItem] of oldMap.entries()) {
+    //       const account = findAccount(accountId);
+    //       account.balance -= oldDirection * Number(oldItem.amount);
+    //     }
+
+    //     // apply ของใหม่
+    //     for (const [accountId, newItem] of newMap.entries()) {
+    //       const account = findAccount(accountId);
+    //       account.balance += newDirection * Number(newItem.amount);
+    //     }
+    //   }
+    //   // 🟢 3.2 type เดิม → ใช้ diff
+    //   else {
+    //     for (const accountId of allAccountIds) {
+    //       const oldAmount = Number(oldMap.get(accountId)?.amount || 0);
+    //       const newAmount = Number(newMap.get(accountId)?.amount || 0);
+
+    //       const diff = newAmount - oldAmount;
+    //       if (diff === 0) continue;
+
+    //       const account = findAccount(accountId);
+    //       account.balance += oldDirection * diff;
+    //     }
+    //   }
+    // }
+
+    // ===== SAVE เฉพาะตอนที่มีการแตะเงินจริง =====
+    // await company.save();
     const updateData = {};
     for (const key of allowedFields) {
       if (key in req.body) updateData[key] = req.body[key];
     }
-
     // 9️⃣ Update
     const updated = await IncomeExpense.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -510,24 +621,24 @@ router.delete("/:id", authenticate, async (req, res) => {
   try {
     const id = req.params.id;
 
-    // 1️⃣ โหลดเฉพาะข้อมูลของบริษัทนี้เท่านั้น (ป้องกันข้อมูลรั่ว)
+    // 1️⃣ โหลดเฉพาะข้อมูลของบริษัทนี้
     const existing = await IncomeExpense.findOne({
       _id: id,
       companyId: req.user.companyId,
-    }).lean();
+    });
 
     if (!existing) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
 
-    // 2️⃣ ป้องกันลบรายการที่ approve (เฉพาะ admin ลบได้)
+    // 2️⃣ ป้องกันลบรายการที่ approve (admin เท่านั้น)
     if (req.user.role !== "admin" && existing.status_Ap === "approve") {
       return res.status(403).json({
         message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດລຶບໄດ້",
       });
     }
 
-    // 3️⃣ user ธรรมดา 👉 อนุญาตลบเฉพาะรายการที่ตัวเองสร้าง
+    // 3️⃣ user ธรรมดาลบได้เฉพาะของตัวเอง
     if (
       req.user.role !== "admin" &&
       String(existing.createdBy) !== String(req.user._id)
@@ -537,7 +648,41 @@ router.delete("/:id", authenticate, async (req, res) => {
       });
     }
 
-    // 4️⃣ ลบ record
+    // ===== 🔑 ROLLBACK BALANCE =====
+    const wasPaidApproved =
+      existing.status === "paid" && existing.status_Ap === "approve";
+
+    if (wasPaidApproved && Array.isArray(existing.amounts)) {
+      const company = await Company.findById(req.user.companyId);
+
+      const direction = existing.type === "income" ? 1 : -1;
+
+      // lookup maps
+      const cashMap = new Map(
+        company.cashAccounts.map(a => [a._id.toString(), a])
+      );
+      const bankMap = new Map(
+        company.bankAccounts.map(a => [a._id.toString(), a])
+      );
+
+      const findAccount = (id) => {
+        const key = id.toString();
+        if (cashMap.has(key)) return cashMap.get(key);
+        if (bankMap.has(key)) return bankMap.get(key);
+        throw new Error("AccountId ไม่ถูกต้อง");
+      };
+
+      // rollback ทุก amount
+      for (const item of existing.amounts) {
+        const account = findAccount(item.accountId);
+        const amount = Number(item.amount);
+        account.balance -= direction * amount;
+      }
+
+      await company.save();
+    }
+
+    // ===== 4️⃣ ลบ record =====
     const record = await IncomeExpense.findOneAndDelete({
       _id: id,
       companyId: req.user.companyId,
@@ -547,7 +692,7 @@ router.delete("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
 
-    // 5️⃣ ถ้าเป็นการลบรายการชำระหนี้ → reset isPaid
+    // ===== 5️⃣ ถ้าเป็นการลบรายการชำระหนี้ =====
     if (record.referance && record.installmentId) {
       await Debt.findOneAndUpdate(
         {
@@ -559,15 +704,13 @@ router.delete("/:id", authenticate, async (req, res) => {
         }
       );
 
-      // ❗ Check ถ้ายังมี installment ที่ยังคง isPaid === false ทั้งหมด → debt.status = "unpaid"
+      // update debt status
       await Debt.findByIdAndUpdate(record.referance, [
         {
           $set: {
             status: {
               $cond: [
-                {
-                  $anyElementTrue: "$installments.isPaid",
-                },
+                { $anyElementTrue: "$installments.isPaid" },
                 "partial",
                 "unpaid",
               ],
@@ -578,6 +721,7 @@ router.delete("/:id", authenticate, async (req, res) => {
     }
 
     return res.json({ message: "ລຶບສຳເລັດ" });
+
   } catch (error) {
     console.error(error);
     return res.status(500).json({
@@ -587,18 +731,19 @@ router.delete("/:id", authenticate, async (req, res) => {
   }
 });
 
+
 // deleteAmount
 router.delete("/item/:id/:index", authenticate, async (req, res) => {
   try {
-    const amountIndex = Number(req.params.id); // index ของ amounts
-    const docId = req.params.index; // _id ของ IncomeExpense
+    const amountIndex = req.params.id;  // index ของ amounts
+    const docId = req.params.index                // _id ของ IncomeExpense
 
-    // 1️⃣ Validate amount index
+    // 1️⃣ Validate index
     if (isNaN(amountIndex) || amountIndex < 0) {
       return res.status(400).json({ message: "index ไม่ถูกต้อง" });
     }
 
-    // 2️⃣ ค้นหาเฉพาะข้อมูลบริษัทนี้เท่านั้น (ป้องกันข้อมูลรั่ว)
+    // 2️⃣ หา document ของบริษัทนี้เท่านั้น
     const doc = await IncomeExpense.findOne({
       _id: docId,
       companyId: req.user.companyId,
@@ -608,7 +753,7 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
 
-    // 3️⃣ user ธรรมดาแก้ไขเฉพาะรายการที่ตัวเองสร้างเท่านั้น
+    // 3️⃣ permission
     if (
       req.user.role !== "admin" &&
       String(doc.createdBy) !== String(req.user._id)
@@ -618,39 +763,74 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
       });
     }
 
-    // 4️⃣ ถ้า approve แล้วและไม่ใช่ admin → ห้ามแก้ไข
+    // 4️⃣ approve แล้ว user ธรรมดาแก้ไม่ได้
     if (req.user.role !== "admin" && doc.status_Ap === "approve") {
       return res.status(403).json({
-        message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ ບໍ່ສາມາດປ່ຽນແປງໄດ້",
+        message: "ລາຍການນີ້ຖືກອະນຸມັດແລ້ວ",
       });
     }
-    // 5️⃣ ตรวจสอบ amounts index ว่ามีอยู่จริง
-    if (!Array.isArray(doc.amounts) || !doc.amounts[amountIndex]) {
+
+    // 5️⃣ ตรวจ index
+    const item = doc.amounts?.[amountIndex];
+    if (!item) {
       return res.status(400).json({
         message: "ไม่พบ amounts ตาม index ที่ระบุ",
       });
     }
 
-    // 6️⃣ ลบ amounts item ตาม index
+    // ===== 🔑 ROLLBACK BALANCE ตอนลบ =====
+    const wasPaidApproved =
+      doc.status === "paid" && doc.status_Ap === "approve";
+
+    if (wasPaidApproved) {
+      const company = await Company.findById(req.user.companyId);
+
+      const direction = doc.type === "income" ? 1 : -1;
+      const amount = Number(item.amount);
+
+      // lookup account
+      const cashMap = new Map(
+        company.cashAccounts.map(a => [a._id.toString(), a])
+      );
+      const bankMap = new Map(
+        company.bankAccounts.map(a => [a._id.toString(), a])
+      );
+
+      const findAccount = (id) => {
+        const key = id.toString();
+        if (cashMap.has(key)) return cashMap.get(key);
+        if (bankMap.has(key)) return bankMap.get(key);
+        throw new Error("AccountId ไม่ถูกต้อง");
+      };
+
+      const account = findAccount(item.accountId);
+
+      // 🔁 rollback
+      account.balance -= direction * amount;
+
+      await company.save();
+    }
+
+    // ===== ลบ amount =====
     doc.amounts.splice(amountIndex, 1);
 
-    // 7️⃣ Validate currency ห้ามซ้ำ
-    const currencies = doc.amounts.map((a) => a.currency);
+    // 6️⃣ validate currency ซ้ำ
+    const currencies = doc.amounts.map(a => a.currency);
     const dup = currencies.find((c, i) => currencies.indexOf(c) !== i);
-
     if (dup) {
       return res.status(400).json({
         message: `ສະກຸນເງິນ ${dup} ຊ້ຳກັນ`,
       });
     }
 
-    // 8️⃣ บันทึกข้อมูล
+    // 7️⃣ save
     await doc.save();
 
     return res.json({
       message: "ລົບສຳເລັດ",
       data: doc,
     });
+
   } catch (error) {
     console.error(error);
     return res.status(500).json({
@@ -659,6 +839,7 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
     });
   }
 });
+
 router.patch("/status/:id", authenticate, async (req, res) => {
   try {
     const id = req.params.id;
