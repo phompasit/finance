@@ -103,7 +103,22 @@ const FixedAssetSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-
+    /////////ບັນຊີລົງເວລາຂາຍ ກຳໄລຂາດທຶນ
+    getMoneyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Account_document",
+      required: true,
+    },
+    incomeAssetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Account_document",
+      required: true,
+    },
+    expenseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Account_document",
+      required: true,
+    },
     note: String,
   },
   { timestamps: true }

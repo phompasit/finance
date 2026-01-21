@@ -36,8 +36,11 @@ router.post("/", authenticate, async (req, res) => {
       depreciationExpenseAccountId,
       accumulatedDepreciationAccountId,
       paidAccountId,
+      getMoneyId,
+      incomeAssetId,
+      expenseId,
     } = req.body;
-
+    console.log(getMoneyId, incomeAssetId, expenseId);
     // Validate required fields
     if (!assetCode || !name || !category || !purchaseDate || !startUseDate) {
       return res.status(400).json({
@@ -86,7 +89,10 @@ router.post("/", authenticate, async (req, res) => {
       !assetAccountId ||
       !paidAccountId ||
       !depreciationExpenseAccountId ||
-      !accumulatedDepreciationAccountId
+      !accumulatedDepreciationAccountId ||
+      !getMoneyId ||
+      !incomeAssetId ||
+      !expenseId
     ) {
       return res.status(400).json({
         success: false,
@@ -96,6 +102,9 @@ router.post("/", authenticate, async (req, res) => {
           "paidAccountId",
           "depreciationExpenseAccountId",
           "accumulatedDepreciationAccountId",
+          "getMoneyId",
+          "incomeAssetId ",
+          "expenseId",
         ],
       });
     }
@@ -106,8 +115,11 @@ router.post("/", authenticate, async (req, res) => {
       paidAccountId,
       depreciationExpenseAccountId,
       accumulatedDepreciationAccountId,
+      getMoneyId,
+      incomeAssetId,
+      expenseId,
     ];
-
+    console.log( accountIds.length)
     for (const id of accountIds) {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
@@ -143,14 +155,14 @@ router.post("/", authenticate, async (req, res) => {
       _id: { $in: accountIds },
       companyId: req.user.companyId,
     }).session(session);
-
-    if (accounts.length !== accountIds.length) {
-      await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        error: "One or more accounts not found or access denied",
-      });
-    }
+    console.log(accounts.length)
+    // if (accounts.length !== accountIds.length) {
+    //   await session.abortTransaction();
+    //   return res.status(404).json({
+    //     success: false,
+    //     error: "One or more accounts not found or access denied",
+    //   });
+    // }
 
     // ================= CHECK DUPLICATE ASSET CODE =================
     const existingAsset = await FixedAsset.findOne({
@@ -194,6 +206,9 @@ router.post("/", authenticate, async (req, res) => {
       depreciationExpenseAccountId,
       accumulatedDepreciationAccountId,
       paidAccountId,
+      getMoneyId,
+      incomeAssetId,
+      expenseId,
       companyId: req.user.companyId,
       createdBy: req.user._id,
       status: "active",
@@ -457,7 +472,7 @@ router.get("/all-fixedAsset", authenticate, async (req, res) => {
     });
     /* ================= 2. Query params ================= */
     const { status, category, search, page = 1, limit = 10 } = req.query;
-    console.log( year )
+    console.log(year);
     const companyId = req.user.companyId;
 
     /* ================= 3. Base query ================= */
@@ -511,13 +526,12 @@ router.get("/all-fixedAsset", authenticate, async (req, res) => {
         .lean(),
       FixedAsset.countDocuments(query),
     ]);
-const ledgers = await DepreciationLedger.find().lean();
+    const ledgers = await DepreciationLedger.find().lean();
 
-const totalDepreciationLedgerAll = ledgers.reduce(
-  (sum, l) => sum + (l.depreciationAmount || 0),
-  0
-);
-
+    const totalDepreciationLedgerAll = ledgers.reduce(
+      (sum, l) => sum + (l.depreciationAmount || 0),
+      0
+    );
 
     /* ================= 10. Response ================= */
     res.json({

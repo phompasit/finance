@@ -65,6 +65,9 @@ const INITIAL_FORM_STATE = {
   depreciationExpenseAccountId: "",
   accumulatedDepreciationAccountId: "",
   paidAccountId: "",
+  getMoneyId: "",
+  incomeAssetId: "",
+  expenseId: "",
 };
 
 const CURRENCY_OPTIONS = [
@@ -137,10 +140,10 @@ const useAssetForm = (id, isNew) => {
         category: current.category || "",
         purchaseDate: current.purchaseDate || "",
         startUseDate: current.startUseDate || "",
-        original:  Number(current.original) || 0,
+        original: Number(current.original) || 0,
         exchangeRate: current.exchangeRate || 1,
         currency: current.currency || "LAK",
-        cost:  Number(current.cost) || 0,
+        cost: Number(current.cost) || 0,
         salvageValue: Number(current.salvageValue) || 0,
         usefulLife: current.usefulLife || "",
         assetAccountId: current.assetAccountId || "",
@@ -149,6 +152,9 @@ const useAssetForm = (id, isNew) => {
         accumulatedDepreciationAccountId:
           current.accumulatedDepreciationAccountId || "",
         paidAccountId: current.paidAccountId || "",
+        getMoneyId: current.getMoneyId,
+        incomeAssetId: current.incomeAssetId,
+        expenseId: current.expenseId,
       });
       setIsEditMode(false);
     }
@@ -211,8 +217,8 @@ const useFormValidation = (form) => {
         newErrors[field] = message;
       }
     });
-console.log(Number(form.salvageValue) >= Number(form.cost))
-console.log( typeof form.salvageValue )
+    console.log(Number(form.salvageValue) >= Number(form.cost));
+    console.log(typeof form.salvageValue);
     // Date validation
     if (form.startUseDate && form.purchaseDate) {
       if (new Date(form.startUseDate) < new Date(form.purchaseDate)) {
@@ -234,7 +240,10 @@ console.log( typeof form.salvageValue )
       newErrors.usefulLife = "Useful life must be greater than 0";
     }
 
-    if (Number(form.salvageValue) && Number(form.salvageValue) >= Number(form.cost)) {
+    if (
+      Number(form.salvageValue) &&
+      Number(form.salvageValue) >= Number(form.cost)
+    ) {
       newErrors.salvageValue = "Salvage value must be less than cost";
     }
 
@@ -443,7 +452,7 @@ const AddAssetModal = () => {
   }, [current]);
 
   const canEditGeneral = isNew || !hasDepreciation;
-  console.log("canEditGeneral", id )
+  console.log("canEditGeneral", id);
   const accountOptions = useMemo(
     () =>
       accounts
@@ -914,7 +923,37 @@ const AddAssetModal = () => {
                   setErrors={setErrors}
                   options={accountOptions}
                   isEditMode={isEditMode}
- 
+                />
+
+                <AccountSelector
+                  label="ບັນຊີຮັບເງິນ"
+                  field="getMoneyId"
+                  form={form}
+                  setForm={setForm}
+                  errors={errors}
+                  setErrors={setErrors}
+                  options={accountOptions}
+                  isEditMode={isEditMode}
+                />
+                <AccountSelector
+                  label="ລາຍຮັບ"
+                  field="incomeAssetId"
+                  form={form}
+                  setForm={setForm}
+                  errors={errors}
+                  setErrors={setErrors}
+                  options={accountOptions}
+                  isEditMode={isEditMode}
+                />
+                <AccountSelector
+                  label="ລາຍຈ່າຍ"
+                  field="expenseId"
+                  form={form}
+                  setForm={setForm}
+                  errors={errors}
+                  setErrors={setErrors}
+                  options={accountOptions}
+                  isEditMode={isEditMode}
                 />
               </VStack>
             </CardBody>
@@ -956,7 +995,6 @@ const AddAssetModal = () => {
                     onClick={() => setIsEditMode(true)}
                     fontWeight="600"
                     px={8}
-                 
                   >
                     Edit Asset
                   </Button>

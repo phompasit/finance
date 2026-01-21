@@ -345,9 +345,7 @@ const AssetDetailPage = ({
                         <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
                           ຄ່າຫຼຸ້ຍຫ້ຽນ
                         </Th>
-                        <Th fontFamily="Noto Sans Lao, sans-serif">
-                          ລະຫັດອ້າງອິງບັນຊີ
-                        </Th>
+
                         <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
                       </Tr>
                     </Thead>
@@ -355,22 +353,12 @@ const AssetDetailPage = ({
                       {schedule?.map((item, idx) => {
                         return (
                           <Tr key={idx}>
-                            <Td>
-                              {item.year} {item.month}
+                            <Td   fontFamily="Noto Sans Lao, sans-serif">
+                             ເດືອນ  {item.month}/{item.year}
                             </Td>
                             <Td isNumeric>{item.usedDays}</Td>
                             <Td isNumeric>{formatCurrency(item.amount)}</Td>
 
-                            <Td>
-                              <Button
-                                size="xs"
-                                variant="link"
-                                colorScheme="blue"
-                              >
-                                JE-{item.year}-
-                                {String(idx + 1).padStart(3, "0")}
-                              </Button>
-                            </Td>
                             <Td>
                               <Badge
                                 fontFamily="Noto Sans Lao, sans-serif"
