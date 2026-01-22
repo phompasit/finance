@@ -44,11 +44,12 @@ const AssetListPage = ({
   setSearch,
   onApplyFilter,
   FILTER_MODE,
-depreciationAmount,
+  depreciationAmount,
   /* ===== helpers ===== */
   formatCurrency,
   getStatusColor,
   onView,
+  handleRollback,
 }) => {
   const navigate = useNavigate();
 
@@ -58,10 +59,7 @@ depreciationAmount,
       total: assets.length,
       active: assets.filter((a) => a.status === "active").length,
       totalCost: assets.reduce((s, a) => s + (a.cost || 0), 0),
-      accDep: assets.reduce(
-        (s, a) => s + (a.accumulatedDepreciation || 0),
-        0
-      ),
+      accDep: assets.reduce((s, a) => s + (a.accumulatedDepreciation || 0), 0),
       nbv: assets.reduce((s, a) => s + (a.netBookValue || 0), 0),
     };
   }, [assets]);
@@ -121,9 +119,7 @@ depreciationAmount,
             <CardBody>
               <Stat>
                 <StatLabel>Total Cost</StatLabel>
-                <StatNumber>
-                  {formatCurrency(stats.totalCost)}
-                </StatNumber>
+                <StatNumber>{formatCurrency(stats.totalCost)}</StatNumber>
               </Stat>
             </CardBody>
           </Card>
@@ -144,7 +140,7 @@ depreciationAmount,
               <Stat>
                 <StatLabel>Net Book Value</StatLabel>
                 <StatNumber color="green.600">
-                  {formatCurrency(stats.totalCost-depreciationAmount)}
+                  {formatCurrency(stats.totalCost - depreciationAmount)}
                 </StatNumber>
               </Stat>
             </CardBody>
@@ -202,11 +198,10 @@ depreciationAmount,
                           <IconButton
                             size="sm"
                             icon={<Edit size={16} />}
-                            onClick={() =>
-                              navigate(`/fixed-add/${a._id}`)
-                            }
+                            onClick={() => navigate(`/fixed-add/${a._id}`)}
                           />
                           <IconButton
+                            onClick={() => handleRollback(a._id)}
                             size="sm"
                             icon={<TrendingDown size={16} />}
                           />

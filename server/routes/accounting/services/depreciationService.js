@@ -10,6 +10,7 @@ import {
   isAfter,
 } from "../../../utils/depreciation.js";
 import journalEntry_models from "../../../models/accouting_system_models/journalEntry_models.js";
+import mongoose from "mongoose";
 function buildJournalLine({
   accountId,
   debit = 0,
@@ -305,222 +306,84 @@ export async function postDepreciationForAsset(req, res) {
   }
 }
 
-// export async function postDepreciationForAsset(req, res) {
-//   try {
-//     const { id: assetId } = req.params;
-//     const { type, year, month, saleAmount, tradeValue } = req.body;
-//     const companyId = req.user.companyId;
-//     const userId = req.user._id;
+////rollback
+export async function rollbackFixedAsset(req, res) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-//     /* ================= 1. Load asset ================= */
-//     const asset = await FixedAsset.findOne({ _id: assetId, companyId });
-//     if (!asset) return res.status(404).json({ message: "Asset not found" });
+  try {
+    const { id: assetId } = req.params;
+    const { deleteAsset = false } = req.body;
+    const companyId = req.user.companyId;
 
-//     if (asset.status !== "active")
-//       return res.status(400).json({ message: "Asset is not active" });
+    /* ================= 1. Load Asset ================= */
+    const asset = await FixedAsset.findOne({
+      _id: assetId,
+      companyId,
+    }).session(session);
 
-//     /* ================= 2. Last depreciation ================= */
-//     const lastPosted = await DepreciationLedger.findOne({
-//       assetId: asset._id,
-//     }).sort({ year: -1, month: -1 });
+    if (!asset) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Asset not found" });
+    }
 
-//     let accumulated = asset.accumulatedDepreciation || 0;
-//     const depreciableBase = asset.cost;
-//     // - asset.salvageValue;
+    /* ================= 2. Delete Depreciation Ledgers ================= */
+    const depResult = await DepreciationLedger.deleteMany(
+      { assetId: asset._id, companyId },
+      { session }
+    );
 
-//     const isEvent = ["sale", "trade", "disposal"].includes(type);
+    /* ================= 3. Delete Journal Entries ================= */
+    const journalResult = await JournalEntry.deleteMany(
+      {
+        companyId,
+        sourceId: asset._id,
+        source: {
+          $in: ["depreciation", "asset_sale", "asset_disposal_depreciation"],
+        },
+      },
+      { session }
+    );
 
-//     /* ================= 3. NORMAL : ตัดต่อ ================= */
-//     if (!isEvent) {
-//       // ห้ามตัดก่อนเริ่มใช้
-//       const sy = asset.startUseDate.getFullYear();
-//       const sm = asset.startUseDate.getMonth() + 1;
+    /* ================= 4. Reset or Delete Asset ================= */
+    if (deleteAsset) {
+      await FixedAsset.deleteOne({ _id: asset._id }, { session });
+      await JournalEntry.findOne({
+        sourceId: asset._id,
+        source: {
+          $in: ["buyFixedAsset"],
+        },
+      });
+    } else {
+      asset.accumulatedDepreciation = 0;
+      asset.netBookValue = asset.cost;
+      asset.status = "active";
+      asset.soldDate = null;
+      await asset.save({ session });
+    }
 
-//       if (year < sy || (year === sy && month < sm)) {
-//         return res.status(400).json({
-//           message: "Cannot depreciate before start use date",
-//         });
-//       }
+    /* ================= 5. Commit ================= */
+    await session.commitTransaction();
+    session.endSession();
 
-//       // ห้ามตัดซ้ำ
-//       if (
-//         lastPosted &&
-//         !isAfter(year, month, lastPosted.year, lastPosted.month)
-//       ) {
-//         return res.status(400).json({
-//           message: "This period already depreciated",
-//         });
-//       }
+    res.json({
+      success: true,
+      assetId,
+      deletedDepreciationLedgers: depResult.deletedCount,
+      deletedJournalEntries: journalResult.deletedCount,
+      assetDeleted: deleteAsset,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
 
-//       let amount = calcMonthlyDepreciationDaily({
-//         asset,
-//         year,
-//         month,
-//       });
-//       amount = Math.min(amount, depreciableBase - accumulated);
-//       if (amount <= 0) {
-//         return res.status(400).json({
-//           message: "Asset fully depreciated",
-//         });
-//       }
-
-//       accumulated += amount;
-
-//       // TODO: Journal + Ledger
-//       const currency = "LAK";
-//       const exchangeRate = 1;
-//       const amountLAK = amount; // amount คือค่าที่คำนวณมา
-//       // ================= CREATE JOURNAL =================
-//       const journal = await JournalEntry.create({
-//         companyId,
-//         userId: req.user._id,
-//         date: new Date(year, month, 0),
-//         description: `Depreciation ${month}/${year} - ${asset.name}`,
-//         reference: asset.assetCode,
-//         source: "depreciation",
-//         sourceId: asset._id,
-//         createdBy: userId,
-//         totalDebitLAK: amountLAK,
-//         totalCreditLAK: amountLAK,
-//         lines: [
-//           //     // ================= DR Depreciation Expense =================
-//           {
-//             accountId: asset.depreciationExpenseAccountId,
-
-//             currency,
-//             exchangeRate,
-
-//             debitOriginal: amountLAK,
-//             creditOriginal: 0,
-
-//             debitLAK: amountLAK,
-//             creditLAK: 0,
-
-//             amountLAK: amountLAK,
-//             side: "dr",
-//           },
-
-//           //     // ================= CR Accumulated Depreciation =================
-//           {
-//             accountId: asset.accumulatedDepreciationAccountId,
-
-//             currency,
-//             exchangeRate,
-
-//             debitOriginal: 0,
-//             creditOriginal: amountLAK,
-
-//             debitLAK: 0,
-//             creditLAK: amountLAK,
-
-//             amountLAK: amountLAK,
-//             side: "cr",
-//           },
-//         ],
-//       });
-//       const exists = await DepreciationLedger.findOne({
-//         assetId: asset._id,
-//         year: year,
-//         month: month,
-//       });
-
-//       if (exists) {
-//         cursor.setMonth(cursor.getMonth() + 1);
-//       }
-//       // ================= CREATE LEDGER =================
-//       await DepreciationLedger.create({
-//         assetId: asset._id,
-//         companyId,
-//         year: year,
-//         month: month,
-//         depreciationAmount: amount,
-//         journalEntryId: journal._id,
-//         postedBy: userId,
-//       });
-//     }
-
-//     /* ================= 4. EVENT : ขาย / ทิ้ง ================= */
-//     let proceeds = 0;
-//     let eventDate = null;
-
-//     if (isEvent) {
-//       if (type === "sale") proceeds = Number(saleAmount || 0);
-//       if (type === "trade") proceeds = Number(tradeValue || 0);
-
-//       eventDate = new Date(year, month, 0);
-
-//       // เริ่มไล่ตั้งแต่เดือนเริ่มใช้ หรือ เดือนถัดจาก lastPosted
-//       let cursor = new Date(asset.startUseDate);
-
-//       if (lastPosted) {
-//         cursor = new Date(lastPosted.year, lastPosted.month - 1, 1);
-//         cursor.setMonth(cursor.getMonth() + 1);
-//       }
-//       while (cursor <= eventDate) {
-//         const y = cursor.getFullYear();
-//         const m = cursor.getMonth() + 1;
-
-//         let amount = calcMonthlyDepreciationDaily({
-//           asset,
-//           year: y,
-//           month: m,
-//           soldDate: eventDate,
-//         });
-
-//         amount = Math.min(amount, depreciableBase - accumulated);
-//         if (amount <= 0) break;
-//         accumulated += amount;
-
-//         cursor.setMonth(cursor.getMonth() + 1);
-//       }
-//     }
-
-//     /* ================= 5. NBV & Gain/Loss ================= */
-//     const netBookValue = asset.cost - accumulated;
-
-//     let gainLoss = 0;
-//     if (type === "sale" || type === "trade") {
-//       gainLoss = proceeds - netBookValue;
-//     }
-//     if (type === "disposal") {
-//       gainLoss = -netBookValue;
-//     }
-
-//     /* ================= 6. Update asset ================= */
-//     asset.status = type === "sale" ? "sold" : isEvent ? "disposed" : "active";
-//     asset.soldDate = isEvent ? eventDate : null;
-//     asset.accumulatedDepreciation = accumulated;
-//     asset.netBookValue = isEvent ? 0 : netBookValue;
-
-//     // await asset.save();
-//     console.log({
-//       success: true,
-//       assetId: asset._id,
-//       type: type || "depreciation",
-//       period: `${year}-${month}`,
-//       accumulated,
-//       netBookValue,
-//       proceeds,
-//       gainLoss,
-//     });
-//     res.json({
-//       success: true,
-//       assetId: asset._id,
-//       type: type || "depreciation",
-//       period: `${year}-${month}`,
-//       accumulated,
-//       netBookValue,
-//       proceeds,
-//       gainLoss,
-//     });
-//   } catch (err) {
-//     console.log(err);
-//     res.status(500).json({
-//       message: "Post depreciation failed",
-//       error: err.message,
-//     });
-//   }
-// }
+    console.error(err);
+    res.status(500).json({
+      message: "Rollback fixed asset failed",
+      error: err.message,
+    });
+  }
+}
 
 export async function previewDepreciation(req, res) {
   try {

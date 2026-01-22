@@ -12,6 +12,7 @@ import {
   getAllFixedAssets,
   getDepreciationPreview,
   getdepreiation,
+  rollbackFixedAsset,
 } from "../store/assetService/assetThunk";
 
 /* ================= FILTER MODES ================= */
@@ -238,6 +239,66 @@ function FixedAssetApp() {
     }
   };
 
+  const handleRollback = async (assetId) => {
+    const { value, isConfirmed } = await Swal.fire({
+      title: "Rollback Asset",
+      html: `
+      <div style="text-align:left">
+        <label>
+          <input type="radio" name="rollbackType" value="keep" checked />
+          🔄 Rollback accounting only (keep asset)
+        </label><br/><br/>
+        <label>
+          <input type="radio" name="rollbackType" value="delete" />
+          ❌ Rollback and delete asset
+        </label>
+        <p style="color:red;margin-top:8px">
+          ⚠️ Deleting asset cannot be undone
+        </p>
+      </div>
+    `,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirm",
+      confirmButtonColor: "#d33",
+      preConfirm: () => {
+        const selected = document.querySelector(
+          'input[name="rollbackType"]:checked'
+        );
+        if (!selected) {
+          Swal.showValidationMessage("Please select rollback option");
+          return false;
+        }
+        return selected.value;
+      },
+    });
+
+    if (!isConfirmed) return;
+
+    const deleteAsset = value === "delete";
+
+    /* 🔐 Extra confirm for delete */
+    if (deleteAsset) {
+      const secondConfirm = await Swal.fire({
+        title: "Are you absolutely sure?",
+        text: "This will permanently delete the asset",
+        icon: "error",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it",
+      });
+
+      if (!secondConfirm.isConfirmed) return;
+    }
+
+    dispatch(
+      rollbackFixedAsset({
+        assetId,
+        deleteAsset,
+      })
+    );
+  };
+
   /* ------------------ render ------------------ */
   return (
     <ChakraProvider>
@@ -258,6 +319,7 @@ function FixedAssetApp() {
             FILTER_MODE={FILTER_MODE}
             formatCurrency={formatCurrency}
             getStatusColor={getStatusColor}
+            handleRollback={handleRollback}
             onView={(asset) => {
               setSelectedAsset(asset);
               setView("detail");

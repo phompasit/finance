@@ -9,6 +9,7 @@ import {
   postDepreciationForAsset,
   getdepreiation,
   delete_depreciation,
+  rollbackFixedAsset,
 } from "../assetService/assetThunk.js";
 
 const initialState = {
@@ -31,6 +32,7 @@ const initialState = {
   totalAmount: 0,
   journalEntries: null,
   depreciationAmount: null,
+  rollbackResult: null,
 };
 
 const assetSlice = createSlice({
@@ -41,6 +43,7 @@ const assetSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.success = false;
+      state.rollbackResult = null;
     },
     clearCurrentAsset: (state) => {
       state.current = null;
@@ -48,7 +51,12 @@ const assetSlice = createSlice({
     resetAssetError: (state) => {
       state.error = null;
     },
-    clearDepreciationPreview: () => initialState,
+    clearDepreciationPreview: (state) => {
+      state.asset = null;
+      state.monthlyAmount = 0;
+      state.schedule = [];
+      state.journalEntries = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -166,6 +174,36 @@ const assetSlice = createSlice({
         state.current = action.payload;
       })
       .addCase(delete_depreciation.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      /* ================= ROLLBACK ================= */
+      .addCase(rollbackFixedAsset.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(rollbackFixedAsset.fulfilled, (state, action) => {
+        state.loading = false;
+        state.rollbackResult = action.payload;
+
+        if (action.payload.assetDeleted) {
+          state.list = state.list.filter(
+            (a) => a._id !== action.payload.assetId
+          );
+        } else {
+          const asset = state.list.find(
+            (a) => a._id === action.payload.assetId
+          );
+          if (asset) {
+            asset.accumulatedDepreciation = 0;
+            asset.netBookValue = asset.cost;
+            asset.status = "active";
+            asset.soldDate = null;
+          }
+        }
+      })
+      .addCase(rollbackFixedAsset.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

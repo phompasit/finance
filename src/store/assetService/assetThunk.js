@@ -9,6 +9,7 @@ import {
   postDepreciationForAssetAPI,
   getdepreiationAPI,
   delete_depreciationAPI,
+  rollbackFixedAssetAPI,
 } from "./assetService.js";
 
 /** CREATE */
@@ -107,6 +108,17 @@ export const delete_depreciation = createAsyncThunk(
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: err.message });
+    }
+  }
+);
+
+export const rollbackFixedAsset = createAsyncThunk(
+  "fixedAsset/rollback",
+  async ({ assetId, deleteAsset }, { rejectWithValue }) => {
+    try {
+      return await rollbackFixedAssetAPI(assetId, deleteAsset);
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Rollback failed");
     }
   }
 );

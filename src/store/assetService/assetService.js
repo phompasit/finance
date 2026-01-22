@@ -29,3 +29,10 @@ export const delete_depreciationAPI = (journalId, DepreciationId) =>
   api.delete(
     `/api/fixAsset/delete_depreciation/${journalId}/${DepreciationId}`
   );
+
+export const rollbackFixedAssetAPI = async (assetId, deleteAsset = false) => {
+  const res = await api.delete(`/api/fixAsset/${assetId}/rollback`, {
+    data: { deleteAsset },
+  });
+  return res.data;
+};

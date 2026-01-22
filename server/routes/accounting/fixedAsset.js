@@ -3,6 +3,7 @@ import {
   depreiation,
   postDepreciationForAsset,
   previewDepreciation,
+  rollbackFixedAsset,
 } from "./services/depreciationService.js";
 import FixedAsset from "../../models/accouting_system_models/FixedAsset.js";
 const router = express.Router();
@@ -119,7 +120,7 @@ router.post("/", authenticate, async (req, res) => {
       incomeAssetId,
       expenseId,
     ];
-    console.log( accountIds.length)
+    console.log(accountIds.length);
     for (const id of accountIds) {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
@@ -155,7 +156,7 @@ router.post("/", authenticate, async (req, res) => {
       _id: { $in: accountIds },
       companyId: req.user.companyId,
     }).session(session);
-    console.log(accounts.length)
+    console.log(accounts.length);
     // if (accounts.length !== accountIds.length) {
     //   await session.abortTransaction();
     //   return res.status(404).json({
@@ -580,7 +581,17 @@ router.delete(
     try {
       const { companyId } = req.user;
       const { journalId, depreciationId } = req.params;
-      console.log(journalId);
+      const fiexdAsset = await FixedAsset.findById(depreciationId).session(
+        session
+      );
+
+      if (fiexdAsset.status === "sold") {
+        return res.status(400).json({
+          success: false,
+          message: "ຊັບສິນນີ້ ຂາຍແລ້ວ ບໍ່ສາມາດລົບໄດ້",
+        });
+      }
+      console.log(journalId, depreciationId);
       // Input validation
       if (!mongoose.Types.ObjectId.isValid(journalId)) {
         return res.status(400).json({
@@ -628,7 +639,6 @@ router.delete(
           message: "Journal entry not found or access denied",
         });
       }
-      console.log(depreciationId);
       // Verify depreciation ledger exists and belongs to the journal
       const depreciationLedger = await DepreciationLedger.findOne({
         journalEntryId: journalId,
@@ -682,22 +692,6 @@ router.delete(
   }
 );
 
-///ລົບຂໍ້ມູນສິນຊັບ
-router.delete("/delete_fixedAsset/:id", authenticate, async (req, res) => {
-  try {
-    const { id } = req.params;
-    ////ถ้ามีห้ามลย
-    const depreciationLedger = await DepreciationLedger.exists({
-      assetId: id,
-    });
-    ////ถ้ามีห้ามลย
-    const journal = await journalEntry_models.exists({
-      sourceId: id,
-    });
+router.delete("/:id/rollback", authenticate, rollbackFixedAsset);
 
-    // const fixedAsset = await FixedAsset.findByIdAndDelete(id)
-  } catch (error) {
-    console.log(error);
-  }
-});
 export default router;
