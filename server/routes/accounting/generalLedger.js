@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import { authenticate } from "../../middleware/auth.js";
 import Account from "../../models/accouting_system_models/Account_document.js";
 import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.js";
@@ -11,11 +12,9 @@ const router = express.Router();
 /*                                   Helpers                                  */
 /* ========================================================================== */
 
-// คำนวณ balance ตาม normal side
 const applyBalanceSide = (normalSide, balance, dr, cr) =>
   normalSide === "Dr" ? balance + dr - cr : balance + cr - dr;
 
-// YYYY-MM-DD
 const isoDate = (d) => d.toISOString().slice(0, 10);
 
 const ACCOUNT_GROUP_MAP = {
@@ -40,9 +39,46 @@ router.get("/general-ledger", authenticate, async (req, res) => {
     } = req.query;
 
     const isPdf = forPdf === "true";
+
     page = Math.max(1, Number(page) || 1);
-    limit = Math.max(1, Number(limit) || 10);
-    if (accountId === "ALL") accountId = null;
+    limit = Math.min(100, Math.max(1, Number(limit) || 10));
+    /* ================= Security: Permission ================= */
+    // if (isPdf && !req.user.permissions?.includes("EXPORT_LEDGER")) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: "Permission denied",
+    //   });
+    // }
+    console.log("(accountId ",accountId )
+    /* ================= Security: Input Validation ================= */
+    if (accountId !== "ALL") {
+      if (
+        typeof accountId !== "string" ||
+        !mongoose.Types.ObjectId.isValid(accountId)
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid accountId",
+        });
+      }
+    } else {
+      accountId = null;
+    }
+
+    const allowedGroups = Object.keys(ACCOUNT_GROUP_MAP);
+    if (accountGroup && !allowedGroups.includes(accountGroup)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid accountGroup",
+      });
+    }
+
+    if (!accountId && !accountGroup && !isPdf) {
+      return res.status(400).json({
+        success: false,
+        error: "accountId or accountGroup is required",
+      });
+    }
 
     /* ================= Date Filter ================= */
     const { startDate, endDate, year } = resolveReportFilter({
@@ -53,6 +89,14 @@ router.get("/general-ledger", authenticate, async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date(year, 11, 31);
     end.setHours(23, 59, 59, 999);
 
+    const yearStart = new Date(year, 0, 1);
+    if (start < yearStart || end < start) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid date range",
+      });
+    }
+
     /* ================= Account Filter ================= */
     const accountFilter = {
       companyId,
@@ -60,11 +104,12 @@ router.get("/general-ledger", authenticate, async (req, res) => {
       ...(accountId && { _id: accountId }),
     };
 
-    if (accountGroup && ACCOUNT_GROUP_MAP[accountGroup]) {
+    if (accountGroup) {
       accountFilter.code = ACCOUNT_GROUP_MAP[accountGroup];
     }
 
     const accounts = await Account.find(accountFilter).lean();
+
     if (accountId && accounts.length === 0) {
       return res.status(404).json({
         success: false,
@@ -72,10 +117,15 @@ router.get("/general-ledger", authenticate, async (req, res) => {
       });
     }
 
-    /* ================= Opening Balance (ปีก่อน) ================= */
+    /* ================= Security: IDOR Protection ================= */
+    const allowedAccountIds = new Set(
+      accounts.map((a) => String(a._id))
+    );
+
+    /* ================= Opening Balance ================= */
     const openings = await OpeningBalance.find({
       companyId,
-      year: start.getFullYear(),
+      year,
       ...(accountId && { accountId }),
     }).lean();
 
@@ -90,7 +140,6 @@ router.get("/general-ledger", authenticate, async (req, res) => {
     );
 
     /* ================= Build Account Map ================= */
-    // ❗ ต้องสร้าง accountMap ก่อน carry
     const accountMap = {};
 
     for (const acc of accounts) {
@@ -109,23 +158,24 @@ router.get("/general-ledger", authenticate, async (req, res) => {
           cr: ob.cr,
           balance: openingBalance,
         },
-        running: openingBalance, // running เริ่มจาก opening ปีก่อน
+        running: openingBalance,
       };
     }
 
-    /* ================= Carry Forward (เดือนก่อน) ================= */
-    // 👉 เอาไปบวก running เท่านั้น (ไม่โชว์ row)
+    /* ================= Carry Forward ================= */
     const carryJournals = await JournalEntry.find({
       companyId,
       date: {
-        $gte: new Date(year, 0, 1), // ปีเดียวกัน
-        $lt: start,                // ก่อน startDate
+        $gte: yearStart,
+        $lt: start,
       },
       ...(accountId && { "lines.accountId": accountId }),
     }).lean();
 
     for (const j of carryJournals) {
       for (const line of j.lines || []) {
+        if (!allowedAccountIds.has(String(line.accountId))) continue;
+
         const acc = accountMap[String(line.accountId)];
         if (!acc) continue;
 
@@ -136,12 +186,11 @@ router.get("/general-ledger", authenticate, async (req, res) => {
       }
     }
 
-    // 🔥 สำคัญที่สุด: sync opening row หลังรวม carry
     for (const acc of Object.values(accountMap)) {
       acc.opening.balance = acc.running;
     }
 
-    /* ================= Movement (ช่วงที่เลือกจริง) ================= */
+    /* ================= Movement ================= */
     const journals = await JournalEntry.find({
       companyId,
       date: { $gte: start, $lte: end },
@@ -154,6 +203,8 @@ router.get("/general-ledger", authenticate, async (req, res) => {
 
     for (const j of journals) {
       for (const line of j.lines || []) {
+        if (!allowedAccountIds.has(String(line.accountId))) continue;
+
         const acc = accountMap[String(line.accountId)];
         if (!acc) continue;
 
@@ -196,7 +247,7 @@ router.get("/general-ledger", authenticate, async (req, res) => {
           accountCode: acc.accountCode,
           accountName: acc.accountName,
           normalSide: acc.normalSide,
-          rows: [acc.opening], // opening (รวม carry แล้ว)
+          rows: [acc.opening],
         };
       }
       result[row.accountId].rows.push(row);
@@ -218,9 +269,9 @@ router.get("/general-ledger", authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error("GENERAL LEDGER ERROR:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: err.message,
+      error: "Internal server error",
     });
   }
 });

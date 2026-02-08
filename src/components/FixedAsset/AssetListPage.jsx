@@ -1,5 +1,5 @@
 // components/FixedAsset/AssetListPage.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import {
   Box,
   Container,
@@ -26,16 +26,27 @@ import {
   SimpleGrid,
   Tag,
 } from "@chakra-ui/react";
-import { Plus, Eye, Edit, TrendingDown, Archive } from "lucide-react";
+import {
+  Plus,
+  Eye,
+  Edit,
+  TrendingDown,
+  Archive,
+  BadgeX,
+  Download,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { formatDate } from "../Income_Expense/formatter";
 import ReportFilter from "../Accounting_component/ReportFilter";
+import html2pdf from "html2pdf.js";
+import AssetPrintReport from "./AssetPrintReport";
+import { useAuth } from "../../context/AuthContext";
 
 const AssetListPage = ({
   assets = [],
   loading = false,
-
+  activeFilterLabel,
   /* ===== filter props (from parent) ===== */
   filter,
   setFilter,
@@ -43,16 +54,20 @@ const AssetListPage = ({
   search,
   setSearch,
   onApplyFilter,
+  ActiveFilterBar,
   FILTER_MODE,
   depreciationAmount,
+  depreciationThisYearAmount,
+  depreciationBeforeYearAmount,
   /* ===== helpers ===== */
   formatCurrency,
   getStatusColor,
   onView,
   handleRollback,
 }) => {
+  const { user } = useAuth();
   const navigate = useNavigate();
-
+  const printRef = useRef();
   /* ================= STATS (MEMOIZED) ================= */
   const stats = useMemo(() => {
     return {
@@ -63,6 +78,22 @@ const AssetListPage = ({
       nbv: assets.reduce((s, a) => s + (a.netBookValue || 0), 0),
     };
   }, [assets]);
+  const handleExportPDF = async () => {
+    html2pdf()
+      .set({
+        margin: [10, 10, 10, 10],
+        filename: "asset.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "landscape",
+        },
+      })
+      .from(printRef.current)
+      .save();
+  };
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -72,9 +103,14 @@ const AssetListPage = ({
           <Heading fontFamily="Noto Sans Lao, sans-serif" size="lg">
             ຊັບສົມບັດຄົງທີ່ (Fixed Assets)
           </Heading>
-          <Text fontSize="sm" color="gray.600">
-            Monthly depreciation (Straight-line)
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.600"
+          >
+            ຫັກຄ່າເສື່ອມມູນຄ່າແບບ (Straight-line)
           </Text>
+          {activeFilterLabel && <ActiveFilterBar label={activeFilterLabel} />}
         </Box>
 
         {/* ================= TOOLBAR ================= */}
@@ -93,12 +129,49 @@ const AssetListPage = ({
               />
 
               <Button
+                fontFamily="Noto Sans Lao, sans-serif"
                 leftIcon={<Plus size={18} />}
                 colorScheme="blue"
                 onClick={() => navigate("/fixed-add/new")}
               >
-                Add Asset
+                ເພີ່ມຊັບສິນ
               </Button>
+
+              <HStack>
+                <Box display="none">
+                  <AssetPrintReport
+                    ref={printRef}
+                    assets={assets}
+                    depreciationBeforeYearAmount={depreciationBeforeYearAmount}
+                    depreciationThisYearAmount={depreciationThisYearAmount}
+                    depreciationAmount={depreciationAmount}
+                    filter={filter}
+                    activeFilterLabel={activeFilterLabel}
+                    company={{
+                      name: user?.companyId.name,
+                      address: user?.companyId?.address,
+                      phone: user?.companyId?.phone,
+                    }}
+                  />
+                </Box>
+                <Button
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  leftIcon={<Download />}
+                  colorScheme="blue"
+                  variant="outline"
+                  onClick={handleExportPDF}
+                >
+                  ສົ່ງອອກ PDF
+                </Button>
+                <Button
+                  fontFamily="Noto Sans Lao, sans-serif"
+                  leftIcon={<Download />}
+                  colorScheme="blue"
+                  variant="outline"
+                >
+                  ສົ່ງອອກ Excel
+                </Button>
+              </HStack>
             </Flex>
           </CardBody>
         </Card>
@@ -108,7 +181,9 @@ const AssetListPage = ({
           <Card>
             <CardBody>
               <Stat>
-                <StatLabel>Total Assets</StatLabel>
+                <StatLabel fontFamily="Noto Sans Lao, sans-serif">
+                  ລວມຊັບສິນ
+                </StatLabel>
                 <StatNumber>{stats.total}</StatNumber>
                 <StatHelpText>Active: {stats.active}</StatHelpText>
               </Stat>
@@ -118,7 +193,9 @@ const AssetListPage = ({
           <Card>
             <CardBody>
               <Stat>
-                <StatLabel>Total Cost</StatLabel>
+                <StatLabel fontFamily="Noto Sans Lao, sans-serif">
+                  ລວມຕົ້ນທຶນ
+                </StatLabel>
                 <StatNumber>{formatCurrency(stats.totalCost)}</StatNumber>
               </Stat>
             </CardBody>
@@ -127,7 +204,9 @@ const AssetListPage = ({
           <Card>
             <CardBody>
               <Stat>
-                <StatLabel>Accumulated Dep.</StatLabel>
+                <StatLabel fontFamily="Noto Sans Lao, sans-serif">
+                  ຄ່າຫຼູ້ຍຫ້ຽນສະສົມ
+                </StatLabel>
                 <StatNumber color="orange.500">
                   {formatCurrency(depreciationAmount)}
                 </StatNumber>
@@ -138,7 +217,9 @@ const AssetListPage = ({
           <Card>
             <CardBody>
               <Stat>
-                <StatLabel>Net Book Value</StatLabel>
+                <StatLabel fontFamily="Noto Sans Lao, sans-serif">
+                  ມູນຄ່າຕາມບັນຊີ
+                </StatLabel>
                 <StatNumber color="green.600">
                   {formatCurrency(stats.totalCost - depreciationAmount)}
                 </StatNumber>
@@ -156,15 +237,15 @@ const AssetListPage = ({
               <Table size="sm">
                 <Thead>
                   <Tr>
-                    <Th>Code</Th>
-                    <Th>Name</Th>
-                    <Th>Category</Th>
-                    <Th>Start Date</Th>
-                    <Th isNumeric>Cost</Th>
-                    <Th isNumeric>Acc. Dep</Th>
-                    <Th isNumeric>NBV</Th>
-                    <Th>Status</Th>
-                    <Th>Action</Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif">ລະຫັດຊັບສິນ</Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif">ຊື່ຊັບສິນ</Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif">ໝວດໝູ່</Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif">ວັນເລີ່ມໃຊ້</Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
+                      ຕົ້ນທຶນ
+                    </Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
+                    <Th fontFamily="Noto Sans Lao, sans-serif">Action</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -177,12 +258,6 @@ const AssetListPage = ({
                       </Td>
                       <Td>{formatDate(a.startUseDate?.slice(0, 10))}</Td>
                       <Td isNumeric>{formatCurrency(a.cost)}</Td>
-                      <Td isNumeric color="orange.500">
-                        {formatCurrency(a.accumulatedDepreciation)}
-                      </Td>
-                      <Td isNumeric color="green.600">
-                        {formatCurrency(a.netBookValue)}
-                      </Td>
                       <Td>
                         <Badge colorScheme={getStatusColor(a.status)}>
                           {a.status}
@@ -203,7 +278,7 @@ const AssetListPage = ({
                           <IconButton
                             onClick={() => handleRollback(a._id)}
                             size="sm"
-                            icon={<TrendingDown size={16} />}
+                            icon={<BadgeX size={16} />}
                           />
                         </HStack>
                       </Td>

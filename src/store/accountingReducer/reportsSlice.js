@@ -1,25 +1,54 @@
 // src/store/reports/reportsSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../api/api";
+
+/* =========================
+   Helpers
+========================= */
+const extractError = (err) =>
+  err.response?.data?.error ||
+  err.response?.data?.message ||
+  err.message ||
+  "Server error";
+
+/* =========================
+   THUNKS
+========================= */
+
+/* -------- Financial Statement -------- */
 export const fetchStatement = createAsyncThunk(
   "reports/fetchStatement",
   async (params = {}, { rejectWithValue }) => {
     try {
-      const qs = new URLSearchParams(params || {}).toString();
-      const r = await api.get(
+      const qs = new URLSearchParams(params).toString();
+      const res = await api.get(
         `/api/statement/statement-of-financial-position?${qs}`
       );
-      return r.data;
+      return res.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.error || err.message || "Server error"
-      );
+      return rejectWithValue(extractError(err));
     }
   }
 );
+
+/* -------- Period Status -------- */
+export const fetchPeriodStatus = createAsyncThunk(
+  "reports/fetchPeriodStatus",
+  async ({ year }, { rejectWithValue }) => {
+    try {
+      const qs = year ? `?year=${year}` : "";
+      const res = await api.get(`/api/accounting/period-status${qs}`);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(extractError(err));
+    }
+  }
+);
+
+/* -------- Close Period -------- */
 export const closePeriod = createAsyncThunk(
-  "reports/close",
-  async ({ year, month }, { rejectWithValue }) => {
+  "reports/closePeriod",
+  async ({ year, month = 12 }, { rejectWithValue }) => {
     try {
       const res = await api.post("/api/accounting/close-period", {
         year,
@@ -27,73 +56,92 @@ export const closePeriod = createAsyncThunk(
       });
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || err.message);
+      return rejectWithValue(extractError(err));
     }
   }
 );
 
-export const period_status = createAsyncThunk(
-  "reports/period_status",
-  async (year, { rejectWithValue }) => {
+/* -------- Rollback Period -------- */
+export const rollbackPeriod = createAsyncThunk(
+  "reports/rollbackPeriod",
+  async ({ year }, { rejectWithValue }) => {
     try {
-      const qs = new URLSearchParams(year || {}).toString();
-      const res = await api.get(`/api/accounting/period-status?${qs}`);
+      const res = await api.post("/api/accounting/rollback-period", { year });
       return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || err.message);
+      return rejectWithValue(extractError(err));
     }
   }
 );
+
+/* =========================
+   SLICE
+========================= */
 const reportsSlice = createSlice({
   name: "reports",
   initialState: {
+    /* generic */
     loading: false,
     error: null,
-    period: null,
-    closing: false,
+    success: false,
 
-    currentYear: null,
+    /* statement */
     comparable: false,
+    currentYear: null,
     previousYear: null,
     mode: null,
-
     data: {
       current: [],
       previous: [],
     },
-    period_status: null,
+
+    /* period */
+    periodStatus: null,
+    closing: false,
+    rollingBack: false,
   },
-  reducers: {},
+  reducers: {
+    clearReportState: (state) => {
+      state.error = null;
+      state.success = false;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      /* ---------- FETCH ---------- */
+      /* ================= FETCH STATEMENT ================= */
       .addCase(fetchStatement.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-
       .addCase(fetchStatement.fulfilled, (state, action) => {
-        const payload = action.payload || {};
-
+        const p = action.payload || {};
         state.loading = false;
-        state.error = null;
-
-        state.comparable = !!payload.comparable;
-        state.currentYear = payload.currentYear || null;
-        state.previousYear = payload.previousYear || null;
-        state.mode = payload.mode || null;
-
-        state.data = payload.data || {
-          current: [],
-          previous: [],
-        };
+        state.comparable = !!p.comparable;
+        state.currentYear = p.currentYear;
+        state.previousYear = p.previousYear;
+        state.mode = p.mode;
+        state.data = p.data || { current: [], previous: [] };
       })
-
       .addCase(fetchStatement.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || action.error?.message;
+        state.error = action.payload;
       })
-      /* ---- CLOSE PERIOD ---- */
+
+      /* ================= PERIOD STATUS ================= */
+      .addCase(fetchPeriodStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPeriodStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        state.periodStatus = action.payload.data;
+      })
+      .addCase(fetchPeriodStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      /* ================= CLOSE PERIOD ================= */
       .addCase(closePeriod.pending, (state) => {
         state.closing = true;
         state.error = null;
@@ -101,26 +149,27 @@ const reportsSlice = createSlice({
       .addCase(closePeriod.fulfilled, (state) => {
         state.closing = false;
         state.success = true;
-        if (state.period) state.period.isClosed = true;
       })
       .addCase(closePeriod.rejected, (state, action) => {
         state.closing = false;
         state.error = action.payload;
       })
-      .addCase(period_status.pending, (s) => {
-        s.loading = true;
-        s.error = null;
+
+      /* ================= ROLLBACK PERIOD ================= */
+      .addCase(rollbackPeriod.pending, (state) => {
+        state.rollingBack = true;
+        state.error = null;
       })
-      .addCase(period_status.fulfilled, (s, a) => {
-        s.loading = false;
-        s.period_status = a.payload;
+      .addCase(rollbackPeriod.fulfilled, (state) => {
+        state.rollingBack = false;
+        state.success = true;
       })
-      .addCase(period_status.rejected, (s, a) => {
-        s.loading = false;
-        s.period_status = a.data;
+      .addCase(rollbackPeriod.rejected, (state, action) => {
+        state.rollingBack = false;
+        state.error = action.payload;
       });
-    ////period_status
   },
 });
 
+export const { clearReportState } = reportsSlice.actions;
 export default reportsSlice.reducer;

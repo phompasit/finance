@@ -10,30 +10,49 @@ async function blockClosedJournal(req, res, next) {
   try {
     if (!req.params.id) return next();
 
-    const opennigbalance = await accountingPeriod
-      .findOne({
-        companyId: req.user.companyId,
-      })
-      .select("status_close");
-
-    if (!opennigbalance) {
+    // 1) Find opening record
+    const opening = await OpeningBalance.findById(req.params.id)
+      .select("year companyId")
+      .lean();
+    ///✅ Step 1: หา OpeningBalance ก่อนว่าอยู่ปีไหน
+    if (!opening) {
       return res.status(404).json({
         success: false,
-        error: "Journal not found",
+        error: "Opening balance not found",
+      });
+    }
+    ///
+    // 2) Ensure same company
+    if (String(opening.companyId) !== String(req.user.companyId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Not allowed",
       });
     }
 
-    if (opennigbalance.status_close === "locked") {
+    // 3) Find period of that year
+    const period = await accountingPeriod
+      .findOne({
+        companyId: req.user.companyId,
+        year: opening.year,
+      })
+      .select("status_close");
+
+    // 4) Block if locked
+    if (period?.status_close === "locked") {
       return res.status(403).json({
         success: false,
-        error: "❌ ປີນີ້ຖືກປິດແລ້ວບໍ່ສາມາດແກ້ໄຂໄດ້",
+        error: "❌ ປີນີ້ຖືກປິດແລ້ວ ບໍ່ສາມາດແກ້ໄຂໄດ້",
       });
     }
 
     next();
   } catch (err) {
     console.error("blockClosedJournal error:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
   }
 }
 
@@ -93,16 +112,25 @@ router.get("/", authenticate, async (req, res) => {
   try {
     const companyId = req.user.companyId;
     const selectedYear = req.query.year ? Number(req.query.year) : null;
+    if (req.query.year) {
+      if (!Number.isInteger(selectedYear)) {
+        return res.status(400).json({ error: "Invalid year" });
+      }
 
+      if (selectedYear < 2000 || selectedYear > 2100) {
+        return res.status(400).json({ error: "Year out of range" });
+      }
+    }
     /* ============================================================
        1) GET CLOSED PERIODS
     ============================================================ */
     const closedPeriods = await accountingPeriod
       .find({ companyId, isClosed: true })
       .select("year -_id")
-      .lean();
+      .lean()
+      .limit(500);
 
-    const closedYears = closedPeriods.map(p => p.year);
+    const closedYears = closedPeriods.map((p) => p.year);
 
     /* ============================================================
        2) CALCULATE SYSTEM DEFAULT YEAR
@@ -136,8 +164,9 @@ router.get("/", authenticate, async (req, res) => {
         model: "Account_document",
         select: "code name normalSide type",
       })
-      .select("-companyId -status_close")
-      .lean();
+      .select("year debit credit note accountId")
+      .lean()
+      .limit(500);
 
     /* ============================================================
        6) META FOR MODAL
@@ -149,58 +178,65 @@ router.get("/", authenticate, async (req, res) => {
       meta: {
         selectedYear: targetYear,
         defaultYear,
-        closedYears,
         editable,
+        closedYears,
       },
     });
-
   } catch (err) {
     console.error("GET OpeningBalance error:", err);
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Internal Server Error",
     });
   }
 });
-
-
 
 /* ---------------------------- ADD OPENING ---------------------------- */
 router.post("/", authenticate, async (req, res) => {
   try {
     const { accountId, debit, credit, year, note } = req.body;
-    // 1️⃣ ดึงปีที่ปิดแล้ว
+
+    // ✅ Validate year
+    const y = Number(year);
+    if (!Number.isInteger(y) || y < 2000 || y > 2100) {
+      return res.status(400).json({ error: "Invalid year" });
+    }
+
+    // ✅ Get closed years
     const periods = await accountingPeriod
       .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
       .lean();
-    console.log(year);
+
     const closedYears = periods.map((p) => Number(p.year));
 
-    // 3️⃣ ตรวจสอบ ❌ ห้ามบันทึกในปีที่ปิดแล้ว
-    if (closedYears.includes(year)) {
+    if (closedYears.includes(y)) {
       return res.status(400).json({
-        success: false,
-        error: `❌ ປີ${year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+        error: `Year ${y} is closed`,
       });
     }
-    // validation (throws error message)
-    const { account, debit: d, credit: c } = await validateOpeningInput({
+
+    // ✅ Validate amounts and account ownership
+    const { debit: d, credit: c } = await validateOpeningInput({
       companyId: req.user.companyId,
       accountId,
       debit,
       credit,
     });
+
+    // ✅ Safe note
+    const safeNote = String(note || "").slice(0, 500);
+
+    // ✅ Create record
     const data = await OpeningBalance.create({
       companyId: req.user.companyId,
       userId: req.user._id,
       accountId,
-      year,
+      year: y,
       debit: d,
       credit: c,
-      note: note || "",
+      note: safeNote,
     });
 
-    // return populated
     const populated = await data.populate({
       path: "accountId",
       select: "code name normalSide type",
@@ -208,7 +244,15 @@ router.post("/", authenticate, async (req, res) => {
 
     res.json({ success: true, data: populated });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("POST OpeningBalance error:", err);
+
+    if (err.code === 11000) {
+      return res.status(400).json({
+        error: "Opening balance already exists for this account/year",
+      });
+    }
+
+    res.status(400).json({ error: "Invalid request" });
   }
 });
 
@@ -216,84 +260,103 @@ router.post("/", authenticate, async (req, res) => {
 router.patch("/:id", authenticate, blockClosedJournal, async (req, res) => {
   try {
     const found = await OpeningBalance.findById(req.params.id);
-    if (!found)
-      return res.status(404).json({ error: "Opening balance not found" });
+    if (!found) return res.status(404).json({ error: "Not found" });
+
+    // ✅ Ensure company
+    if (String(found.companyId) !== String(req.user.companyId))
+      return res.status(403).json({ error: "Not allowed" });
+
+    // ✅ Closed years
     const periods = await accountingPeriod
       .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
       .lean();
 
     const closedYears = periods.map((p) => Number(p.year));
 
-    // 3️⃣ ตรวจสอบ ❌ ห้ามบันทึกในปีที่ปิดแล้ว
-    if (closedYears.includes(found.year)) {
+    // ✅ Validate new year
+    const newYear = req.body.year ?? found.year;
+    const y = Number(newYear);
+
+    if (!Number.isInteger(y) || y < 2000 || y > 2100)
+      return res.status(400).json({ error: "Invalid year" });
+
+    if (closedYears.includes(y)) {
       return res.status(400).json({
-        success: false,
-        error: `❌ ປີ${found.year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+        error: `Year ${y} is closed`,
       });
     }
-    // ensure same company
-    if (String(found.companyId) !== String(req.user.companyId)) {
-      return res.status(403).json({ error: "Not allowed" });
-    }
 
-    // Determine accountId for validation: either new provided or existing
+    // ✅ Validate debit/credit/accountId
     const accountIdToValidate = req.body.accountId || found.accountId;
     const debit = "debit" in req.body ? req.body.debit : found.debit;
     const credit = "credit" in req.body ? req.body.credit : found.credit;
 
-    const { account, debit: d, credit: c } = await validateOpeningInput({
+    const { debit: d, credit: c } = await validateOpeningInput({
       companyId: req.user.companyId,
       accountId: accountIdToValidate,
       debit,
       credit,
     });
 
+    // ✅ Update safe
     const updated = await OpeningBalance.findByIdAndUpdate(
       req.params.id,
       {
-        ...(req.body.accountId && { accountId: req.body.accountId }),
+        accountId: accountIdToValidate,
         debit: d,
         credit: c,
-        note: req.body.note ?? found.note,
-        year: req.body.year ?? found.year,
-        userId: req.user._id, // last modified user
+        year: y,
+        note: String(req.body.note ?? found.note).slice(0, 500),
+        userId: req.user._id,
       },
       { new: true }
     ).populate({ path: "accountId", select: "code name normalSide type" });
 
     res.json({ success: true, data: updated });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("PATCH OpeningBalance error:", err);
+    res.status(400).json({ error: "Invalid request" });
   }
 });
 
 /* ---------------------------- DELETE OPENING --------------------------- */
 router.delete("/:id", authenticate, blockClosedJournal, async (req, res) => {
   try {
-    const found = await OpeningBalance.findById(req.params.id);
+    const found = await OpeningBalance.findById(req.params.id).lean();
+
     if (!found)
       return res.status(404).json({ error: "Opening balance not found" });
+
+    // ✅ Ensure same company
+    if (String(found.companyId) !== String(req.user.companyId))
+      return res.status(403).json({ error: "Not allowed" });
+
+    // ✅ Block closed year
     const periods = await accountingPeriod
       .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
       .lean();
 
     const closedYears = periods.map((p) => Number(p.year));
 
-    // 3️⃣ ตรวจสอบ ❌ ห้ามบันทึกในปีที่ปิดแล้ว
     if (closedYears.includes(found.year)) {
-      return res.status(400).json({
-        success: false,
-        error: `❌ ປີ${found.year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+      return res.status(403).json({
+        error: `Year ${found.year} is closed`,
       });
     }
-    if (String(found.companyId) !== String(req.user.companyId)) {
-      return res.status(403).json({ error: "Not allowed" });
-    }
 
-    await OpeningBalance.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "deleted" });
+    // ✅ Atomic delete
+    const result = await OpeningBalance.deleteOne({
+      _id: req.params.id,
+      companyId: req.user.companyId,
+    });
+
+    if (result.deletedCount === 0)
+      return res.status(404).json({ error: "Not found" });
+
+    res.json({ success: true, message: "Deleted" });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("DELETE OpeningBalance error:", err);
+    res.status(400).json({ error: "Invalid request" });
   }
 });
 

@@ -241,7 +241,7 @@ export function resolveReportFilter({ query = {}, periods = [] }) {
     if (month < 1 || month > 12) {
       throw new Error("Invalid month parameter");
     }
-    console.log(year, month)
+    console.log(year, month);
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 

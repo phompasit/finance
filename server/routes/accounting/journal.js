@@ -8,6 +8,7 @@ import { createAuditLog } from "../Auditlog.js";
 import accountingPeriod from "../../models/accouting_system_models/accountingPeriod.js";
 import DepreciationLedger from "../../models/accouting_system_models/DepreciationLedger.js";
 import FixedAsset from "../../models/accouting_system_models/FixedAsset.js";
+import Account_document from "../../models/accouting_system_models/Account_document.js";
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ const router = express.Router();
 const createLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 นาที
   max: 100, // จำกัด 100 requests ต่อ IP
-  message: "Too many requests from this IP, please try again later.",
+  error: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -27,23 +28,47 @@ const createLimiter = rateLimit({
 const modifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50, // จำกัดการแก้ไข/ลบ
-  message: "Too many modification requests, please try again later.",
+  error: "Too many modification requests, please try again later.",
 });
 
 // Input sanitization middleware
 const sanitizeInput = (req, res, next) => {
-  // ลบ characters อันตราย
-  if (req.body) {
-    Object.keys(req.body).forEach((key) => {
-      if (typeof req.body[key] === "string") {
-        req.body[key] = req.body[key]
-          .replace(/<script[^>]*>.*?<\/script>/gi, "") // ลบ script tags
-          .replace(/javascript:/gi, "") // ลบ javascript: protocol
-          .replace(/on\w+\s*=/gi, ""); // ลบ inline event handlers
+  if (!req.body) return next();
+
+  const sanitizeValue = (value) => {
+    // ✅ Only sanitize strings
+    if (typeof value === "string") {
+      // Trim + collapse spaces
+      const cleaned = value.trim().replace(/\s+/g, " ");
+
+      // ✅ Limit max length to prevent payload abuse
+      return cleaned.slice(0, 1000);
+    }
+
+    // ✅ Prevent Mongo operator injection
+    if (typeof value === "object" && value !== null) {
+      for (const key of Object.keys(value)) {
+        if (key.startsWith("$")) {
+          throw new Error("Invalid input: Mongo operator not allowed");
+        }
       }
+    }
+
+    return value;
+  };
+
+  try {
+    Object.keys(req.body).forEach((key) => {
+      req.body[key] = sanitizeValue(req.body[key]);
+    });
+
+    next();
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      error: err.message,
     });
   }
-  next();
 };
 
 // Authorization check - ตรวจสอบสิทธิ์การเข้าถึง
@@ -60,7 +85,7 @@ const checkPermission = (requiredRole) => {
       }
 
       // ตรวจสอบ role
-      const allowedRoles = ["admin", "accountant", requiredRole];
+      const allowedRoles = ["admin", "master", requiredRole];
       if (!allowedRoles.includes(user.role)) {
         await createAuditLog({
           userId: req.user._id,
@@ -93,34 +118,47 @@ router.use(sanitizeInput); // ทำความสะอาด input
    HELPER FUNCTIONS
 ===================================================== */
 
-// Validate session and IP
 const validateSession = async (req, res, next) => {
   try {
-    // เก็บ IP address และ User Agent
     const currentIp = req.ip;
-    const currentUserAgent = req.get("user-agent");
+    const currentUA = req.get("user-agent");
 
-    // ตรวจสอบว่า session ยังใช้งานได้หรือไม่
+    // ✅ Only log for sensitive actions
+    const sensitiveMethods = ["POST", "PATCH", "DELETE"];
+    if (!sensitiveMethods.includes(req.method)) {
+      return next();
+    }
+
     const user = await User.findById(req.user._id).select(
-      "lastLoginIp lastLoginUserAgent"
+      "lastLoginIp lastLoginUserAgent isActive"
     );
 
-    // Log suspicious activity
-    if (user && user.lastLoginIp !== currentIp) {
+    if (!user || !user.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: "Session invalid",
+      });
+    }
+
+    // ✅ Log only if both IP + UA changed
+    if (
+      user.lastLoginIp !== currentIp &&
+      user.lastLoginUserAgent !== currentUA
+    ) {
       await createAuditLog({
         userId: req.user._id,
-        action: "SUSPICIOUS_ACTIVITY",
+        action: "SESSION_ANOMALY",
         collectionName: "JournalEntry",
         ipAddress: currentIp,
-        description: `IP address changed from ${user.lastLoginIp} to ${currentIp}`,
-        userAgent: currentUserAgent,
+        description: `Session anomaly: IP + UserAgent changed`,
+        userAgent: currentUA,
       });
     }
 
     next();
   } catch (err) {
     console.error("Session validation error:", err);
-    next(); // ไม่ block request แต่ log ไว้
+    next(); // don't block
   }
 };
 
@@ -128,10 +166,19 @@ async function blockClosedJournal(req, res, next) {
   try {
     if (!req.params.id) return next();
 
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid journal ID format",
+      });
+    }
+
+    // ✅ Find journal (company-safe)
     const journal = await JournalEntry.findOne({
       _id: req.params.id,
       companyId: req.user.companyId,
-    }).select("status_close");
+    }).select("date status");
 
     if (!journal) {
       await createAuditLog({
@@ -150,27 +197,39 @@ async function blockClosedJournal(req, res, next) {
       });
     }
 
-    if (journal.status_close === "locked") {
+    // ✅ Block if accounting period is closed
+    const year = new Date(journal.date).getFullYear();
+
+    const period = await accountingPeriod.findOne({
+      companyId: req.user.companyId,
+      year,
+      isClosed: true,
+    });
+
+    if (period) {
       await createAuditLog({
         userId: req.user._id,
         action: "BLOCKED_MODIFICATION",
         collectionName: "JournalEntry",
         documentId: req.params.id,
         ipAddress: req.ip,
-        description: "Attempted to modify locked journal",
+        description: `Attempted to modify journal in closed year ${year}`,
         userAgent: req.get("user-agent"),
       });
 
       return res.status(403).json({
         success: false,
-        error: "❌ Journal นี้ถูกปิดงวดแล้ว ไม่สามารถแก้ไขหรือลบได้",
+        error: "❌ ปีนี้ปิดบัญชีแล้ว ไม่สามารถแก้ไขหรือลบได้",
       });
     }
 
     next();
   } catch (err) {
     console.error("blockClosedJournal error:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+    });
   }
 }
 
@@ -300,7 +359,6 @@ const validateAndCalculateLines = (lines) => {
 
 const validateHeaderData = (data) => {
   const { date, description, reference } = data;
-
   if (!date) {
     throw new Error("Date is required");
   }
@@ -369,19 +427,25 @@ router.get(
 
       // จำกัด limit สูงสุด
       const maxLimit = Math.min(parseInt(limit), 100);
+      const safePage = Math.max(parseInt(page) || 1, 1);
+      const skip = (safePage - 1) * maxLimit;
+      if (startDate && isNaN(new Date(startDate)))
+        return res.status(400).json({ error: "Invalid startDate" });
+      const maxDays = 400;
+      if ((endDate - startDate) / 86400000 > maxDays) return res.status(400);
 
       const query = { companyId: req.user.companyId };
 
       const periods = await accountingPeriod
         .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
         .lean();
-
       const closedYears = periods.map((p) => Number(p.year));
-      const currentYear = new Date().getFullYear();
-      const activeYear = closedYears.includes(currentYear)
-        ? currentYear + 1
-        : currentYear;
 
+      // ✅ เลือกปีล่าสุดที่ยังไม่ปิด หรือปีปัจจุบัน
+      const activeYear =
+        closedYears.length > 0
+          ? Math.max(...closedYears) + 1 // ปีถัดไปจากปีที่ปิดแล้ว
+          : new Date().getFullYear();
       query.date = {};
 
       if (startDate || endDate) {
@@ -401,8 +465,6 @@ router.get(
         const safeReference = reference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         query.reference = { $regex: safeReference, $options: "i" };
       }
-
-      const skip = (page - 1) * maxLimit;
 
       const [journals, total] = await Promise.all([
         JournalEntry.find(query)
@@ -429,7 +491,7 @@ router.get(
       });
     } catch (err) {
       console.error("GET /journals error:", err);
-      res.status(400).json({ success: false, error: err.message });
+      res.status(400).json({ error: "Invalid request" });
     }
   }
 );
@@ -468,7 +530,10 @@ router.get(
       res.json({ success: true, journal });
     } catch (err) {
       console.error("GET /journals/:id error:", err);
-      res.status(400).json({ success: false, error: err.message });
+      res.status(500).json({
+        success: false,
+        error: "Internal Server Error",
+      });
     }
   }
 );
@@ -489,6 +554,9 @@ router.post(
           message: "ບໍ່ມີສິດເຂົ້າເຖິງ",
         });
       }
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime()))
+        return res.status(400).json({ error: "Invalid date" });
 
       const journalYear = new Date(date).getFullYear();
       const periods = await accountingPeriod
@@ -533,7 +601,15 @@ router.post(
         totalDebit,
         totalCredit,
       } = validateAndCalculateLines(lines);
+      const accountIds = validatedLines.map((l) => l.accountId);
 
+      const count = await Account_document.countDocuments({
+        _id: { $in: accountIds },
+        companyId: req.user.companyId,
+      });
+
+      if (count !== accountIds.length)
+        throw new Error("Invalid accountId (not in your company)");
       const newJournal = await JournalEntry.create({
         companyId: req.user.companyId,
         userId: req.user._id,
@@ -548,7 +624,7 @@ router.post(
 
       const populatedJournal = await JournalEntry.findById(newJournal._id)
         .populate("lines.accountId", "code name")
-        .populate("userId", "name email")
+        .populate("userId", "name")
         .lean();
 
       await createAuditLog({
@@ -581,24 +657,27 @@ router.post(
       const statusCode = err.message.includes("not found") ? 404 : 400;
       res.status(statusCode).json({
         success: false,
-        error: err.message,
+        error: "Invalid request",
       });
     }
   }
 );
 
 // UPDATE
+// UPDATE
 router.patch(
   "/:id",
   authenticate,
   validateSession,
   checkPermission("editor"),
-  blockClosedJournal,
+  // ⚠️ ลบ blockClosedJournal ออก เพราะเราตรวจสอบใน route แล้ว
   modifyLimiter,
   async (req, res) => {
     try {
+      /* ================= SECURITY: Input Validation ================= */
       const { date, description, reference, lines } = req.body;
 
+      // SECURITY: Validate journal ID
       if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({
           success: false,
@@ -606,84 +685,214 @@ router.patch(
         });
       }
 
-      const journalYear = new Date(date).getFullYear();
-      const periods = await accountingPeriod
-        .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
-        .lean();
-
-      const closedYears = periods.map((p) => Number(p.year));
-
-      if (closedYears.includes(journalYear)) {
+      // SECURITY: Validate required fields
+      if (!date || !lines || !Array.isArray(lines)) {
         return res.status(400).json({
           success: false,
-          message: `❌ ປີ${journalYear} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+          error: "Missing required fields: date, lines",
         });
       }
 
+      // SECURITY: Validate lines array
+      if (lines.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "At least one journal line is required",
+        });
+      }
+
+      if (lines.length > 100) {
+        return res.status(400).json({
+          success: false,
+          error: "Too many journal lines. Maximum 100 allowed.",
+        });
+      }
+
+      // SECURITY: Validate date
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        return res.status(400).json({ 
+          success: false,
+          error: "Invalid date format" 
+        });
+      }
+
+      // SECURITY: Prevent future dates
+      const maxFutureDate = new Date();
+      maxFutureDate.setFullYear(maxFutureDate.getFullYear() + 1);
+      if (dateObj > maxFutureDate) {
+        return res.status(400).json({
+          success: false,
+          error: "Date cannot be more than 1 year in the future",
+        });
+      }
+
+      /* ================= 1. Check if period is closed ================= */
+      const journalYear = dateObj.getFullYear();
+
+      const closed = await accountingPeriod.exists({
+        companyId: req.user.companyId,
+        year: journalYear,
+        isClosed: true,
+      });
+
+      if (closed) {
+        return res.status(403).json({
+          success: false,
+          error: `❌ ປີ ${journalYear} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
+        });
+      }
+
+      /* ================= 2. Load existing journal ================= */
+      // SECURITY: Always filter by companyId
       const existingJournal = await JournalEntry.findOne({
         _id: req.params.id,
         companyId: req.user.companyId,
-      });
+      }).lean();
 
       if (!existingJournal) {
         return res.status(404).json({
           success: false,
-          error: "Journal entry not found",
+          error: "Journal entry not found or access denied",
         });
       }
 
-      if (existingJournal.status === "locked") {
+      /* ================= 3. Check if locked ================= */
+      if (existingJournal.status === "locked" || existingJournal.status_close === "locked") {
         return res.status(403).json({
           success: false,
           error: "Cannot modify a locked journal entry",
         });
       }
 
+      /* ================= 4. Validate header data ================= */
       validateHeaderData({ date, description, reference });
+
+      /* ================= 5. Validate and calculate lines ================= */
       const {
         validatedLines,
         totalDebit,
         totalCredit,
       } = validateAndCalculateLines(lines);
 
-      const updatedJournal = await JournalEntry.findByIdAndUpdate(
-        req.params.id,
+      // SECURITY: Check debit = credit
+      if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        return res.status(400).json({
+          success: false,
+          error: "Total debit must equal total credit",
+        });
+      }
+
+      /* ================= 6. Verify all accounts exist and belong to company ================= */
+      const accountIds = validatedLines.map((l) => l.accountId);
+
+      // SECURITY: Verify accounts belong to company
+      const validCount = await Account_document.countDocuments({
+        _id: { $in: accountIds },
+        companyId: req.user.companyId,
+      });
+
+      if (validCount !== accountIds.length) {
+        return res.status(400).json({
+          success: false,
+          error: "One or more accounts not found or access denied",
+        });
+      }
+
+      /* ================= 7. Check duplicate reference ================= */
+      if (reference && reference.trim()) {
+        const duplicate = await JournalEntry.exists({
+          _id: { $ne: req.params.id },
+          companyId: req.user.companyId,
+          reference: reference.trim(),
+        });
+
+        if (duplicate) {
+          return res.status(409).json({
+            success: false,
+            error: "A journal entry with this reference already exists",
+          });
+        }
+      }
+
+      /* ================= 8. Update journal entry ================= */
+      const updatedJournal = await JournalEntry.findOneAndUpdate(
         {
-          date: new Date(date),
+          _id: req.params.id,
+          companyId: req.user.companyId, // SECURITY: Double-check company
+        },
+        {
+          date: dateObj,
           description: description?.trim() || "",
           reference: reference?.trim() || "",
           lines: validatedLines,
           totalDebitLAK: totalDebit,
           totalCreditLAK: totalCredit,
           updatedAt: new Date(),
+          updatedBy: req.user._id,
         },
-        { new: true, runValidators: true }
+        { 
+          new: true, 
+          runValidators: true,
+        }
       )
         .populate("lines.accountId", "code name")
-        .populate("userId", "name email")
+        .populate("userId", "name")
         .lean();
 
+      if (!updatedJournal) {
+        return res.status(404).json({
+          success: false,
+          error: "Journal entry not found during update",
+        });
+      }
+
+      /* ================= 9. Audit log ================= */
       await createAuditLog({
         userId: req.user._id,
         action: "UPDATE",
         collectionName: "JournalEntry",
         documentId: req.params.id,
         ipAddress: req.ip,
-        description: `แก้ไข Journal ${reference}`,
+        description: `Updated Journal: ${reference?.trim() || existingJournal.reference}`,
         userAgent: req.get("user-agent"),
+        metadata: {
+          reference: reference?.trim(),
+          totalDebit,
+          totalCredit,
+          linesCount: validatedLines.length,
+        },
       });
 
       res.json({
         success: true,
         message: "Journal entry updated successfully",
-        journal: updatedJournal,
+        data: updatedJournal,
       });
+
     } catch (err) {
-      console.error("PATCH /journals/:id error:", err);
-      const statusCode = err.message.includes("not found") ? 404 : 400;
-      res.status(statusCode).json({
+      console.error("PATCH /journals/:id error:", err.message);
+
+      // Handle specific errors
+      if (err.name === "ValidationError") {
+        return res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          details: Object.values(err.errors).map((e) => e.message),
+        });
+      }
+
+      if (err.name === "CastError") {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid data format",
+        });
+      }
+
+      res.status(500).json({
         success: false,
-        error: err.message,
+        error: "Failed to update journal entry",
+        message: process.env.NODE_ENV === "development" ? err.message : undefined,
       });
     }
   }
@@ -732,27 +941,12 @@ router.delete(
       }).session(session);
 
       if (assetExists) {
+        await session.abortTransaction();
         return res.status(400).json({
           success: false,
           error: "Journal linked to Fixed Asset cannot be deleted",
         });
       }
-
-      // กัน journal ที่ post แล้ว
-      // if (journal.status === "posted") {
-      //   return res.status(400).json({
-      //     success: false,
-      //     error: "Posted journal cannot be deleted",
-      //   });
-      // }
-
-      // // กัน depreciation โดยตรง
-      // if (journal.type === "depreciation") {
-      //   return res.status(400).json({
-      //     success: false,
-      //     error: "Depreciation journal cannot be deleted manually",
-      //   });
-      // }      
       // Check if journal is locked
       if (journal.status === "locked") {
         await session.abortTransaction();
@@ -784,7 +978,10 @@ router.delete(
       }
 
       // Delete the journal entry
-      await JournalEntry.findByIdAndDelete(req.params.id, { session });
+      await JournalEntry.deleteOne(
+        { _id: req.params.id, companyId: req.user.companyId },
+        { session }
+      );
 
       // Create audit log
       await createAuditLog({

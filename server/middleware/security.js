@@ -15,7 +15,7 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 const getAllowedOrigins = () => {
   const origins = [
     "http://localhost:5173", // dev
-    "https://finance.manignom.group"
+    "https://finance.manignom.group",
   ];
 
   // FRONTEND_DOMAIN from env
@@ -138,6 +138,35 @@ const authLimiter = rateLimit({
   message: "Too many login attempts. Try again later.",
   skipSuccessfulRequests: true,
 });
+function validateIncomeStatementQuery({ year, month, startDate, endDate }) {
+  if (year !== undefined) {
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new Error("Invalid year");
+    }
+  }
+
+  if (month !== undefined) {
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+      throw new Error("Invalid month");
+    }
+  }
+
+  if (startDate) {
+    const s = new Date(startDate);
+    if (isNaN(s.getTime())) throw new Error("Invalid startDate");
+  }
+
+  if (endDate) {
+    const e = new Date(endDate);
+    if (isNaN(e.getTime())) throw new Error("Invalid endDate");
+  }
+
+  if (startDate && endDate) {
+    const s = new Date(startDate);
+    const e = new Date(endDate);
+    if (s > e) throw new Error("startDate must be before endDate");
+  }
+}
 
 export {
   corsOptions,
@@ -145,4 +174,5 @@ export {
   apiLimiter,
   authLimiter,
   getAllowedOrigins,
+  validateIncomeStatementQuery
 };

@@ -819,7 +819,27 @@ const DebtManagementSystem = () => {
     setDeleteId(id);
     onWarningOpen();
   };
+  const handleDelete = useCallback(
+    async (transactionId) => {
+      try {
+        await dispatch(deleteIncomeExpense(transactionId)).unwrap();
+        Swal.fire({
+          title: "ສຳເລັດ",
+          text: "ລຶບລາຍການສຳເລັດ",
+          icon: "success",
+        });
 
+        await dispatch(fetchDebts());
+      } catch (error) {
+        Swal.fire({
+          title: "ເກີດຂໍ້ຜິພາດ",
+          text: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
+          icon: "error",
+        });
+      }
+    },
+    [dispatch, filterParams, toast]
+  );
   const confirmDelete = () => {
     handleDelete(deleteId);
     onWarningClose();

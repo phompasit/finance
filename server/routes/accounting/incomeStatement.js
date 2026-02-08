@@ -6,6 +6,10 @@ import JournalEntry from "../../models/accouting_system_models/journalEntry_mode
 import { authenticate } from "../../middleware/auth.js";
 import { resolveReportFilter } from "../../utils/balanceSheetFuntions.js";
 import Period from "../../models/accouting_system_models/accountingPeriod.js";
+import {
+  apiLimiter,
+  validateIncomeStatementQuery,
+} from "../../middleware/security.js";
 const router = express.Router();
 
 /* ============================================================================
@@ -153,6 +157,15 @@ function parseDateRange(query) {
   return { start, end };
 }
 async function buildIncomeStatement({ companyId, start, end }) {
+  const MAX_DAYS = 400;
+  if ((end - start) / 86400000 > MAX_DAYS) {
+    throw new Error("Date range too large");
+  }
+  if (!(start instanceof Date) || isNaN(start))
+    throw new Error("Invalid start");
+  if (!(end instanceof Date) || isNaN(end)) throw new Error("Invalid end");
+  if (start > end) throw new Error("Start after end");
+
   /* ------------------------ Load accounts ------------------------ */
   const accounts = await Account.find({ companyId }).lean();
   const idToAcc = {};
@@ -194,23 +207,24 @@ async function buildIncomeStatement({ companyId, start, end }) {
   });
 
   /* --------------------- Movements ------------------------ */
-  const journals = await JournalEntry.find({
+  const cursor = await JournalEntry.find({
     companyId,
     date: { $gte: start, $lte: end },
-  }).lean();
+  })
+    .select("lines.accountId lines.amountLAK lines.side")
+    .cursor();
 
-  journals.forEach((j) => {
-    (j.lines || []).forEach((ln) => {
+  for await (const j of cursor) {
+    for (const ln of j.lines || []) {
       const acc = idToAcc[String(ln.accountId)];
-      if (!acc) return;
+      if (!acc) continue;
       const code = acc.code;
       const amt = Number(ln.amountLAK || 0);
 
       if (ln.side === "dr") rows[code].movementDr += amt;
       else rows[code].movementCr += amt;
-    });
-  });
-
+    }
+  }
   /* --------------------- Roll-up child → parent ---------------- */
   const childrenMap = {};
   Object.values(rows).forEach((r) => {
@@ -218,17 +232,38 @@ async function buildIncomeStatement({ companyId, start, end }) {
     if (!childrenMap[r.parentCode]) childrenMap[r.parentCode] = [];
     childrenMap[r.parentCode].push(r.code);
   });
+  //////ການຄຳນວນ
+  const rolled = new Set(); // ป้องกันคำนวณซ้ำ
+  const visiting = new Set(); // ป้องกัน cycle
 
   function roll(code) {
-    const childs = childrenMap[code] || [];
-    childs.forEach((c) => {
+    if (!rows[code]) return;
+
+    // ถ้าคำนวณไปแล้ว ไม่ต้องทำซ้ำ
+    if (rolled.has(code)) return;
+
+    // Cycle detection
+    if (visiting.has(code)) {
+      console.warn(`Cycle detected in account tree at ${code}`);
+      return;
+    }
+
+    visiting.add(code);
+
+    const children = childrenMap[code] || [];
+    for (const c of children) {
+      if (!rows[c]) continue;
+
       roll(c);
 
       rows[code].openingDr += rows[c].openingDr;
       rows[code].openingCr += rows[c].openingCr;
       rows[code].movementDr += rows[c].movementDr;
       rows[code].movementCr += rows[c].movementCr;
-    });
+    }
+
+    visiting.delete(code);
+    rolled.add(code);
   }
 
   Object.values(rows)
@@ -399,7 +434,7 @@ async function buildIncomeStatement({ companyId, start, end }) {
 /* ============================================================================
    5) MAIN ROUTE — INCOME STATEMENT
 ============================================================================ */
-router.get("/income-statement", authenticate, async (req, res) => {
+router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
   try {
     const companyId = req.user.companyId;
     const periods = await Period.find({ companyId }).lean();
@@ -415,6 +450,21 @@ router.get("/income-statement", authenticate, async (req, res) => {
       query: req.query,
       periods,
     });
+
+    validateIncomeStatementQuery({
+      year: req.query.year ? Number(req.query.year) : undefined,
+      month: req.query.month ? Number(req.query.month) : undefined,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+    });
+    if (month && (month < 1 || month > 12))
+      return res.status(400).json({ error: "Invalid month" });
+
+    if (year && (year < 2000 || year > 2100))
+      return res.status(400).json({ error: "Invalid year" });
+
+    if (startDate && isNaN(startDate))
+      return res.status(400).json({ error: "Invalid startDate" });
 
     const closedYears = periods
       .filter((p) => p.isClosed)
@@ -537,7 +587,7 @@ router.get("/income-statement", authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error("income-statement error:", err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 });
 

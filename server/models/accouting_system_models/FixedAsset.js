@@ -19,7 +19,10 @@ const FixedAssetSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-
+    category: {
+      type: String,
+      required: true,
+    },
     assetCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AssetCategory",
@@ -95,7 +98,7 @@ const FixedAssetSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["active", "sold", "disposed"],
+      enum: ["active", "sold", "disposal"],
       default: "active",
     },
 

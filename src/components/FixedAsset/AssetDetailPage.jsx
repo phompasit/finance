@@ -75,9 +75,10 @@ const AssetDetailPage = ({
   monthlyAmount,
   totalAmount,
   handleDeleteDepreciationAndJournal,
+  depreciationAmount,
+  onRefresh,
 }) => {
   const navigate = useNavigate();
-
   return (
     <Container maxW="container.xl" py={8}>
       <VStack align="stretch" spacing={6}>
@@ -101,6 +102,9 @@ const AssetDetailPage = ({
               </Heading>
               <Text color="gray.600">{selectedAsset?.code}</Text>
             </VStack>
+            <Button fontFamily="Noto Sans Lao, sans-serif" size="sm" colorScheme="blue" onClick={onRefresh}>
+              🔄 ດືງຂໍ້ມູນລ່າສຸດ
+            </Button>
             <Badge
               colorScheme={getStatusColor(selectedAsset?.status)}
               fontSize="md"
@@ -353,8 +357,8 @@ const AssetDetailPage = ({
                       {schedule?.map((item, idx) => {
                         return (
                           <Tr key={idx}>
-                            <Td   fontFamily="Noto Sans Lao, sans-serif">
-                             ເດືອນ  {item.month}/{item.year}
+                            <Td fontFamily="Noto Sans Lao, sans-serif">
+                              ເດືອນ {item.month}/{item.year}
                             </Td>
                             <Td isNumeric>{item.usedDays}</Td>
                             <Td isNumeric>{formatCurrency(item.amount)}</Td>
@@ -523,13 +527,12 @@ const AssetDetailPage = ({
             {/* Disposal Tab */}
             <TabPanel>
               <VStack spacing={6} align="stretch">
-
-
                 <Card>
                   <CardBody>
                     <DisposalSection
                       selectedAsset={selectedAsset}
                       formatCurrency={formatCurrency}
+                      depreciationAmount={depreciationAmount}
                     />
                   </CardBody>
                 </Card>

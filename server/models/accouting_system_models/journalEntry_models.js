@@ -71,16 +71,28 @@ const JournalEntrySchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["normal", "closing","depreciation","fiexdAsset"],
+      enum: [
+        "normal",
+        "closing",
+        "depreciation",
+        "fiexdAsset",
+        "asset_disposal",
+        "disposal",
+      ],
       default: "normal",
     },
     source: {
       type: String,
-      enum: ["depreciation", "asset_sale", "manual"],
+      enum: [
+        "depreciation",
+        "asset_sale",
+        "manual",
+        "asset_disposal",
+        "disposal",
+      ],
     },
     source: {
       type: String,
-      required: true,
     },
     sourceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -92,5 +104,19 @@ const JournalEntrySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+// Unique reference เฉพาะค่าที่ไม่ว่าง
+JournalEntrySchema.index(
+  { companyId: 1, reference: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      reference: { $type: "string", $ne: "" },
+    },
+  }
+);
 
+// Performance indexes
+JournalEntrySchema.index({ companyId: 1, date: 1 });
+JournalEntrySchema.index({ companyId: 1, source: 1 });
+JournalEntrySchema.index({ sourceId: 1 });
 export default mongoose.model("JournalEntry", JournalEntrySchema);

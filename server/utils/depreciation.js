@@ -183,6 +183,5 @@ export function calcMonthlyDepreciationDaily({
     month, // 1–12
     usedDays,
   });
-  console.log(year, month);
   return dailyDep;
 }

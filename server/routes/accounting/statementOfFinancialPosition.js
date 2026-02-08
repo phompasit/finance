@@ -11,6 +11,15 @@ import Period from "../../models/accouting_system_models/accountingPeriod.js";
 import { resolveReportFilter } from "../../utils/balanceSheetFuntions.js";
 const router = express.Router();
 
+function buildYearRange(year) {
+  const start = new Date(year, 0, 1);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(year, 11, 31);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
 /* ============================================================
    DATE RANGE
 ============================================================ */
@@ -47,27 +56,38 @@ function parseDateRange(query) {
    NET PROFIT (READ ONLY)
 ============================================================ */
 async function getNetProfit(companyId, start, end) {
-  const [journals, accounts] = await Promise.all([
-    JournalEntry.find({
-      companyId,
-      date: { $gte: start, $lte: end },
-    }).lean(),
-    Account.find({ companyId }).lean(),
-  ]);
+  const maxDays = 400;
+  if ((end - start) / 86400000 > maxDays) throw new Error("Range too large");
+
+  // Load only account id + code
+  const accounts = await Account.find({ companyId }).select("_id code").lean();
 
   const accById = {};
-  accounts.forEach((a) => (accById[String(a._id)] = a));
+  accounts.forEach((a) => {
+    accById[String(a._id)] = a.code;
+  });
 
   let revenue = 0;
   let expense = 0;
 
-  journals.forEach((j) => {
-    (j.lines || []).forEach((l) => {
-      const acc = accById[String(l.accountId)];
-      if (!acc) return;
+  // Cursor instead of full load
+  const cursor = JournalEntry.find({
+    companyId,
+    date: { $gte: start, $lte: end },
+  })
+    .select("lines.accountId lines.amountLAK lines.side")
+    .lean()
+    .cursor();
+
+  for await (const j of cursor) {
+    for (const l of j.lines || []) {
+      if (!l.accountId || !["cr", "dr"].includes(l.side)) continue;
+
+      const code = accById[String(l.accountId)];
+      if (!code) continue;
 
       const amt = Number(l.amountLAK || 0);
-      const code = String(acc.code);
+      if (!amt) continue;
 
       if (code.startsWith("7")) {
         revenue += l.side === "cr" ? amt : -amt;
@@ -76,8 +96,8 @@ async function getNetProfit(companyId, start, end) {
       if (code.startsWith("6")) {
         expense += l.side === "dr" ? amt : -amt;
       }
-    });
-  });
+    }
+  }
 
   return revenue - expense;
 }
@@ -86,28 +106,52 @@ async function getNetProfit(companyId, start, end) {
    PATTERN PARSER
 ============================================================ */
 function parsePattern(pattern = "") {
-  return String(pattern)
+  const str = String(pattern);
+
+  if (str.length > 2000) throw new Error("Pattern too long");
+
+  return str
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean)
+    .slice(0, 200) // prevent huge DoS
     .map((p) => {
       if (p.includes("-")) {
-        const [s, e] = p.split("-");
-        return { type: "range", start: +s, end: +e, len: s.length };
+        const parts = p.split("-");
+        if (parts.length !== 2) return null;
+
+        const [s, e] = parts;
+        const start = Number(s);
+        const end = Number(e);
+
+        if (isNaN(start) || isNaN(end)) return null;
+        if (start > end) return null;
+
+        return {
+          type: "range",
+          start,
+          end,
+          len: s.length,
+        };
       }
+
       return { type: "single", value: p, len: p.length };
-    });
+    })
+    .filter(Boolean);
 }
 
 function codeMatchesPattern(code, parsed) {
-  if (!code || !parsed.length) return false;
+  if (!code || !parsed?.length) return false;
+
   const clean = String(code).trim();
 
   return parsed.some((p) => {
     const prefix = clean.slice(0, p.len);
+
     if (p.type === "single") return prefix === p.value;
+
     const n = Number(prefix);
-    return !isNaN(n) && n >= p.start && n <= p.end;
+    return Number.isFinite(n) && n >= p.start && n <= p.end;
   });
 }
 
@@ -254,7 +298,6 @@ const MAPPING = [
     pattern: "",
     type: "equity",
   },
-
 ];
 async function buildSFP({ companyId, start, end, accounts }) {
   const accById = {};
@@ -263,7 +306,8 @@ async function buildSFP({ companyId, start, end, accounts }) {
     accById[String(a._id)] = a;
     accByCode[String(a.code)] = a;
   });
-
+  const maxDays = 400;
+  if ((end - start) / 86400000 > maxDays) throw new Error("Range too large");
   /* ===== ancestor ===== */
   const ancestorCache = {};
   function getAncestors(code) {
@@ -292,7 +336,9 @@ async function buildSFP({ companyId, start, end, accounts }) {
   const openings = await OpeningBalance.find({
     companyId,
     year: start.getFullYear(),
-  }).lean();
+  })
+    .select("accountId debit credit")
+    .lean();
 
   openings.forEach((ob) => {
     const acc = accById[String(ob.accountId)];
@@ -306,29 +352,37 @@ async function buildSFP({ companyId, start, end, accounts }) {
   });
 
   /* ===== MOVEMENT ===== */
-  const journals = await JournalEntry.find({
+  const journals = JournalEntry.find({
     companyId,
     date: { $gte: start, $lte: end },
-  }).lean();
+  })
+    .select("lines.accountId lines.amountLAK lines.side")
+    .lean()
+    .cursor();
 
-  journals.forEach((j) => {
+  for await (const j of journals) {
     (j.lines || []).forEach((l) => {
+      if (!l.accountId || !["cr", "dr"].includes(l.side)) return;
+
       const acc = accById[String(l.accountId)];
       if (!acc) return;
+
       const amt = Number(l.amountLAK || 0);
       const ancestors = getAncestors(String(acc.code));
+
       parsedMap.forEach((m) => {
         if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
           bucket[m.key].movement += l.side === "cr" ? amt : -amt;
         }
       });
     });
-  });
+  }
 
   /* ===== NET PROFIT ===== */
   const netProfit = await getNetProfit(companyId, start, end);
-  bucket.eq_net_profit.movement = netProfit;
-
+  if (bucket.eq_net_profit) {
+    bucket.eq_net_profit.movement = netProfit;
+  }
   const lines = Object.values(bucket).map((l) => ({
     ...l,
     ending: l.opening + l.movement,
@@ -337,24 +391,22 @@ async function buildSFP({ companyId, start, end, accounts }) {
   return lines;
 }
 
-function buildYearRange(year) {
-  const start = new Date(year, 0, 1);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(year, 11, 31);
-  end.setHours(23, 59, 59, 999);
-
-  return { start, end };
-}
-
 router.get(
   "/statement-of-financial-position",
   authenticate,
   async (req, res) => {
     try {
       const companyId = req.user.companyId;
-      const periods = await Period.find({ companyId }).lean();
-      const accounts = await Account.find({ companyId }).lean();
+      if (!req.user?.companyId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const periods = await Period.find({ companyId })
+        .select("-companyId  -closedBy -createdAt -updatedAt")
+        .lean();
+      const accounts = await Account.find({ companyId })
+        .select("-companyId  -userId -createdAt -updatedAt")
+        .lean();
 
       const {
         year,
@@ -367,7 +419,18 @@ router.get(
         query: req.query,
         periods,
       });
-
+      if (year < 2000 || year > 2100)
+        return res.status(400).json({ error: "Invalid year" });
+      if (month && (month < 1 || month > 12)) {
+        return res.status(400).json({ error: "Invalid month" });
+      }
+      if (isNaN(endDate.getTime()))
+        return res.status(400).json({ error: "Invalid end date" });
+      if (isNaN(startDate.getTime())) throw new Error("Invalid date");
+      const maxRangeDays = 400;
+      if ((endDate - startDate) / 86400000 > maxRangeDays) {
+        return res.status(400).json({ error: "Range too large" });
+      }
       const closedYears = periods
         .filter((p) => p.isClosed)
         .map((p) => p.year)
@@ -484,7 +547,7 @@ router.get(
         return res.json({
           success: true,
           comparable: false,
-          message: "ยังไม่มีปีที่ปิดบัญชี",
+          message: "ຍັງບໍ່ມີປີທີ່ປິດ",
         });
       }
 
@@ -515,7 +578,10 @@ router.get(
       });
     } catch (err) {
       console.error("SFP ERROR:", err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({
+        success: false,
+        error: "Internal Server Error",
+      });
     }
   }
 );

@@ -33,6 +33,8 @@ const initialState = {
   journalEntries: null,
   depreciationAmount: null,
   rollbackResult: null,
+  depreciationThisYearAmount: null,
+  depreciationBeforeYearAmount: null,
 };
 
 const assetSlice = createSlice({
@@ -94,7 +96,7 @@ const assetSlice = createSlice({
       })
       .addCase(getAssetById.fulfilled, (state, action) => {
         state.loading = false;
-        state.current = action.payload;
+        state.current = action.payload.data;
       })
       .addCase(getAssetById.rejected, (state, action) => {
         state.loading = false;
@@ -113,6 +115,10 @@ const assetSlice = createSlice({
         state.filters = action.payload.filters;
         state.pagination = action.payload.pagination;
         state.depreciationAmount = action.payload.depreciationAmount;
+        state.depreciationThisYearAmount =
+          action.payload.depreciationThisYearAmount;
+        state.depreciationBeforeYearAmount =
+          action.payload.depreciationBeforeYearAmount;
       })
       .addCase(getAllFixedAssets.rejected, (state, action) => {
         state.loading = false;

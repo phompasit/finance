@@ -16,7 +16,7 @@ const VALID_TYPES = ["asset", "liability", "equity", "income", "expense"];
 const MAX_CODE_LENGTH = 20;
 const MAX_NAME_LENGTH = 255;
 const MAX_CATEGORY_LENGTH = 100;
-
+const RESTRICTED_PARENT_CODES = ["321", "329", "331", "339"];
 // ========================
 // RATE LIMITING
 // ========================
@@ -46,33 +46,33 @@ const validateCreateAccount = [
     .withMessage(`ລະຫັດບັນຊີຕ້ອງບໍ່ເກີນ ${MAX_CODE_LENGTH} ຕົວອັກສອນ`)
     .matches(/^[a-zA-Z0-9\-._]+$/)
     .withMessage("ລະຫັດບັນຊີມີຕົວອັກສອນທີ່ບໍ່ຖືກຕ້ອງ"),
-  
+
   body("name")
     .trim()
     .notEmpty()
     .withMessage("ກະລຸນາລະບຸຊື່ບັນຊີ")
     .isLength({ max: MAX_NAME_LENGTH })
     .withMessage(`ຊື່ບັນຊີຕ້ອງບໍ່ເກີນ ${MAX_NAME_LENGTH} ຕົວອັກສອນ`),
-  
+
   body("type")
     .trim()
     .notEmpty()
     .withMessage("ກະລຸນາເລືອກປະເພດບັນຊີ")
     .isIn(VALID_TYPES)
     .withMessage("ປະເພດບັນຊີບໍ່ຖືກຕ້ອງ"),
-  
+
   body("parentCode")
     .optional()
     .trim()
     .isLength({ max: MAX_CODE_LENGTH })
     .withMessage(`ລະຫັດບັນຊີແມ່ຕ້ອງບໍ່ເກີນ ${MAX_CODE_LENGTH} ຕົວອັກສອນ`),
-  
+
   body("category")
     .optional()
     .trim()
     .isLength({ max: MAX_CATEGORY_LENGTH })
     .withMessage(`ໝວດໝູ່ຕ້ອງບໍ່ເກີນ ${MAX_CATEGORY_LENGTH} ຕົວອັກສອນ`),
-  
+
   body("normalSide")
     .optional()
     .trim()
@@ -105,7 +105,7 @@ const validateAccountId = [
 const checkAuth = (req, res) => {
   const userId = req.user?._id;
   const companyId = req.user?.companyId;
-  
+
   if (!companyId || !userId) {
     res.status(401).json({
       success: false,
@@ -121,10 +121,10 @@ const handleValidationErrors = (req, res) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
-      errors: errors.array().map(err => ({
+      errors: errors.array().map((err) => ({
         field: err.path,
-        message: err.msg
-      }))
+        message: err.msg,
+      })),
     });
   }
   return null;
@@ -156,10 +156,25 @@ router.post(
       // ตรวจสอบ authentication
       if (!checkAuth(req, res)) return;
 
-      const { code, name, type, parentCode, normalSide, category } = sanitizeInput(req.body);
+      const {
+        code,
+        name,
+        type,
+        parentCode,
+        normalSide,
+        category,
+      } = sanitizeInput(req.body);
       const userId = req.user._id;
       const companyId = req.user.companyId;
-
+      // ========================
+      // ✅ BLOCK SUBACCOUNT UNDER 321/329
+      // ========================
+      if (parentCode && RESTRICTED_PARENT_CODES.includes(parentCode)) {
+        return res.status(403).json({
+          success: false,
+          error: `ບໍ່ອະນຸຍາດໃຫ້ສ້າງບັນຊີຍ່ອຍພາຍໃຕ້ ${parentCode} (ກຳໄລ/ຂາດ)`,
+        });
+      }
       // Normalize
       const accountCode = String(code).trim();
       const accountCategory = String(category || "").trim();
@@ -168,7 +183,9 @@ router.post(
       const existingAccount = await Account_document.findOne({
         code: accountCode,
         companyId: companyId,
-      }).select("_id").lean();
+      })
+        .select("_id")
+        .lean();
 
       if (existingAccount) {
         return res.status(409).json({
@@ -182,7 +199,9 @@ router.post(
         const parentExists = await Account_document.findOne({
           code: parentCode,
           companyId: companyId,
-        }).select("_id").lean();
+        })
+          .select("_id")
+          .lean();
 
         if (!parentExists) {
           return res.status(400).json({
@@ -194,7 +213,9 @@ router.post(
 
       // ตรวจสอบกฎเฉพาะสำหรับต้นทุนขาย
       if (
-        ["ຕົ້ນທຸນຂາຍ", "ຕົ້ນທຸນຈຳຫນ່າຍ", "ຕົ້ນທຸນບໍລິຫານ"].includes(accountCategory) &&
+        ["ຕົ້ນທຸນຂາຍ", "ຕົ້ນທຸນຈຳຫນ່າຍ", "ຕົ້ນທຸນບໍລິຫານ"].includes(
+          accountCategory
+        ) &&
         !accountCode.startsWith("6")
       ) {
         return res.status(400).json({
@@ -279,7 +300,14 @@ router.patch(
       if (!checkAuth(req, res)) return;
 
       const { id } = req.params;
-      const { code, name, type, parentCode, normalSide, category } = sanitizeInput(req.body);
+      const {
+        code,
+        name,
+        type,
+        parentCode,
+        normalSide,
+        category,
+      } = sanitizeInput(req.body);
       const companyId = req.user.companyId;
 
       // Normalize
@@ -304,7 +332,9 @@ router.patch(
         companyId,
         code: accountCode,
         _id: { $ne: id },
-      }).select("_id").lean();
+      })
+        .select("_id")
+        .lean();
 
       if (duplicate) {
         return res.status(409).json({
@@ -318,7 +348,9 @@ router.patch(
         const parentExists = await Account_document.findOne({
           code: parentCode,
           companyId,
-        }).select("_id").lean();
+        })
+          .select("_id")
+          .lean();
 
         if (!parentExists) {
           return res.status(400).json({
@@ -338,7 +370,9 @@ router.patch(
 
       // ตรวจสอบกฎเฉพาะสำหรับต้นทุนขาย
       if (
-        ["ຕົ້ນທຸນຂາຍ", "ຕົ້ນທຸນຈຳຫນ່າຍ", "ຕົ້ນທຸນບໍລິຫານ"].includes(accountCategory) &&
+        ["ຕົ້ນທຸນຂາຍ", "ຕົ້ນທຸນຈຳຫນ່າຍ", "ຕົ້ນທຸນບໍລິຫານ"].includes(
+          accountCategory
+        ) &&
         !accountCode.startsWith("6")
       ) {
         return res.status(400).json({
@@ -434,7 +468,15 @@ router.delete(
         _id: id,
         companyId,
       }).lean();
-
+      // ========================
+      // ✅ PROTECT RETAINED EARNINGS
+      // ========================
+      if (RESTRICTED_PARENT_CODES.includes(account.code)) {
+        return res.status(403).json({
+          success: false,
+          error: "ບໍ່ສາມາດລົບບັນຊີກຳໄລ/ຂາດທຶນສະສົມໄດ້",
+        });
+      }
       if (!account) {
         return res.status(404).json({
           success: false,

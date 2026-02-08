@@ -21,107 +21,140 @@ import {
 import { DollarSign } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { postDepreciationForAsset } from "../../store/assetService/assetThunk";
+import Swal from "sweetalert2";
 
-const DisposalSection = ({ selectedAsset, formatCurrency }) => {
-  const [type, setType] = useState("sale"); // sale | disposal | trade
-  const [period, setPeriod] = useState(""); // yyyy-mm
-  const [saleAmount, setSaleAmount] = useState("");
-  const [tradeValue, setTradeValue] = useState("");
+const DisposalSection = ({
+  depreciationAmount,
+  selectedAsset,
+  formatCurrency,
+}) => {
   const dispatch = useDispatch();
-  const nbv = selectedAsset?.netBookValue || 0;
 
-  /* ================= Preview Gain / Loss ================= */
+  /* ================= State ================= */
+  const [type, setType] = useState("sale"); // sale | disposal | depreciation
+  const [period, setPeriod] = useState(""); // YYYY-MM (depreciation only)
+  const [eventDate, setEventDate] = useState(""); // YYYY-MM-DD (sale / disposal)
+  const [saleAmount, setSaleAmount] = useState(
+    selectedAsset?.salvageValue || 0
+  );
+
+  /* ================= Base Numbers ================= */
+  const cost = Number(selectedAsset?.cost || 0);
+  const accumulatedDep = Number(depreciationAmount || 0);
+  const nbv = Math.max(cost - accumulatedDep, 0);
+
+  /* ================= Gain / Loss Preview ================= */
   const gainLoss = useMemo(() => {
-    if (!period) return 0;
-
-    if (type === "sale") {
-      return Number(saleAmount || 0) - nbv;
-    }
-
-    if (type === "trade") {
-      return Number(tradeValue || 0) - nbv;
-    }
-
-    // disposal
-    return -nbv;
-  }, [type, saleAmount, tradeValue, nbv, period]);
+    if (type === "sale") return Number(saleAmount || 0) - nbv;
+    if (type === "disposal") return -nbv;
+    return 0;
+  }, [type, saleAmount, nbv]);
 
   const gainLossColor = gainLoss >= 0 ? "green.600" : "red.600";
 
   /* ================= Submit ================= */
-  const handlePost = () => {
-    // if (!period) {
-    //   alert("Please select disposal period");
-    //   return;
-    // }
+  const handlePost = async () => {
+    try {
+      // ===== validation =====
+      if (type === "depreciation" && !period) {
+        return Swal.fire("ຜິດພາດ", "ກະລຸນາເລືອກເດືອນ / ປີ", "warning");
+      }
 
-    const [year, month] = period.split("-").map(Number);
+      if ((type === "sale" || type === "disposal") && !eventDate) {
+        return Swal.fire("ຜິດພາດ", "ກະລຸນາເລືອກວັນ", "warning");
+      }
 
-    const payload = {
-      type,
-      year,
-      month,
-    };
+      // ===== confirm =====
+      const confirm = await Swal.fire({
+        title: "ຢືນຢັນ",
+        text: "ຕ້ອງການບັນທຶກລາຍການນີ້ບໍ?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "ຢືນຢັນ",
+      });
 
-    if (type === "sale") payload.saleAmount = Number(saleAmount);
-    if (type === "trade") payload.tradeValue = Number(tradeValue);
-    payload.id = selectedAsset._id;
-    console.log("POST DISPOSAL", payload);
+      if (!confirm.isConfirmed) return;
 
-    // TODO:
-    dispatch(postDepreciationForAsset(payload));
-    // api.post(`/assets/${selectedAsset.id}/dispose`, payload)
+      // ===== payload =====
+      const payload = {
+        id: selectedAsset._id,
+        type,
+      };
+
+      if (type === "depreciation") {
+        payload.period = period; // YYYY-MM
+      }
+
+      if (type === "sale" || type === "disposal") {
+        payload.eventDate = eventDate; // YYYY-MM-DD
+      }
+
+      if (type === "sale") {
+        payload.saleAmount = Number(saleAmount || 0);
+      }
+
+      // ===== dispatch =====
+      await dispatch(postDepreciationForAsset(payload)).unwrap();
+
+      await Swal.fire("ສຳເລັດ", "ບັນທຶກສຳເລັດແລ້ວ", "success");
+    } catch (err) {
+      Swal.fire(
+        "Error",
+        err?.message || "ບັນທຶກບໍ່ສຳເລັດ",
+        "error"
+      );
+    }
   };
 
   return (
     <VStack spacing={6} align="stretch">
       <Alert status="info">
         <AlertIcon />
-        Select disposal type and period. System will calculate gain or loss
-        automatically.
+        ລະບົບຈະຄຳນວນຄ່າຫຼຸ້ຍຫ້ຽນ ແລະ ກຳໄລ / ຂາດທຶນ ໃຫ້ອັດຕະໂນມັດ
       </Alert>
 
       <Card>
         <CardBody>
           <VStack spacing={5} align="stretch">
-            {/* ===== Disposal Type ===== */}
+            {/* ===== Type ===== */}
             <FormControl>
-              <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                ເລືອກປະເພດ
-              </FormLabel>
+              <FormLabel>ປະເພດລາຍການ</FormLabel>
               <RadioGroup value={type} onChange={setType}>
                 <Stack direction="row">
-                  <Radio fontFamily="Noto Sans Lao, sans-serif" value="sale">
-                    ຂາຍ
-                  </Radio>
-                  {/* <Radio value="disposal"></Radio> */}
-                  {/* <Radio value="trade">Trade-in</Radio> */}
-                  <Radio
-                    fontFamily="Noto Sans Lao, sans-serif"
-                    value="depreciation"
-                  >
-                    ຫັກຄ່າຫຼຸ້ຍຫ້ຽນ
-                  </Radio>
+                  <Radio value="sale">ຂາຍ</Radio>
+                  <Radio value="disposal">ປ່ອຍຊັບສິນ</Radio>
+                  <Radio value="depreciation">ຫັກຄ່າຫຼຸ້ຍຫ້ຽນ</Radio>
                 </Stack>
               </RadioGroup>
             </FormControl>
 
-            {/* ===== Period ===== */}
-            <FormControl isRequired>
-              <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                ເລືອກ ເດືອນ/ປີ ຫັກຄ່າຫຼຸ້ຍຫ້ຽນ
-              </FormLabel>
-              <Input
-                type="month"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-              />
-            </FormControl>
+            {/* ===== Period / Date ===== */}
+            {type === "depreciation" && (
+              <FormControl isRequired>
+                <FormLabel>ເດືອນ / ປີ</FormLabel>
+                <Input
+                  type="month"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                />
+              </FormControl>
+            )}
 
-            {/* ===== Amount Inputs ===== */}
+            {(type === "sale" || type === "disposal") && (
+              <FormControl isRequired>
+                <FormLabel>ວັນຂາຍ / ວັນປ່ອຍ</FormLabel>
+                <Input
+                  type="date"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                />
+              </FormControl>
+            )}
+
+            {/* ===== Sale Amount ===== */}
             {type === "sale" && (
               <FormControl isRequired>
-                <FormLabel fontFamily="Noto Sans Lao, sans-serif" >ຈຳນວນເງິນຂາຍ (₭)</FormLabel>
+                <FormLabel>ຈຳນວນເງິນຂາຍ</FormLabel>
                 <Input
                   type="number"
                   value={saleAmount}
@@ -130,65 +163,23 @@ const DisposalSection = ({ selectedAsset, formatCurrency }) => {
               </FormControl>
             )}
 
-            {type === "trade" && (
-              <FormControl isRequired>
-                <FormLabel>Trade-in Value (₭)</FormLabel>
-                <Input
-                  type="number"
-                  value={tradeValue}
-                  onChange={(e) => setTradeValue(e.target.value)}
-                />
-              </FormControl>
-            )}
-
             <Divider />
 
             {/* ===== Preview ===== */}
             <Box bg="gray.50" p={4} borderRadius="md">
-              <VStack spacing={2} align="stretch" fontSize="sm">
-                <Heading size="xs">Calculation Preview</Heading>
+              <VStack spacing={2} fontSize="sm">
+                <Heading size="xs">ສະຫຼຸບ</Heading>
 
                 <HStack justify="space-between">
-                  <Text>Original Cost</Text>
-                  <Text>{formatCurrency(selectedAsset?.cost)}</Text>
+                  <Text>ມູນຄ່າຕາມບັນຊີ</Text>
+                  <Text>{formatCurrency(nbv)}</Text>
                 </HStack>
 
                 <HStack justify="space-between">
-                  <Text>Accumulated Depreciation</Text>
-                  <Text color="orange.600">
-                    ({formatCurrency(selectedAsset?.accumulatedDep)})
+                  <Text color={gainLossColor} fontWeight="bold">
+                    ກຳໄລ / (ຂາດທຶນ)
                   </Text>
-                </HStack>
-
-                <Divider />
-
-                <HStack justify="space-between">
-                  <Text fontWeight="bold">Net Book Value</Text>
-                  <Text fontWeight="bold">
-                    {formatCurrency(selectedAsset?.netBookValue)}
-                  </Text>
-                </HStack>
-
-                {type !== "disposal" && (
-                  <HStack justify="space-between">
-                    <Text fontWeight="bold">
-                      {type === "sale" ? "Sale Amount" : "Trade-in Value"}
-                    </Text>
-                    <Text fontWeight="bold">
-                      {formatCurrency(
-                        type === "sale" ? saleAmount : tradeValue
-                      )}
-                    </Text>
-                  </HStack>
-                )}
-
-                <Divider />
-
-                <HStack justify="space-between">
-                  <Text fontWeight="bold" color={gainLossColor}>
-                    Gain / (Loss)
-                  </Text>
-                  <Text fontWeight="bold" color={gainLossColor}>
+                  <Text color={gainLossColor} fontWeight="bold">
                     {formatCurrency(gainLoss)}
                   </Text>
                 </HStack>
@@ -199,10 +190,9 @@ const DisposalSection = ({ selectedAsset, formatCurrency }) => {
             <Button
               colorScheme="orange"
               leftIcon={<DollarSign size={16} />}
-              w="full"
               onClick={handlePost}
             >
-              Post Disposal
+              ບັນທຶກລາຍການ
             </Button>
           </VStack>
         </CardBody>

@@ -217,8 +217,6 @@ const useFormValidation = (form) => {
         newErrors[field] = message;
       }
     });
-    console.log(Number(form.salvageValue) >= Number(form.cost));
-    console.log(typeof form.salvageValue);
     // Date validation
     if (form.startUseDate && form.purchaseDate) {
       if (new Date(form.startUseDate) < new Date(form.purchaseDate)) {
@@ -262,12 +260,21 @@ const SectionHeader = ({ icon, title, subtitle }) => {
     <VStack align="start" spacing={1} mb={5}>
       <HStack spacing={3}>
         <Icon as={icon} boxSize={5} color={iconColor} />
-        <Heading size="md" fontWeight="600">
+        <Heading
+          fontFamily="Noto Sans Lao, sans-serif"
+          size="md"
+          fontWeight="600"
+        >
           {title}
         </Heading>
       </HStack>
       {subtitle && (
-        <Text fontSize="sm" color={mutedColor} ml={8}>
+        <Text
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="sm"
+          color={mutedColor}
+          ml={8}
+        >
           {subtitle}
         </Text>
       )}
@@ -277,7 +284,6 @@ const SectionHeader = ({ icon, title, subtitle }) => {
 
 const CurrencyInput = ({ form, setForm, errors, isEditMode }) => {
   const mutedColor = useColorModeValue("gray.600", "gray.400");
-  const readOnlyBg = useColorModeValue("gray.100", "gray.700");
 
   const customSelectStyles = {
     control: (base, state) => ({
@@ -301,8 +307,13 @@ const CurrencyInput = ({ form, setForm, errors, isEditMode }) => {
   return (
     <HStack spacing={4} w="full" align="start">
       <FormControl isRequired flex={1} isInvalid={!!errors.currency}>
-        <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-          Currency
+        <FormLabel
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="sm"
+          fontWeight="600"
+          color={mutedColor}
+        >
+          ສະກຸນເງິນ
         </FormLabel>
         <Select
           isDisabled={!isEditMode}
@@ -314,15 +325,20 @@ const CurrencyInput = ({ form, setForm, errors, isEditMode }) => {
       </FormControl>
 
       <FormControl isRequired flex={2} isInvalid={!!errors.original}>
-        <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-          Original Amount
+        <FormLabel
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="sm"
+          fontWeight="600"
+          color={mutedColor}
+        >
+          ມູນຄ່າເດິມ
         </FormLabel>
         <Input
           type="number"
           step="0.00"
+          isDisabled={!isEditMode}
           value={form.original}
           onChange={(e) => setForm({ ...form, original: e.target.value })}
-          isDisabled={!isEditMode}
           size="lg"
           placeholder="0.00"
         />
@@ -331,8 +347,13 @@ const CurrencyInput = ({ form, setForm, errors, isEditMode }) => {
 
       {form.currency !== "LAK" && (
         <FormControl flex={1}>
-          <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-            Exchange Rate
+          <FormLabel
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            fontWeight="600"
+            color={mutedColor}
+          >
+            ອັດຕາແລກປ່ຽນ
           </FormLabel>
           <Input
             type="number"
@@ -389,7 +410,7 @@ const AccountSelector = ({
     <FormControl isRequired={isRequired} isInvalid={!!errors[field]}>
       <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
         <HStack spacing={2}>
-          <Text>{label}</Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif">{label}</Text>
           {isLocked && (
             <Tooltip label="Locked after depreciation posting">
               <span>
@@ -447,12 +468,22 @@ const AddAssetModal = () => {
   const readOnlyBg = useColorModeValue("gray.100", "gray.700");
 
   // Computed values
-  const hasDepreciation = useMemo(() => {
-    return current?.accumulatedDepreciation > 0 || current?.status === "active";
+  // ===== PATCH: correct depreciation lock logic =====
+  const isLockedAfterDepreciation = useMemo(() => {
+    if (!current) return false;
+
+    const accumulated = Number(current.accumulatedDepreciation || 0);
+
+    return (
+      accumulated > 0 ||
+      current.status === "sold" ||
+      current.status === "disposal"
+    );
   }, [current]);
 
-  const canEditGeneral = isNew || !hasDepreciation;
-  console.log("canEditGeneral", id);
+  // override usage logic (ไม่ลบของเดิม)
+  const canEditGeneralFixed = !isLockedAfterDepreciation;
+  const canEditGeneral = canEditGeneralFixed;
   const accountOptions = useMemo(
     () =>
       accounts
@@ -528,8 +559,9 @@ const AddAssetModal = () => {
         });
 
         if (isNew) {
-          navigate("/assets");
+          navigate("/fixed-assets");
         } else {
+          navigate("/fixed-assets");
           setIsEditMode(false);
         }
       } else {
@@ -585,7 +617,10 @@ const AddAssetModal = () => {
       </Center>
     );
   }
-
+  function formatDateForInput(dateString) {
+    if (!dateString) return "";
+    return new Date(dateString).toISOString().split("T")[0];
+  }
   return (
     <Box bg={bgColor} minH="100vh" py={8}>
       <Container maxW="container.xl">
@@ -611,8 +646,12 @@ const AddAssetModal = () => {
               <HStack spacing={3}>
                 <Icon as={Package} boxSize={6} color={iconColor} />
                 <Box>
-                  <Heading size="lg" fontWeight="700">
-                    {isNew ? "Create New Asset" : "Asset Details"}
+                  <Heading
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    size="lg"
+                    fontWeight="700"
+                  >
+                    {isNew ? "ເພີ່ມຊັບສິນ" : "ລາຍລະອຽດຊັບສິນ"}
                   </Heading>
                   <Text fontSize="sm" color={mutedColor} mt={1}>
                     {isNew
@@ -647,9 +686,12 @@ const AddAssetModal = () => {
             borderColor={useColorModeValue("orange.200", "orange.700")}
           >
             <AlertIcon />
-            <AlertDescription fontSize="sm">
-              This asset is locked because depreciation has been posted. Only
-              accounting configuration can be modified.
+            <AlertDescription
+              fontFamily="Noto Sans Lao, sans-serif"
+              fontSize="sm"
+            >
+              ຊັບສິນນີ້ຖືກລັອກເນື່ອງຈາກໄດ້ບັນທຶກຄ່າເສື່ອມລາຄາແລ້ວ
+              ສາມາດແກ້ໄຂໄດ້ສະເພາະການຕັ້ງຄ່າທາງບັນຊີເທົ່ານັ້ນ
             </AlertDescription>
           </Alert>
         )}
@@ -666,7 +708,7 @@ const AddAssetModal = () => {
             <CardBody>
               <SectionHeader
                 icon={Package}
-                title="Asset Information"
+                title="ຂໍ້ມູນຊັບສິນ"
                 subtitle="Basic details about the asset"
               />
 
@@ -675,31 +717,42 @@ const AddAssetModal = () => {
                   form={form}
                   setForm={setForm}
                   errors={errors}
-                  isEditMode={isEditMode && canEditGeneral}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
 
                 <FormControl isRequired isInvalid={!!errors.assetCode}>
-                  <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-                    Asset Code
+                  <FormLabel
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    fontWeight="600"
+                    color={mutedColor}
+                  >
+                    ລະຫັດຊັບສິນ
                   </FormLabel>
                   <Input
                     value={form.assetCode}
                     onChange={onChange("assetCode")}
-                    isDisabled={!isEditMode || !canEditGeneral}
                     size="lg"
                     placeholder="e.g., AST-2024-001"
+                    isEditMode={isEditMode}
                   />
                   <FormErrorMessage>{errors.assetCode}</FormErrorMessage>
                 </FormControl>
 
                 <FormControl isRequired isInvalid={!!errors.name}>
-                  <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-                    Asset Name
+                  <FormLabel
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    fontWeight="600"
+                    color={mutedColor}
+                  >
+                    ຊື່ຊັບສິນ
                   </FormLabel>
                   <Input
                     value={form.name}
                     onChange={onChange("name")}
-                    isDisabled={!isEditMode || !canEditGeneral}
+                    isEditMode={isEditMode}
                     size="lg"
                     placeholder="e.g., MacBook Pro 16-inch"
                   />
@@ -707,15 +760,20 @@ const AddAssetModal = () => {
                 </FormControl>
 
                 <FormControl isRequired isInvalid={!!errors.category}>
-                  <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-                    Category
+                  <FormLabel
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    fontWeight="600"
+                    color={mutedColor}
+                  >
+                    ໝວດໝູ່
                   </FormLabel>
                   <Input
                     value={form.category}
                     onChange={onChange("category")}
-                    isDisabled={!isEditMode || !canEditGeneral}
                     size="lg"
                     placeholder="e.g., Computer Equipment"
+                    isEditMode={isEditMode}
                   />
                   <FormErrorMessage>{errors.category}</FormErrorMessage>
                 </FormControl>
@@ -733,14 +791,16 @@ const AddAssetModal = () => {
                     >
                       <HStack spacing={2}>
                         <Icon as={Calendar} boxSize={4} />
-                        <Text>Purchase Date</Text>
+                        <Text fontFamily="Noto Sans Lao, sans-serif">
+                          ວັນທີ່ຊື້
+                        </Text>
                       </HStack>
                     </FormLabel>
                     <Input
                       type="date"
-                      value={form.purchaseDate}
+                      isEditMode={isEditMode}
+                      value={formatDateForInput(form.purchaseDate)}
                       onChange={onChange("purchaseDate")}
-                      isDisabled={!isEditMode || !canEditGeneral}
                       size="lg"
                     />
                     <FormErrorMessage>{errors.purchaseDate}</FormErrorMessage>
@@ -758,13 +818,16 @@ const AddAssetModal = () => {
                     >
                       <HStack spacing={2}>
                         <Icon as={Calendar} boxSize={4} />
-                        <Text>Start Use Date</Text>
+                        <Text fontFamily="Noto Sans Lao, sans-serif">
+                          ວັນທີ່ເລີ່ມໃຊ້ງານຊັບສິນ
+                        </Text>
                       </HStack>
                     </FormLabel>
                     <Input
                       type="date"
-                      value={form.startUseDate}
+                      value={formatDateForInput(form.startUseDate)}
                       onChange={onChange("startUseDate")}
+                      isEditMode={isEditMode} // ❗ คงไว้
                       isDisabled={!isEditMode || !canEditGeneral}
                       size="lg"
                     />
@@ -785,14 +848,19 @@ const AddAssetModal = () => {
             <CardBody>
               <SectionHeader
                 icon={DollarSign}
-                title="Financial Information"
+                title="ຂໍ້ມູນທາງບັນຊີ"
                 subtitle="Cost and depreciation settings"
               />
 
               <VStack spacing={5}>
                 <FormControl isRequired isInvalid={!!errors.cost}>
-                  <FormLabel fontSize="sm" fontWeight="600" color={mutedColor}>
-                    Asset Cost (LAK)
+                  <FormLabel
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    fontSize="sm"
+                    fontWeight="600"
+                    color={mutedColor}
+                  >
+                    ຕົ້ນທຶນຊື້ (LAK)
                   </FormLabel>
                   <Input
                     type="number"
@@ -812,17 +880,19 @@ const AddAssetModal = () => {
                 <HStack spacing={4} w="full" align="start">
                   <FormControl flex={1} isInvalid={!!errors.salvageValue}>
                     <FormLabel
+                      fontFamily="Noto Sans Lao, sans-serif"
                       fontSize="sm"
                       fontWeight="600"
                       color={mutedColor}
                     >
-                      Salvage Value
+                      ລາຄາຄາດຄະເນຂາຍ
                     </FormLabel>
                     <Input
                       type="number"
                       step="0.01"
                       value={form.salvageValue}
                       onChange={onChange("salvageValue")}
+                      isEditMode={isEditMode} // ❗ คงไว้
                       isDisabled={!isEditMode || !canEditGeneral}
                       size="lg"
                       placeholder="0.00"
@@ -845,13 +915,16 @@ const AddAssetModal = () => {
                     >
                       <HStack spacing={2}>
                         <Icon as={TrendingUp} boxSize={4} />
-                        <Text>Useful Life (Years)</Text>
+                        <Text fontFamily="Noto Sans Lao, sans-serif">
+                          ອາຍຸຂອງການໃຊ້ງານ (Years)
+                        </Text>
                       </HStack>
                     </FormLabel>
                     <Input
                       type="number"
                       value={form.usefulLife}
                       onChange={onChange("usefulLife")}
+                      isEditMode={isEditMode} // ❗ คงไว้
                       isDisabled={!isEditMode || !canEditGeneral}
                       size="lg"
                       placeholder="5"
@@ -876,53 +949,57 @@ const AddAssetModal = () => {
             <CardBody>
               <SectionHeader
                 icon={Settings}
-                title="Accounting Configuration"
+                title="ຕັ້ງຄ່າບັນຊີ"
                 subtitle="Map asset to chart of accounts"
               />
 
               <VStack spacing={5}>
                 <AccountSelector
-                  label="Asset Account"
+                  label="ບັນຊິຮັບຊັບສິນ"
                   field="assetAccountId"
                   form={form}
                   setForm={setForm}
                   errors={errors}
                   setErrors={setErrors}
                   options={accountOptions}
-                  isEditMode={isEditMode && canEditGeneral}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
 
                 <AccountSelector
-                  label="Paid By Account"
+                  label="ບັນຊີຈ່າຍຊື້ຊັບສິນ"
                   field="paidAccountId"
                   form={form}
                   setForm={setForm}
                   errors={errors}
                   setErrors={setErrors}
                   options={accountOptions}
-                  isEditMode={isEditMode && canEditGeneral}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
 
                 <AccountSelector
-                  label="Depreciation Expense Account"
+                  label="ບັນຊີລາຍຈ່າຍຫັກຄ່າຫຼຸ້ຍຫ້ຽນ"
                   field="depreciationExpenseAccountId"
                   form={form}
                   setForm={setForm}
                   errors={errors}
                   setErrors={setErrors}
                   options={accountOptions}
-                  isEditMode={isEditMode}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
 
                 <AccountSelector
-                  label="Accumulated Depreciation Account"
+                  label="ບັນຊີຫັກຄ່າຫຼຸ້ຍຫ້ຽນ"
                   field="accumulatedDepreciationAccountId"
                   form={form}
                   setForm={setForm}
                   errors={errors}
                   setErrors={setErrors}
                   options={accountOptions}
-                  isEditMode={isEditMode}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
 
                 <AccountSelector
@@ -936,24 +1013,26 @@ const AddAssetModal = () => {
                   isEditMode={isEditMode}
                 />
                 <AccountSelector
-                  label="ລາຍຮັບ"
+                  label="ບັນຊີລາຍຮັບ"
                   field="incomeAssetId"
                   form={form}
                   setForm={setForm}
                   errors={errors}
                   setErrors={setErrors}
                   options={accountOptions}
-                  isEditMode={isEditMode}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
                 <AccountSelector
-                  label="ລາຍຈ່າຍ"
+                  label="ບັນຊີລາຍຈ່າຍ"
                   field="expenseId"
                   form={form}
                   setForm={setForm}
                   errors={errors}
                   setErrors={setErrors}
                   options={accountOptions}
-                  isEditMode={isEditMode}
+                  isEditMode={isEditMode} // ❗ คงไว้
+                  isDisabled={!isEditMode || !canEditGeneral}
                 />
               </VStack>
             </CardBody>
@@ -970,11 +1049,12 @@ const AddAssetModal = () => {
             <AlertIcon color={useColorModeValue("blue.500", "blue.300")} />
             <AlertDescription
               fontSize="sm"
+              fontFamily="Noto Sans Lao, sans-serif"
               color={useColorModeValue("blue.800", "blue.100")}
             >
-              Depreciation is automatically calculated monthly using the
-              straight-line method based on the asset cost, salvage value, and
-              useful life.
+              ຄ່າເສື່ອມລາຄາ (Depreciation) ຖືກຄຳນວນອັດຕະໂນມັດເປັນລາຍເດືອນ
+              ໂດຍໃຊ້ວິທີເສັ້ນຕົງ (Straight-line Method) ອີງຕາມລາຄາທຶນ,
+              ມູນຄ່າຄົງເຫຼືອ ແລະ ອາຍຸການໃຊ້ງານ
             </AlertDescription>
           </Alert>
 
@@ -995,8 +1075,9 @@ const AddAssetModal = () => {
                     onClick={() => setIsEditMode(true)}
                     fontWeight="600"
                     px={8}
+                    fontFamily="Noto Sans Lao, sans-serif"
                   >
-                    Edit Asset
+                    ແກ້ໄຂຊັບສິນ
                   </Button>
                 ) : (
                   <>
@@ -1007,8 +1088,9 @@ const AddAssetModal = () => {
                       fontWeight="600"
                       px={8}
                       isDisabled={loading}
+                      fontFamily="Noto Sans Lao, sans-serif"
                     >
-                      Cancel
+                      ຍົກເລີກ
                     </Button>
 
                     <Button
@@ -1019,8 +1101,9 @@ const AddAssetModal = () => {
                       onClick={handleSave}
                       fontWeight="600"
                       px={8}
+                      fontFamily="Noto Sans Lao, sans-serif"
                     >
-                      {isNew ? "Create Asset" : "Save Changes"}
+                      {isNew ? "ບັນທຶກ" : "ບັນທຶກແກ້ໄຂ"}
                     </Button>
                   </>
                 )}

@@ -42,7 +42,9 @@ function FixedAssetApp() {
     monthlyAmount = 0,
     list = [],
     loading = false,
+    depreciationBeforeYearAmount,
     depreciationAmount,
+    depreciationThisYearAmount,
   } = useSelector((s) => s.fixedAsset);
 
   /* ------------------ local state ------------------ */
@@ -137,15 +139,29 @@ function FixedAssetApp() {
   }, [dispatch]);
 
   /* ------------------ depreciation load ------------------ */
-  useEffect(() => {
+  const reloadAssetDetail = useCallback(() => {
     if (!selectedAsset?._id) return;
-
-    const params = { from: "2026-01", to: "2026-12" };
 
     dispatch(getDepreciationPreview({ assetId: selectedAsset._id }));
     dispatch(getdepreiation({ assetId: selectedAsset._id }));
-  }, [selectedAsset, dispatch]);
+  }, [dispatch, selectedAsset]);
 
+  useEffect(() => {
+    reloadAssetDetail();
+  }, [reloadAssetDetail]);
+  const askToRefresh = async () => {
+    const { isConfirmed } = await Swal.fire({
+      title: "ດຶງຂໍ້ມູນລ່າສຸດ?",
+      text: "ຂໍ້ມູນອາດຈະມີການປ່ຽນແປງ",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "🔄 ດຶງທັນທີ",
+    });
+
+    if (isConfirmed) {
+      reloadAssetDetail();
+    }
+  };
   /* ================= FILTER LABEL ================= */
   const getFilterLabel = (f) => {
     if (!f) return "";
@@ -176,10 +192,16 @@ function FixedAssetApp() {
     return (
       <Box px={4} py={2} border="1px solid" borderColor="gray.200" bg="gray.50">
         <HStack>
-          <Text fontSize="sm" color="gray.600">
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontSize="sm"
+            color="gray.600"
+          >
             ກຳລັງສະແດງຂໍ້ມູນ
           </Text>
-          <Badge colorScheme="blue">{label}</Badge>
+          <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
+            {label}
+          </Badge>
         </HStack>
       </Box>
     );
@@ -215,7 +237,6 @@ function FixedAssetApp() {
     });
 
     if (!isConfirmed) return;
-    console.log(journalId);
     try {
       await dispatch(
         delete_depreciation({
@@ -230,6 +251,7 @@ function FixedAssetApp() {
         timer: 1500,
         showConfirmButton: false,
       });
+      await askToRefresh(); // 👈 ถามต่อ
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -240,81 +262,94 @@ function FixedAssetApp() {
   };
 
   const handleRollback = async (assetId) => {
-    const { value, isConfirmed } = await Swal.fire({
-      title: "Rollback Asset",
-      html: `
-      <div style="text-align:left">
-        <label>
-          <input type="radio" name="rollbackType" value="keep" checked />
-          🔄 Rollback accounting only (keep asset)
-        </label><br/><br/>
-        <label>
-          <input type="radio" name="rollbackType" value="delete" />
-          ❌ Rollback and delete asset
-        </label>
-        <p style="color:red;margin-top:8px">
-          ⚠️ Deleting asset cannot be undone
-        </p>
-      </div>
-    `,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Confirm",
-      confirmButtonColor: "#d33",
-      preConfirm: () => {
-        const selected = document.querySelector(
-          'input[name="rollbackType"]:checked'
-        );
-        if (!selected) {
-          Swal.showValidationMessage("Please select rollback option");
-          return false;
-        }
-        return selected.value;
-      },
-    });
-
-    if (!isConfirmed) return;
-
-    const deleteAsset = value === "delete";
-
-    /* 🔐 Extra confirm for delete */
-    if (deleteAsset) {
-      const secondConfirm = await Swal.fire({
-        title: "Are you absolutely sure?",
-        text: "This will permanently delete the asset",
-        icon: "error",
+    try {
+      const { value, isConfirmed } = await Swal.fire({
+        title: "Rollback Asset",
+        html: `
+          <div style="text-align:left">
+            <label>
+              <input type="radio" name="rollbackType" value="keep" checked />
+              🔄 ລົບພຽງແຕ່ຄ່າຫຼຸ້ຍ ແລະ ລາຍການບັນຊີ
+            </label><br/><br/>
+            <label>
+              <input type="radio" name="rollbackType" value="delete" />
+              ❌ ລົບຂໍ້ມູນທັງໝົດ
+            </label>
+            <p style="color:red;margin-top:8px">
+              ⚠️ ເມື່ອດຳເນີນການແລ້ວບໍ່ສາມາດຍ້ອນຄືນໄດ້
+            </p>
+          </div>
+        `,
+        icon: "warning",
         showCancelButton: true,
+        confirmButtonText: "Confirm",
         confirmButtonColor: "#d33",
-        confirmButtonText: "Yes, delete it",
+        preConfirm: () => {
+          const popup = Swal.getPopup();
+          const selected = popup.querySelector(
+            'input[name="rollbackType"]:checked'
+          );
+          if (!selected) {
+            Swal.showValidationMessage("Please select rollback option");
+            return false;
+          }
+          return selected.value;
+        },
       });
 
-      if (!secondConfirm.isConfirmed) return;
-    }
+      if (!isConfirmed) return;
 
-    dispatch(
-      rollbackFixedAsset({
-        assetId,
-        deleteAsset,
-      })
-    );
+      const deleteAsset = value === "delete";
+
+      // Extra confirm for delete
+      if (deleteAsset) {
+        const secondConfirm = await Swal.fire({
+          title: "Are you absolutely sure?",
+          text: "This will permanently delete the asset",
+          icon: "error",
+          showCancelButton: true,
+          confirmButtonColor: "#d33",
+          confirmButtonText: "Yes, delete it",
+        });
+        if (!secondConfirm.isConfirmed) return;
+      }
+
+      // Dispatch rollback
+      await dispatch(rollbackFixedAsset({ assetId, deleteAsset })).unwrap();
+
+      Swal.fire({
+        icon: "success",
+        title: "Rollback successful",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Rollback failed",
+        text: err,
+      });
+    }
   };
 
   /* ------------------ render ------------------ */
   return (
     <ChakraProvider>
       <Box bg="gray.50" minH="100vh">
-        {activeFilterLabel && <ActiveFilterBar label={activeFilterLabel} />}
-
         {view === "list" ? (
           <AssetListPage
             assets={list}
             loading={loading}
+            activeFilterLabel={activeFilterLabel}
             filter={filter}
+            ActiveFilterBar={ActiveFilterBar}
             depreciationAmount={depreciationAmount}
+            depreciationBeforeYearAmount={depreciationBeforeYearAmount}
             setFilter={setFilter}
             yearOptions={yearOptions}
             search={search}
             setSearch={setSearch}
+            depreciationThisYearAmount={depreciationThisYearAmount}
             onApplyFilter={handleFetch}
             FILTER_MODE={FILTER_MODE}
             formatCurrency={formatCurrency}
@@ -335,9 +370,11 @@ function FixedAssetApp() {
             handleDeleteDepreciationAndJournal={
               handleDeleteDepreciationAndJournal
             }
+            depreciationAmount={depreciationAmount}
             formatCurrency={formatCurrency}
             getStatusColor={getStatusColor}
             onBack={() => setView("list")}
+            onRefresh={reloadAssetDetail} // 👈 ส่งเข้าไป
           />
         )}
       </Box>

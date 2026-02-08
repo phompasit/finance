@@ -113,7 +113,7 @@ const ASSET_MAPPING = [
     group: "Non-current Assets",
     key: "intangible_assets",
     label: "ຊັບສົມບັດຄົງທີ່ ບໍ່ມີຕົວຕົນ",
-    pattern: "232,2382,2420-2424,2428,284,2942",
+    pattern: "232,2382,2420-2424,2428,2942",
   },
   {
     group: "Non-current Assets",
@@ -160,45 +160,59 @@ async function buildAssets({ companyId, start, end, year }) {
     rows[a.code] = { opening: 0, movement: 0 };
   });
 
-  /* OPENING */
+  /* ================= OPENING ================= */
   const opens = await OpeningBalance.find({
     companyId,
-    year: year,
+    year,
   }).lean();
 
   opens.forEach((o) => {
     const acc = accById[String(o.accountId)];
-    if (acc)
-      rows[acc.code].opening += Number(o.debit || 0) - Number(o.credit || 0);
+    if (!acc) return;
+
+    rows[acc.code].opening += Number(o.debit || 0) - Number(o.credit || 0);
   });
 
-  /* MOVEMENT */
+  /* ================= MOVEMENT ================= */
   const journals = await JournalEntry.find({
     companyId,
     date: { $gte: start, $lte: end },
+    status: "posted",
   }).lean();
 
   journals.forEach((j) =>
     j.lines?.forEach((l) => {
       const acc = accById[String(l.accountId)];
       if (!acc) return;
-      rows[acc.code].movement +=
-        l.side === "dr" ? Number(l.amountLAK || 0) : -Number(l.amountLAK || 0);
+
+      const amt = Number(l.amountLAK || 0);
+      if (!amt) return;
+
+      rows[acc.code].movement += l.side === "dr" ? amt : -amt;
     })
   );
 
-  /* GROUPING */
+  /* ================= GROUPING ================= */
   const grouped = {};
+
   ASSET_MAPPING.forEach((m) => {
     grouped[m.group] ||= { items: [], total: 0 };
     const parsed = parsePattern(m.pattern);
 
     let sum = 0;
+
     Object.entries(rows).forEach(([code, r]) => {
-      if (matchCode(code, parsed)) sum += r.opening + r.movement;
+      if (matchCode(code, parsed)) {
+        sum += r.opening + r.movement;
+      }
     });
 
-    const amount = Math.round(sum);
+    /* ✅ FIX: Assets must not be negative */
+    let amount = Math.round(sum);
+
+    if (amount < 0) amount = Math.abs(amount);
+    // if (amount < 0) amount = amount
+
     grouped[m.group].items.push({
       key: m.key,
       label: m.label,
@@ -211,8 +225,13 @@ async function buildAssets({ companyId, start, end, year }) {
     }
   });
 
+  /* ================= TOTAL ================= */
   const totalAssets = Object.values(grouped).reduce((s, g) => s + g.total, 0);
-  return { groups: grouped, totalAssets };
+
+  return {
+    groups: grouped,
+    totalAssets,
+  };
 }
 
 /* ============================================================

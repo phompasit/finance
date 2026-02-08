@@ -60,9 +60,23 @@ export default function JournalModal() {
     description: "",
     reference: "",
   });
-
   const [lines, setLines] = useState([blankLine()]);
   const [saving, setSaving] = useState(false);
+  const generateReference = () => {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const random4 = Math.floor(1000 + Math.random() * 9000);
+    return `GL-${today}-${random4}`;
+  };
+  const resetForm = () => {
+    setHeader({
+      date: new Date().toISOString().slice(0, 10),
+      description: "",
+      reference: generateReference(),
+    });
+
+    setLines([blankLine()]);
+    dispatch(clearSelectedJournal());
+  };
   /* ================== LOAD DATA ================== */
   useEffect(() => {
     dispatch(getAccounts());
@@ -280,10 +294,11 @@ export default function JournalModal() {
           popup: "swal-rounded",
         },
       });
-
+      resetForm(); // ✅ เพิ่มบรรทัดนี้
       setSaving(false);
     } catch (error) {
       // ✅ ดึง error จาก backend
+      console.log(error)
       const errorMessage = error || "เกิดข้อผิดพลาด กรุณาลองใหม่";
       await Swal.fire({
         icon: "error",
@@ -339,17 +354,40 @@ export default function JournalModal() {
   };
 
   /* ================== OPTIONS ================== */
-  const accountOptions = accounts
-    ?.filter((a) => a.parentCode)
-    .map((a) => ({
-      value: a._id,
-      label: `${a.code} - ${a.name}`,
-    }));
   const currencyOptions = CURRENCIES.map((c) => ({
     value: c,
     label: c,
   }));
-  /* ================== UI WITH ENHANCED STYLING ================== */
+  const RESTRICTED_PARENT_CODES = ["321", "329", "331", "339"];
+
+  /* ✅ เอาเฉพาะบัญชีย่อย + parent พิเศษ */
+  const accountOptions = accounts
+    ?.filter((a) => {
+      // ✅ บัญชีย่อยทั้งหมดเลือกได้
+      if (a.parentCode) return true;
+
+      // ✅ parent หลักพิเศษ (321/329/331/339) เลือกได้
+      if (RESTRICTED_PARENT_CODES.includes(a.code)) return true;
+
+      // ❌ parent หลักอื่นซ่อนหมด
+      return false;
+    })
+    .map((a) => ({
+      value: a._id,
+      code: a.code,
+      parentCode: a.parentCode,
+      label: `${a.code} - ${a.name}`,
+    }));
+  const filteredAccountOptions = accountOptions.filter((opt) => {
+    // ✅ เลือก parent พิเศษได้
+    if (RESTRICTED_PARENT_CODES.includes(opt.code)) return true;
+
+    // ❌ ซ่อนบัญชีย่อยใต้ parent พิเศษ
+    if (RESTRICTED_PARENT_CODES.includes(opt.parentCode)) return false;
+
+    return true;
+  });
+
   return (
     <>
       <style>
@@ -550,8 +588,10 @@ export default function JournalModal() {
                   <Select
                     isDisabled={isReadOnlyYear}
                     isSearchable
-                    options={accountOptions}
-                    value={accountOptions?.find((o) => o.value === l.accountId)}
+                    options={filteredAccountOptions}
+                    value={filteredAccountOptions.find(
+                      (o) => o.value === l.accountId
+                    )}
                     onChange={(opt) => updateLine(i, { accountId: opt.value })}
                     styles={{
                       control: (base) => ({
@@ -659,11 +699,11 @@ export default function JournalModal() {
               variant="outline"
               colorScheme="blue"
               mt={3}
-               fontFamily="Noto Sans Lao, sans-serif"
+              fontFamily="Noto Sans Lao, sans-serif"
               size="sm"
               _hover={{ bg: "blue.50" }}
             >
-             ເພີ່ມແຖວໃໝ່
+              ເພີ່ມແຖວໃໝ່
             </Button>
 
             <HStack spacing={8}>

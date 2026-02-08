@@ -76,8 +76,13 @@ const JournalEntryPage = () => {
     () => selectedYear || activeYear || new Date().getFullYear(),
     [selectedYear, activeYear]
   );
-  const isReadOnlyYear = selectedYear && selectedYear !== activeYear;
+  const isPastYear = selectedYear && selectedYear < activeYear;
+  const isFutureYear = selectedYear && selectedYear > activeYear;
+
+  const isReadOnlyYear = isPastYear; // ✅ อ่านอย่างเดียวเฉพาะอดีต
+
   ////
+  //  const isReadOnlyYear = selectedYear === activeYear;
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
     return [
@@ -301,12 +306,21 @@ const JournalEntryPage = () => {
             <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
               ໃຊ້ງານໃນປີ: {displayYear}
             </Badge>
-            {selectedYear && selectedYear !== activeYear && (
+            {isPastYear && (
               <Badge
                 fontFamily="Noto Sans Lao, sans-serif"
                 colorScheme="orange"
               >
                 ຂໍ້ມູນຍ້ອນຫຼັງ
+              </Badge>
+            )}
+
+            {isFutureYear && (
+              <Badge
+                fontFamily="Noto Sans Lao, sans-serif"
+                colorScheme="purple"
+              >
+                ປີອະນາຄົດ
               </Badge>
             )}
           </HStack>
