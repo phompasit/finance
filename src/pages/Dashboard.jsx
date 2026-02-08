@@ -16,16 +16,16 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [filters, setFilters] = useState({});
 
-  const fetchData = async () => {
-    const { data } = await api.get("/api/report/summary", {
-      params: filters,
-    });
-    setData(data);
-  };
+  // const fetchData = async () => {
+  //   const { data } = await api.get("/api/report/sumsmary", {
+  //     params: filters,
+  //   });
+  //   setData(data);
+  // };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
 
   if (!data) {
     return (

@@ -52,7 +52,6 @@ const BalanceSheetPage = () => {
     startDate: null,
     endDate: null,
   });
-  console.log(filter)
   const [search, setSearch] = useState("");
   const [applyFilter, setApplyFilter] = useState();
   /* ================= YEAR OPTIONS ================= */

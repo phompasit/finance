@@ -109,7 +109,6 @@ const assetSlice = createSlice({
       })
       .addCase(getAllFixedAssets.fulfilled, (state, action) => {
         state.loading = false;
-        console.log(action.payload);
 
         state.list = action.payload.assets;
         state.filters = action.payload.filters;

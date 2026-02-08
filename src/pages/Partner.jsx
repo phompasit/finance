@@ -229,7 +229,6 @@ export default function Partner() {
       employeeModal.onClose();
       fetchEmployees();
     } catch (error) {
-      console.log(error);
       handleApiError(error, "Save failed");
     } finally {
       setSubmitting(false);

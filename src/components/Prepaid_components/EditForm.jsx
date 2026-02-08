@@ -32,7 +32,6 @@ const EditForm = () => {
   const { state } = useLocation();
   const editData = state?.data;
   const [currencies, setCurrencies] = useState(["LAK", "THB", "USD", "CNY"]);
-  console.log("EDIT DATA:", editData);
   const [selectedEmployee, setSelectedEmployee] = useState();
   if (!editData) {
     return <div>ບໍ່ພົບຂໍ້ມູນ</div>;
@@ -132,7 +131,6 @@ const EditForm = () => {
         paymentMethods: data.paymentMethods || "",
         categoryId: data.categoryId || null,
       };
-      console.log("payload", payload);
       // 🔹 3) Dispatch Redux Thunk
       const response = await dispatch(
         updateAdvance({ id, data: payload })

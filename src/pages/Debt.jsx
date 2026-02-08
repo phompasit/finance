@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -57,6 +57,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useRef } from "react";
 import api from "../api/api";
+import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 const laoType = {
   income: "💰 ລາຍຮັບ",
@@ -786,10 +787,8 @@ const DebtManagementSystem = () => {
     receivable: "ໜີ້ຕ້ອງຮັບ",
   };
   const statusOptions = ["ຄ້າງຊຳລະ", "ຊຳລະບາງສ່ວນ", "ຊຳລະຄົບ"];
-  useEffect(() => {
-    fetchDebts();
-  }, []);
-  const fetchDebts = async () => {
+
+  const fetchDebts = useCallback(async () => {
     try {
       const { data } = await api.get("/api/debt");
 
@@ -805,8 +804,10 @@ const DebtManagementSystem = () => {
         isClosable: true,
       });
     }
-  };
-
+  }, []);
+  useEffect(() => {
+    fetchDebts();
+  }, [fetchDebts]);
   const {
     isOpen: isWarningIsOpen,
     onOpen: onWarningOpen,
@@ -822,23 +823,24 @@ const DebtManagementSystem = () => {
   const handleDelete = useCallback(
     async (transactionId) => {
       try {
-        await dispatch(deleteIncomeExpense(transactionId)).unwrap();
+        await api.delete(`/api/debt/${transactionId}`);
         Swal.fire({
           title: "ສຳເລັດ",
           text: "ລຶບລາຍການສຳເລັດ",
           icon: "success",
         });
 
-        await dispatch(fetchDebts());
+        await fetchDebts();
+        setSelectedDebts([]);
       } catch (error) {
         Swal.fire({
           title: "ເກີດຂໍ້ຜິພາດ",
-          text: error?.message || "ບໍ່ສາມາດລົບລາຍການ",
+          text: error?.response?.data?.message || "ບໍ່ສາມາດລົບລາຍການ",
           icon: "error",
         });
       }
     },
-    [dispatch, filterParams, toast]
+    [fetchDebts]
   );
   const confirmDelete = () => {
     handleDelete(deleteId);

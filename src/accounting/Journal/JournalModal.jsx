@@ -287,7 +287,7 @@ export default function JournalModal() {
       await Swal.fire({
         icon: "success",
         title: "Success!",
-        text: response?.message || "บันทึกสำเร็จ",
+        text: response?.message || "ບັນທຶກສຳເລັດ",
         confirmButtonColor: "#38a169",
         timer: 2000,
         customClass: {
@@ -298,8 +298,7 @@ export default function JournalModal() {
       setSaving(false);
     } catch (error) {
       // ✅ ดึง error จาก backend
-      console.log(error)
-      const errorMessage = error || "เกิดข้อผิดพลาด กรุณาลองใหม่";
+      const errorMessage = error || "ເກີດຂໍ້ຜິດພາດ ລອງໃໝ່ພາຍຫຼັງ";
       await Swal.fire({
         icon: "error",
         title: "Error",

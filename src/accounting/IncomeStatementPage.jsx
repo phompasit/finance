@@ -183,7 +183,6 @@ const IncomeStatementPage = () => {
 
     return Object.values(map);
   }, [current, previous]);
-  console.log("mergedLines", mergedLines);
   /* ================= HEADER TEXT (เหมือน SFP) ================= */
   const handleExportPDF = () => {
     html2pdf()

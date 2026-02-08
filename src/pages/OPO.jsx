@@ -482,7 +482,6 @@ const OPOSystem = () => {
       };
 
       const { data } = await api.get("/api/opo", { params });
-      console.log("data",data)
       setOpos(data.data);
       setPage(data.pagination.page);
       setTotalPages(data.pagination.totalPages);

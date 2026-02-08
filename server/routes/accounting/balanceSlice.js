@@ -935,11 +935,18 @@ router.get("/balance_after", authenticate, async (req, res) => {
     /* ================= Accounts ================= */
     const accounts = await Account.find({ companyId }).lean().maxTimeMS(5000); // 🔒 SECURITY: Prevent slow query DoS
 
-    if (!accounts.length) throw new Error("No accounts found");
+    if (!accounts?.length)
+      return res.status(400).json({
+        success: false,
+        error: "No accounts found",
+      });
 
     // 🔒 SECURITY: Limit result size
     if (accounts.length > 10000) {
-      throw new Error("Account limit exceeded");
+      return res.status(400).json({
+        success: false,
+        error: "Account limit exceeded",
+      });
     }
 
     const accountMap = new Map(accounts.map((a) => [String(a._id), a]));
@@ -1010,8 +1017,6 @@ router.get("/balance_after", authenticate, async (req, res) => {
     });
 
     const netProfit = income - expense;
-
-    console.log("✅ Net Profit:", netProfit);
 
     /* ==========================================================
        ✅ REMOVE INCOME / EXPENSE FROM BALANCE SHEET

@@ -59,7 +59,6 @@ export const createIncomeExpense = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.log(error);
       return rejectWithValue(
         error?.response?.data || { message: "Server error" }
       );
@@ -81,7 +80,6 @@ export const updateIncomeExpense = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.log(error);
       return rejectWithValue(
         error?.response?.data || { message: "Server error" }
       );

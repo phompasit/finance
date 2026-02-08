@@ -119,9 +119,9 @@ const Report = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
   // Handle select all
   const handleSelectAll = (e) => {
     if (e.target.checked) {

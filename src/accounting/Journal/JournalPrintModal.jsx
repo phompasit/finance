@@ -21,8 +21,6 @@ export default function JournalPrintModal({
   filters,
 }) {
   const { user } = useAuth();
-    console.log("filter",filters)
-    console.log("journals",journals)
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl">
       <ModalOverlay />

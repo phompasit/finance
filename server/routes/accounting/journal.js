@@ -436,15 +436,16 @@ router.get(
 
       const query = { companyId: req.user.companyId };
 
-      const periods = await accountingPeriod
-        .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
-        .lean();
-      const closedYears = periods.map((p) => Number(p.year));
+      const closedPeriods = await accountingPeriod
+        .find({
+          companyId: req.user.companyId,
+          isClosed: true,
+        })
+        .select("year");
 
-      // ✅ เลือกปีล่าสุดที่ยังไม่ปิด หรือปีปัจจุบัน
       const activeYear =
-        closedYears.length > 0
-          ? Math.max(...closedYears) + 1 // ปีถัดไปจากปีที่ปิดแล้ว
+        closedPeriods.length > 0
+          ? Math.max(...closedPeriods.map((p) => p.year)) + 1
           : new Date().getFullYear();
       query.date = {};
 
@@ -559,13 +560,12 @@ router.post(
         return res.status(400).json({ error: "Invalid date" });
 
       const journalYear = new Date(date).getFullYear();
-      const periods = await accountingPeriod
-        .find({ companyId: req.user.companyId }, { year: 1, _id: 0 })
-        .lean();
-
-      const closedYears = periods.map((p) => Number(p.year));
-
-      if (closedYears.includes(journalYear)) {
+      const periods = await accountingPeriod.exists({
+        companyId: req.user.companyId,
+        year: journalYear,
+        isClosed: true,
+      });
+      if (periods) {
         return res.status(400).json({
           success: false,
           message: `❌ ປີ${journalYear} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
@@ -711,9 +711,9 @@ router.patch(
       // SECURITY: Validate date
       const dateObj = new Date(date);
       if (isNaN(dateObj.getTime())) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: "Invalid date format" 
+          error: "Invalid date format",
         });
       }
 
@@ -729,7 +729,6 @@ router.patch(
 
       /* ================= 1. Check if period is closed ================= */
       const journalYear = dateObj.getFullYear();
-
       const closed = await accountingPeriod.exists({
         companyId: req.user.companyId,
         year: journalYear,
@@ -758,7 +757,10 @@ router.patch(
       }
 
       /* ================= 3. Check if locked ================= */
-      if (existingJournal.status === "locked" || existingJournal.status_close === "locked") {
+      if (
+        existingJournal.status === "locked" ||
+        existingJournal.status_close === "locked"
+      ) {
         return res.status(403).json({
           success: false,
           error: "Cannot modify a locked journal entry",
@@ -831,8 +833,8 @@ router.patch(
           updatedAt: new Date(),
           updatedBy: req.user._id,
         },
-        { 
-          new: true, 
+        {
+          new: true,
           runValidators: true,
         }
       )
@@ -854,7 +856,9 @@ router.patch(
         collectionName: "JournalEntry",
         documentId: req.params.id,
         ipAddress: req.ip,
-        description: `Updated Journal: ${reference?.trim() || existingJournal.reference}`,
+        description: `Updated Journal: ${
+          reference?.trim() || existingJournal.reference
+        }`,
         userAgent: req.get("user-agent"),
         metadata: {
           reference: reference?.trim(),
@@ -869,7 +873,6 @@ router.patch(
         message: "Journal entry updated successfully",
         data: updatedJournal,
       });
-
     } catch (err) {
       console.error("PATCH /journals/:id error:", err.message);
 
@@ -892,7 +895,8 @@ router.patch(
       res.status(500).json({
         success: false,
         error: "Failed to update journal entry",
-        message: process.env.NODE_ENV === "development" ? err.message : undefined,
+        message:
+          process.env.NODE_ENV === "development" ? err.message : undefined,
       });
     }
   }

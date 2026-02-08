@@ -272,7 +272,6 @@ const StatementOfFinancialPosition = () => {
       </Box>
     );
   }
-  console.log(activeFilterLabel)
   /* ================= UI ================= */
   return (
     <Box p={6}>

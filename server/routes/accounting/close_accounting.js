@@ -59,7 +59,8 @@ const requireAdminOrAccountant = async (req, res, next) => {
 
       return res.status(403).json({
         success: false,
-        error: "Insufficient permissions. Only admin or senior accountant can perform period operations.",
+        error:
+          "Insufficient permissions. Only admin or senior accountant can perform period operations.",
       });
     }
 
@@ -298,7 +299,9 @@ router.post(
 
       const netProfit = income - expense;
 
-      console.log(`✅ Close Period ${year}: Income=${income}, Expense=${expense}, NetProfit=${netProfit}`);
+      console.log(
+        `✅ Close Period ${year}: Income=${income}, Expense=${expense}, NetProfit=${netProfit}`
+      );
 
       /* ====================================================
         ✅ 6. BUILD CLOSING ENTRY
@@ -616,7 +619,9 @@ const performRollbackValidation = async (companyId, year, session) => {
     .session(session);
 
   if (latestClosed.year !== year) {
-    issues.push(`Only the latest closed period (${latestClosed.year}) can be rolled back`);
+    issues.push(
+      `Only the latest closed period (${latestClosed.year}) can be rolled back`
+    );
   }
 
   // SECURITY: Check if next year has transactions
@@ -630,7 +635,9 @@ const performRollbackValidation = async (companyId, year, session) => {
   }).session(session);
 
   if (nextYearJournals > 0) {
-    issues.push(`Cannot rollback ${year}. Next year (${nextYear}) has ${nextYearJournals} journal entries.`);
+    issues.push(
+      `Cannot rollback ${year}. Next year (${nextYear}) has ${nextYearJournals} journal entries.`
+    );
   }
 
   return issues;
@@ -773,9 +780,6 @@ router.post(
 );
 
 export default router;
-
-
-
 
 // import express from "express";
 // import mongoose from "mongoose";
@@ -1298,8 +1302,6 @@ export default router;
 //     issues.push("Only the latest closed period can be rolled back");
 //   }
 
-
-
 //   return issues;
 // };
 
@@ -1416,18 +1418,18 @@ export default router;
 // );
 
 // export default router;
-  // ห้ามมี journal ในปีถัดไป
-  // const nextYear = year + 1;
-  // const nextYearJournalCount = await JournalEntry.countDocuments({
-  //   companyId,
-  //   date: {
-  //     $gte: new Date(nextYear, 0, 1),
-  //     $lte: new Date(nextYear, 11, 31, 23, 59, 59),
-  //   },
-  // }).session(session);
+// ห้ามมี journal ในปีถัดไป
+// const nextYear = year + 1;
+// const nextYearJournalCount = await JournalEntry.countDocuments({
+//   companyId,
+//   date: {
+//     $gte: new Date(nextYear, 0, 1),
+//     $lte: new Date(nextYear, 11, 31, 23, 59, 59),
+//   },
+// }).session(session);
 
-  // if (nextYearJournalCount > 0) {
-  //   issues.push(
-  //     `Cannot rollback. ${nextYearJournalCount} journal(s) exist in year ${nextYear}`
-  //   );
-  // }
+// if (nextYearJournalCount > 0) {
+//   issues.push(
+//     `Cannot rollback. ${nextYearJournalCount} journal(s) exist in year ${nextYear}`
+//   );
+// }

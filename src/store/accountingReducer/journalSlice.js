@@ -60,7 +60,6 @@ export const createJournal = createAsyncThunk(
       const { data } = await api.post("/api/journal", payload);
       return data.journal || data;
     } catch (err) {
-      console.log(err)
       return rejectWithValue(err.response?.data?.message);
     }
   }

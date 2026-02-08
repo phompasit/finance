@@ -49,7 +49,6 @@ router.get("/general-ledger", authenticate, async (req, res) => {
     //     error: "Permission denied",
     //   });
     // }
-    console.log("(accountId ",accountId )
     /* ================= Security: Input Validation ================= */
     if (accountId !== "ALL") {
       if (

@@ -114,7 +114,6 @@ router.get("/cash-book", authenticate, async (req, res) => {
       const cr = cashLine.side === "cr" ? cashLine.amountLAK : 0;
 
       running = applyBalanceSide("Dr", running, dr, cr);
-      console.log(running)
       const counterAccounts = j.lines
         .filter((l) => cashIds.includes(String(l.accountId))) // ✅ เอาเฉพาะฝั่งตรงข้าม
         .map((l) => {

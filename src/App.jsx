@@ -69,7 +69,7 @@ function App() {
           <Route path="debt_form" element={<RenderForm_Debt />} />
           <Route path="fields" element={<RenderFields />} />
           <Route path="form_income_expense" element={<FormIncomeExpense />} />
-          <Route path="reports" element={<Reports />} />
+          {/* <Route path="reports" element={<Reports />} /> */}
           <Route path="form_prepaid_add" element={<RenderFieldPrepaid />} />
           <Route path="prepaid" element={<PrepaidExpenseDashboard />} />
           <Route path="prepaid_form_edit" element={<EditForm />} />

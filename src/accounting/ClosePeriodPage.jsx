@@ -32,7 +32,6 @@ export default function ClosePeriodPage() {
   const { periodStatus, loading, closing, rollingBack } = useSelector(
     (s) => s.reports
   );
-  console.log("periodStatus", periodStatus);
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
 

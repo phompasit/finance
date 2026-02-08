@@ -219,7 +219,6 @@ router.post("/", authenticate, apiLimiter, async (req, res) => {
       incomeAssetId,
       expenseId,
     ];
-    console.log(accountIds.length);
     for (const id of accountIds) {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({

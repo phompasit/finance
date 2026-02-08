@@ -926,7 +926,6 @@ export const depreiation = async (req, res) => {
   try {
     /* ================= SECURITY: Input Validation ================= */
     const { id } = req.params;
-    console.log("id",id)
     // SECURITY: Validate assetId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({

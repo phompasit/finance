@@ -67,7 +67,6 @@ export default function RegisterForm() {
       navigate("/login");
     } catch (error) {
       // ❌ error handling
-      console.log(error)
       const message =
         error?.response?.data?.message ||
         "ບໍ່ສາມາດເພີ່ມຜູ້ໃຊ້ງານໄດ້";

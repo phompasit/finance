@@ -520,7 +520,6 @@ export default function PrepaidExpenseDashboard() {
 
       const endpoint = `/api/advances/advance/${id}`;
       const { data } = await api.patch(endpoint, { status_Ap: status });
-      console.log(data);
       if (!data) {
         throw new Error(data?.message || "ປ່ຽນສະຖານະບໍ່ສໍາເລັດ");
       }
@@ -553,7 +552,6 @@ export default function PrepaidExpenseDashboard() {
   }, [navigate]);
   const handleSendEdit = useCallback(
     (data) => {
-      console.log(data);
       navigate("/prepaid_form_edit", {
         state: {
           data: data,

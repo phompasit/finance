@@ -69,7 +69,6 @@ const JournalEntryPage = () => {
   const navigate = useNavigate();
 
   const [selectedMonth, setSelectedMonth] = useState(null); // 1-12
-
   // year ที่กำลังดู
   const [selectedYear, setSelectedYear] = useState(null);
   const displayYear = useMemo(

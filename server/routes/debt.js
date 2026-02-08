@@ -744,7 +744,6 @@ router.delete("/:id", authenticate, async (req, res) => {
       companyId: req.user.companyId,
     });
 
-    console.log(record);
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
