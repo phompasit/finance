@@ -1,4 +1,4 @@
-import { combineReducers } from "redux";
+import { combineReducers } from "@reduxjs/toolkit";
 import incomeExpenseReducer from "./reducer/incomeExpense";
 import partnerReducer from "./reducer/partner";
 import advanceReducer from "./reducer/advance";
