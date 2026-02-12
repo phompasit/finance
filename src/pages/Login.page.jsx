@@ -37,7 +37,6 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 🔄 Loading
       Swal.fire({
         title: "ກຳລັງເຂົ້າສູ່ລະບົບ...",
         allowOutsideClick: false,
@@ -48,7 +47,21 @@ export default function Login() {
 
       const res = await login(email, password);
 
-      // ✅ Success
+      // 🟡 ถ้าต้องกรอก 2FA ก่อน
+      if (res?.requiresTwoFactor) {
+        await Swal.fire({
+          icon: "info",
+          title: "ກະລຸນາໃສ່ລະຫັດ 2FA",
+          text: "ກວດສອບລະຫັດຈາກແອັບ Authenticator",
+          confirmButtonText: "ຕົກລົງ",
+        });
+
+        // ไปหน้าใส่ OTP
+        navigate(`/2faVerify?token=${res.tempToken}`);
+        return;
+      }
+
+      // ✅ Login สำเร็จจริง (ไม่มี 2FA)
       await Swal.fire({
         icon: "success",
         title: "ເຂົ້າສູ່ລະບົບສຳເລັດ",
@@ -65,7 +78,6 @@ export default function Login() {
       const message =
         err?.response?.data?.message || err?.message || "ເກີດຂໍ້ຜິດພາດ";
 
-      // ⛔ Too many attempts (429)
       if (err?.response?.status === 429) {
         Swal.fire({
           icon: "warning",
@@ -74,7 +86,6 @@ export default function Login() {
           confirmButtonText: "ຕົກລົງ",
         });
       } else {
-        // ❌ General error
         Swal.fire({
           icon: "error",
           title: "ເຂົ້າສູ່ລະບົບບໍ່ສຳເລັດ",
@@ -82,6 +93,7 @@ export default function Login() {
           confirmButtonText: "ລອງໃໝ່",
         });
       }
+
       setError(message);
     } finally {
       setLoading(false);

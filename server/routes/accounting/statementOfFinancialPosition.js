@@ -299,6 +299,25 @@ const MAPPING = [
     type: "equity",
   },
 ];
+function getSignedOpening(accType, debit, credit) {
+  const d = Number(debit || 0);
+  const c = Number(credit || 0);
+
+  if (accType === "asset" || accType === "expense") {
+    return d - c;
+  }
+  return c - d;
+}
+
+function getSignedMovement(accType, side, amount) {
+  const amt = Number(amount || 0);
+
+  if (accType === "asset" || accType === "expense") {
+    return side === "dr" ? amt : -amt;
+  }
+  return side === "cr" ? amt : -amt;
+}
+////  {Math.abs(amount).toLocaleString()}
 async function buildSFP({ companyId, start, end, accounts }) {
   const accById = {};
   const accByCode = {};
@@ -347,6 +366,11 @@ async function buildSFP({ companyId, start, end, accounts }) {
     parsedMap.forEach((m) => {
       if (ancestors.some((c) => codeMatchesPattern(c, m.parsed))) {
         bucket[m.key].opening += Number(ob.credit || 0) - Number(ob.debit || 0);
+        //         bucket[m.key].opening += getSignedOpening(
+        //   m.type,
+        //   ob.debit,
+        //   ob.credit
+        // );
       }
     });
   });
@@ -431,10 +455,6 @@ router.get(
       if ((endDate - startDate) / 86400000 > maxRangeDays) {
         return res.status(400).json({ error: "Range too large" });
       }
-      const closedYears = periods
-        .filter((p) => p.isClosed)
-        .map((p) => p.year)
-        .sort((a, b) => a - b);
 
       /* =====================================================
          MODE 1: MONTH → COMPARE SAME MONTH LAST YEAR ✅
@@ -543,17 +563,22 @@ router.get(
       /* =====================================================
          MODE 5: DEFAULT → LAST CLOSED YEAR
       ===================================================== */
+      const closedYears = periods
+        .filter((p) => p.isClosed)
+        .map((p) => p.year)
+        .sort((a, b) => a - b);
+
+      let previousYear;
+      let currentYear;
+
       if (!closedYears.length) {
-        return res.json({
-          success: true,
-          comparable: false,
-          message: "ຍັງບໍ່ມີປີທີ່ປິດ",
-        });
+        // ยังไม่เคยปิดบัญชี
+        currentYear = new Date().getFullYear();
+        previousYear = currentYear - 1;
+      } else {
+        previousYear = closedYears.at(-1);
+        currentYear = previousYear + 1;
       }
-
-      const previousYear = closedYears.at(-1);
-      const currentYear = previousYear + 1;
-
       const current = await buildSFP({
         companyId,
         start: new Date(currentYear, 0, 1),

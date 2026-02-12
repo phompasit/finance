@@ -19,6 +19,7 @@ import {
   Select,
   HStack,
   SimpleGrid,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import {
   Plus,
@@ -106,7 +107,7 @@ const JournalEntryPage = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
+  const bg = useColorModeValue("gray.50", "gray.900");
   const [filters, setFilters] = useState({
     search: "",
     startDate: "",
@@ -257,14 +258,14 @@ const JournalEntryPage = () => {
 
       {/* ================= YEAR SELECT ================= */}
       <Box
-        bg="white"
+        bg={bg}
         p={4}
         mb={4}
         borderRadius="md"
         border="1px solid"
         borderColor="gray.200"
       >
-        <Flex align="center" gap={4} wrap="wrap">
+        <Flex  bg={bg} align="center" gap={4} wrap="wrap">
           <Text
             fontFamily="Noto Sans Lao, sans-serif"
             fontSize="sm"
@@ -301,7 +302,7 @@ const JournalEntryPage = () => {
             ))}
           </Select>
 
-          <HStack mb={2}>
+          <HStack  bg={bg} mb={2}>
             <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
               ໃຊ້ງານໃນປີ: {displayYear}
             </Badge>
@@ -328,7 +329,7 @@ const JournalEntryPage = () => {
 
       {/* ================= MONTH SELECT ================= */}
       <Box
-        bg="white"
+       bg={bg}
         p={4}
         borderRadius="md"
         border="1px solid"
@@ -361,18 +362,18 @@ const JournalEntryPage = () => {
         </SimpleGrid>
       </Box>
 
-      <Table variant="simple" bg="white" borderRadius="md" overflow="hidden">
-        <Thead bg="gray.50">
-          <Tr>
-            <Th />
-            <Th fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
-            <Th fontFamily="Noto Sans Lao, sans-serif">ວັນທີ/ເດືອນ/ປີ</Th>
-            <Th fontFamily="Noto Sans Lao, sans-serif">ຄຳອະທິບາຍ</Th>
-            <Th fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງໜີ້ (LAK)</Th>
-            <Th fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງມີ (LAK)</Th>
+      <Table variant="simple" bg={bg} borderRadius="md" overflow="hidden">
+        <Thead  bg={bg}>
+          <Tr >
+            <Th  bg={bg} />
+            <Th   bg={bg} fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
+            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ວັນທີ/ເດືອນ/ປີ</Th>
+            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ຄຳອະທິບາຍ</Th>
+            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງໜີ້ (LAK)</Th>
+            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງມີ (LAK)</Th>
 
-            <Th fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
-            <Th fontFamily="Noto Sans Lao, sans-serif">ກະທຳ</Th>
+            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
+            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ກະທຳ</Th>
           </Tr>
         </Thead>
         <Tbody>

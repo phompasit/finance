@@ -4,7 +4,7 @@ import { Center, Spinner } from "@chakra-ui/react";
 
 export default function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
-
+  console.log(user)
   if (loading) {
     return (
       <Center h="100vh">

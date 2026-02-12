@@ -45,21 +45,21 @@ const userSchema = new mongoose.Schema(
     isSuperAdmin: {
       type: Boolean,
     },
-    companyInfo: {
-      /////
-      loginAttempts: { type: Number, default: 0 },
-      lastFailedLogin: { type: Date },
-      lockedUntil: { type: Date },
-      isActive: { type: Boolean, default: true },
-      lastLogin: { type: Date },
-      lastLoginIp: { type: String },
-      lastLoginUserAgent: { type: String },
-      twoFactorEnabled: { type: Boolean, default: false },
-      twoFactorSecret: { type: String },
-      refreshToken: { type: String },
-      refreshTokenExpiry: { type: Date },
-      loginHistory: [loginHistorySchema], // Array ของ login history
-    },
+    loginAttempts: { type: Number, default: 0 },
+    lastFailedLogin: { type: Date },
+    lockedUntil: { type: Date },
+    isActive: { type: Boolean, default: true },
+    lastLogin: { type: Date },
+    lastLoginIp: { type: String },
+    lastLoginUserAgent: { type: String },
+    refreshToken: { type: String },
+    refreshTokenExpiry: { type: Date },
+    loginHistory: [loginHistorySchema],
+
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String },
+    twoFactorTempToken: { type: String },
+    twoFactorTempTokenExpires: { type: Date },
   },
   {
     timestamps: true,

@@ -46,6 +46,7 @@ import {
   Avatar,
   Badge,
   Container,
+  Switch,
 } from "@chakra-ui/react";
 import { EditIcon, DeleteIcon } from "@chakra-ui/icons";
 import { useAuth } from "../context/AuthContext";
@@ -64,6 +65,7 @@ import {
 } from "lucide-react";
 import api from "../api/api";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 // Constants
 const TOAST_DURATION = 3000;
 
@@ -100,7 +102,10 @@ export default function Users() {
   const [editUser, setEditUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [company, setCompany] = useState(null);
-
+  const navigate = useNavigate();
+  ////2FA
+  const [qr, setQr] = useState("");
+  const [code, setCode] = useState("");
   const {
     isOpen: isBankOpen,
     onOpen: onOpenBank,
@@ -184,6 +189,8 @@ export default function Users() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+  ///2FA
+
 
   // Handle role change with optimistic updates
   const handleRoleChange = useCallback(
@@ -646,7 +653,7 @@ export default function Users() {
     () => authUser?.role === "admin" && authUser?.isSuperAdmin === true,
     [authUser?.role]
   );
-
+  console.log(authUser)
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   const iconColor = useColorModeValue("blue.500", "blue.300");
@@ -877,6 +884,7 @@ export default function Users() {
                             fontSize="xs"
                             color={textSecondary}
                             fontWeight="500"
+                            fontFamily="'Noto Sans Lao', sans-serif"
                           >
                             ສິດການເຂົ້າໃຊ້
                           </Text>
@@ -895,6 +903,31 @@ export default function Users() {
 
                       <InfoRow icon={Mail} label="ອີເມວ" value={admin.email} />
                     </VStack>
+                    <HStack spacing={5} align="start">
+                      <Icon
+                        as={Shield}
+                        boxSize={5}
+                        color={iconColor}
+                        mt={0.5}
+                      />
+                      <VStack align="start" spacing={0} flex={1}>
+                        <Text
+                          fontFamily="'Noto Sans Lao', sans-serif"
+                          fontSize="xs"
+                          color={textSecondary}
+                          fontWeight="500"
+                        >
+                          ເປີດໃຊ້ງານ 2FA
+                        </Text>
+                        <FormControl display="flex" alignItems="center">
+                          <Switch
+                            isChecked={authUser?.twoFactorEnabled}
+                            onChange={() => navigate("/2fa-setup")}
+                            id="email-alerts"
+                          />
+                        </FormControl>
+                      </VStack>
+                    </HStack>
                   </VStack>
                 </CardBody>
               </Card>
@@ -1643,21 +1676,7 @@ export default function Users() {
                   h="90%"
                 />
               </FormControl>
-              <FormControl isRequired>
-                <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                  ບົດບາດ
-                </FormLabel>
-                <Select
-                  value={editUser?.role || "user"}
-                  onChange={(e) =>
-                    setEditUser({ ...editUser, role: e.target.value })
-                  }
-                >
-                  <option value="staff">Staff</option>
-                  <option value="admin">Admin</option>
-                  <option value="master">Master</option>
-                </Select>
-              </FormControl>
+         
             </VStack>
           </ModalBody>
 

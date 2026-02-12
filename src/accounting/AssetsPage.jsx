@@ -443,7 +443,7 @@ const AssetsPage = () => {
           fontWeight="bold"
           fontSize="lg"
         >
-          ລວມຍອດ ໜີ້ສິນ + ທຶນ (I + II + III )
+          ລວມຍອດ ຊັບສິນ (I + II )
         </Text>
         <HStack spacing={8}>
           <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">

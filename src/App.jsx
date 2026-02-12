@@ -41,6 +41,8 @@ import BalanceSheetIncomeAndExpense from "./accounting/BalanceSheetIncomeAndExpe
 import FixedAssetApp from "./accounting/FixedAssetApp";
 import AddAssetModal from "./components/FixedAsset/AddAssetModal";
 import DepreciationPreviewModal from "./components/FixedAsset/DepreciationPreviewModal";
+import TwoFactorAuth from "./pages/TwoFactorAuth";
+import Verify2FA from "./pages/Verify2FA";
 
 function App() {
   return (
@@ -49,7 +51,6 @@ function App() {
         {/* ================= PUBLIC ================= */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegisterForm />} />
-
         {/* ================= PRIVATE ================= */}
         <Route
           path="/"
@@ -116,9 +117,11 @@ function App() {
 
           <Route path="closing_account" element={<ClosePeriodPage />} />
         </Route>
-
         {/* ================= FALLBACK ================= */}
         <Route path="*" element={<NotFound />} />
+
+        <Route path="2fa-setup" element={<TwoFactorAuth />} />
+        <Route path="2faVerify" element={<Verify2FA />} />
       </Routes>
     </AuthProvider>
   );

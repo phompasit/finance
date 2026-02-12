@@ -347,16 +347,17 @@ router.get("/assets", authenticate, async (req, res) => {
       .map((p) => p.year)
       .sort((a, b) => a - b);
 
-    if (!closedYears.length) {
-      return res.json({
-        success: true,
-        comparable: false,
-        message: "ยังไม่มีปีที่ปิดบัญชี",
-      });
-    }
+    let previousYear;
+    let currentYear;
 
-    const previousYear = closedYears.at(-1);
-    const currentYear = previousYear + 1;
+    if (!closedYears.length) {
+      // ยังไม่เคยปิดบัญชี
+      currentYear = new Date().getFullYear();
+      previousYear = currentYear - 1;
+    } else {
+      previousYear = closedYears.at(-1);
+      currentYear = previousYear + 1;
+    }
 
     const current = await buildAssets({
       companyId,

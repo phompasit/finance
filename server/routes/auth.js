@@ -20,7 +20,9 @@ import Employees from "../models/employees.js";
 import Partner from "../models/partner.js";
 import Category from "../models/category.js";
 import mongoose from "mongoose";
-
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
+import { apiLimiter, authLimiter } from "../middleware/security.js";
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -401,10 +403,17 @@ router.post(
       // 8. Two-Factor Authentication (ถ้าเปิดใช้งาน)
       if (user.twoFactorEnabled) {
         // สร้าง temporary token สำหรับ 2FA
+        //สร้าง token แบบสุ่ม 32 bytes
+
+        //ใช้เป็น token ชั่วคราว สำหรับขั้นตอนยืนยัน 2FA
         const tempToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(tempToken)
+          .digest("hex");
 
         await User.findByIdAndUpdate(user._id, {
-          twoFactorTempToken: tempToken,
+          twoFactorTempToken: hashedToken,
           twoFactorTempTokenExpires: Date.now() + 10 * 60 * 1000, // 10 นาที
         });
 
@@ -632,13 +641,12 @@ router.get("/me", authenticate, async (req, res) => {
 
     // 2️⃣ Fetch user + whitelist fields เท่านั้น
     const user = await User.findById(req.user._id)
-      .select("-_id   -isActive   -lastLogin -createdAt -password")
+      .select("username email fullName role companyId twoFactorEnabled isSuperAdmin")
       .populate({
         path: "companyId",
-        select: "-_id",
+        select: "name code", // เลือกเฉพาะ field ที่ใช้จริง
       })
       .lean(); // 3️⃣ ป้องกัน mutation / performance ดีขึ้น
-
     // 4️⃣ User ไม่พบ / ถูกลบ
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -973,4 +981,187 @@ router.patch(
   }
 );
 
+//2FA
+/////สร้าง endpoint สำหรับ setup 2FA
+// ================= SETUP 2FA =================
+router.get("/user/2fa/setup", apiLimiter, authenticate, async (req, res) => {
+  try {
+    console.log(req.user);
+    const secret = speakeasy.generateSecret({
+      length: 20,
+      name: `FinanceApp (${req.user.role})`,
+    });
+
+    await User.findByIdAndUpdate(req.user._id, {
+      twoFactorSecret: secret.base32,
+    });
+
+    const qr = await QRCode.toDataURL(secret.otpauth_url);
+
+    res.json({
+      qr,
+      secret: secret.base32,
+    });
+  } catch (error) {
+    console.error("2FA setup error:", error);
+    res.status(500).json({ message: "2FA setup failed" });
+  }
+});
+//สร้าง endpoint สำหรับ setup 2FA
+// ================= ENABLE 2FA =================
+router.post("/user/2fa/enable", authLimiter, authenticate, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== "string" || token.length !== 6) {
+      return res.status(400).json({
+        message: "Invalid 2FA code format",
+      });
+    }
+    const user = await User.findById(req.user._id).select("+twoFactorSecret");
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token,
+      window: 1,
+    });
+    if (!verified) {
+      return res.status(400).json({
+        message: "Invalid 2FA code",
+      });
+    }
+
+    user.twoFactorEnabled = true;
+    await user.save();
+
+    res.json({ message: "2FA enabled successfully" });
+  } catch (error) {
+    console.error("2FA enable error:", error);
+    res.status(500).json({ message: "2FA enable failed" });
+  }
+});
+//endpoint ยืนยัน 2FA ตอน login
+
+// ================= VERIFY LOGIN 2FA =================
+
+// ================= VERIFY LOGIN 2FA =================
+router.post("/user/verify-2fa", async (req, res) => {
+  try {
+    const { tempToken, code } = req.body;
+
+    // 1. Validate input
+    if (!tempToken || !code) {
+      return res.status(400).json({
+        message: "Missing verification data",
+      });
+    }
+
+    if (!/^\d{6}$/.test(code)) {
+      return res.status(400).json({
+        message: "Invalid code format",
+      });
+    }
+
+    // 3. Hash tempToken
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(tempToken)
+      .digest("hex");
+
+    // 4. Find user
+    const user = await User.findOne({
+      twoFactorTempToken: hashedToken,
+      twoFactorTempTokenExpires: { $gt: Date.now() },
+    })
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid or expired token",
+      });
+    }
+
+
+    // 6. Verify OTP
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token: code,
+      window: 1,
+    });
+
+    if (!verified) {
+      user.twoFactorAttempts = (user.twoFactorAttempts || 0) + 1;
+
+      // lock after 5 attempts
+      if (user.twoFactorAttempts >= 5) {
+        user.twoFactorLockedUntil = Date.now() + 15 * 60 * 1000;
+        user.twoFactorAttempts = 0;
+      }
+
+      await user.save();
+
+      return res.status(401).json({
+        message: "Invalid authentication code",
+      });
+    }
+
+    // 7. Reset 2FA attempts + clear temp token
+    user.twoFactorAttempts = 0;
+    user.twoFactorLockedUntil = undefined;
+    user.twoFactorTempToken = undefined;
+    user.twoFactorTempTokenExpires = undefined;
+
+    const sessionId = crypto.randomBytes(16).toString("hex");
+
+    // 8. Create access token
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role,
+        sessionId,
+        companyId: user.companyId,
+        isSuperAdmin: user.isSuperAdmin === true,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: process.env.JWT_EXPIRE,
+        algorithm: "HS256",
+        issuer: "admin",
+        audience: "admin",
+      }
+    );
+
+    // 9. Set cookie
+    res.cookie("access_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // 10. Create session
+    const ipAddress = req.ip;
+    const userAgent = req.get("user-agent");
+
+    await Session.create({
+      userId: user._id,
+      sessionId,
+      token,
+      ipAddress,
+      userAgent,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      isActive: true,
+    });
+
+    await user.save();
+
+    // 11. Response (no token in body)
+    res.json({
+      message: "Login success",
+    });
+  } catch (error) {
+    console.error("2FA verify error:", error);
+    res.status(500).json({
+      message: "2FA verification failed",
+    });
+  }
+});
 export default router;

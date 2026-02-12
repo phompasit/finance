@@ -46,10 +46,32 @@ export const AuthProvider = ({ children }) => {
   // Login
   // =========================
   const login = async (email, password) => {
-    await api.post("/api/auth/login", { email, password });
-    await fetchUser(); // ✅ user มาจาก cookie
+    const { data } = await api.post("/api/auth/login", { email, password });
+
+    // ถ้าต้องกรอก 2FA
+    if (data.requiresTwoFactor) {
+      return {
+        requiresTwoFactor: true,
+        tempToken: data.tempToken,
+      };
+    }
+
+    // ถ้า login สำเร็จปกติ
+    await fetchUser();
+    return { success: true };
   };
 
+  ////-==========
+  const verifyTwoFactor = async (tempToken, code) => {
+    await api.post("/api/auth/user/verify-2fa", {
+      tempToken,
+      code,
+    });
+
+    await fetchUser(); // ตอนนี้ค่อยดึง user
+  };
+
+  //===============
   // =========================
   // Logout
   // =========================
@@ -67,6 +89,8 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
+        fetchUser,
+        verifyTwoFactor,
         isAuthenticated: !!user,
       }}
     >

@@ -19,6 +19,7 @@ import {
   Box,
   Divider,
   useToast,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
@@ -67,6 +68,7 @@ export default function JournalModal() {
     const random4 = Math.floor(1000 + Math.random() * 9000);
     return `GL-${today}-${random4}`;
   };
+   const bg = useColorModeValue("gray.50", "gray.900");
   const resetForm = () => {
     setHeader({
       date: new Date().toISOString().slice(0, 10),

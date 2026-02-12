@@ -9,6 +9,7 @@ import {
   Button,
   HStack,
   SimpleGrid,
+  useColorModeValue,
 } from "@chakra-ui/react";
 
 const presets = [
@@ -27,8 +28,9 @@ const ReportFilter = ({
   onApply,
   FILTER_MODE,
 }) => {
+   const bg = useColorModeValue("gray.50", "gray.900");
   return (
-    <Box bg="white" p={6} borderRadius="xl" boxShadow="sm" mb={6}>
+    <Box bg={bg} p={6} borderRadius="xl" boxShadow="sm" mb={6}>
       <Flex wrap="wrap" gap={4} align="end">
         {/* Search */}
         <Box>
