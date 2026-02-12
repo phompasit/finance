@@ -23,18 +23,18 @@ export default defineConfig({
         display: "standalone",
         theme_color: "#0d9488",
         background_color: "#ffffff",
-        icons: [
-          {
-            src: "./public/Purple and Blue Modern Finance Logo.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "./public/Purple and Blue Modern Finance Logo.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-        ],
+   icons: [
+  {
+    src: "/Purple and Blue Modern Finance Logo.png",
+    sizes: "192x192",
+    type: "image/png",
+  },
+  {
+    src: "/Purple and Blue Modern Finance Logo.png",
+    sizes: "512x512",
+    type: "image/png",
+  },
+],
       },
     }),
   ],
@@ -60,7 +60,22 @@ export default defineConfig({
   base: "/",
 
   build: {
-    outDir: "dist",
-    sourcemap: false,
-  },
+  outDir: "dist",
+  sourcemap: false,
+  rollupOptions: {
+    external: [
+      "express",
+      "mongoose",
+      "bcryptjs",
+      "multer",
+      "cloudinary",
+      "joi",
+      "speakeasy",
+      "pdfkit",
+      "fs",
+      "path",
+      "crypto"
+    ]
+  }
+},
 });

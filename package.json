@@ -65,6 +65,7 @@
     "react-select": "^5.10.2",
     "react-virtuoso": "^4.16.1",
     "recharts": "latest",
+    "redux": "^5.0.1",
     "sanitize-html": "^2.17.0",
     "sass": "latest",
     "sass-embedded": "latest",
@@ -95,5 +96,12 @@
     "vite": "^5.0.0",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-ssr": "^0.4.142"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "core-js",
+      "esbuild"
+    ]
   }
 }
