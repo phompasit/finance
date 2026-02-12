@@ -1,6 +1,6 @@
 import React, { forwardRef } from "react";
 import { Box } from "@chakra-ui/react";
-import GeneralGL from "../../accounting/PDF/generalGL";
+import GeneralGL from "../../accounting/PDF/GeneralGL";
 import { useAuth } from "../../context/AuthContext";
 
 const LedgerPdfWrapper = forwardRef(({ data, filter, activeTab }, ref) => {
