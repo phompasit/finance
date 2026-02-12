@@ -87,7 +87,7 @@ advanceClosureSchema.virtual("employee", {
 });
 
 // Index
-advanceClosureSchema.index({ advance_id: 1 });
+// advanceClosureSchema.index({ advance_id: 1 });
 advanceClosureSchema.index({ employee_id: 1 });
 advanceClosureSchema.index({ closed_date: -1 });
 advanceClosureSchema.index({ createdAt: -1 });
