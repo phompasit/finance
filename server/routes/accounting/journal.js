@@ -20,7 +20,7 @@ const router = express.Router();
 const createLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 นาที
   max: 100, // จำกัด 100 requests ต่อ IP
-  error: "Too many requests from this IP, please try again later.",
+  message: "Too many requests",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -28,7 +28,7 @@ const createLimiter = rateLimit({
 const modifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50, // จำกัดการแก้ไข/ลบ
-  error: "Too many modification requests, please try again later.",
+  message: "Too many requests"
 });
 
 // Input sanitization middleware
