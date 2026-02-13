@@ -18,7 +18,7 @@ const getAllowedOrigins = () => {
     "https://finance-1oi.pages.dev",
   ];
 
-  // FRONTEND_DOMAIN from env
+
   if (process.env.PRODUCTION_URL) {
     origins.push(process.env.PRODUCTION_URL);
   }
