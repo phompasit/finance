@@ -66,7 +66,7 @@ const Account_documentSchema = new mongoose.Schema(
 Account_documentSchema.index({ companyId: 1, code: 1 }, { unique: true });
 
 // ⭐ Auto-set normalSide ตามประเภทบัญชี (ถ้าไม่ส่งมา)
-Account_documentSchema.pre("validate", function (next) {
+Account_documentSchema.pre("validate", function () {
   if (!this.normalSide) {
     if (this.type === "asset" || this.type === "expense") {
       this.normalSide = "Dr";
@@ -74,9 +74,7 @@ Account_documentSchema.pre("validate", function (next) {
       this.normalSide = "Cr";
     }
   }
-  next();
 });
-
 const Account_document = mongoose.model(
   "Account_document",
   Account_documentSchema
