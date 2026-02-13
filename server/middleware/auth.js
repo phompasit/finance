@@ -15,6 +15,7 @@ export const authenticate = async (req, res, next) => {
     // const authHeader = req.headers.authorization || "";
     // const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const token = req.cookies.access_token;
+    console.log("token", req.cookies.access_token);
     if (!token) {
       return res.status(401).json({
         message: "ກະລຸນາເຂົ້າລະບົບກ່ອນ",
