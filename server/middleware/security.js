@@ -18,7 +18,6 @@ const getAllowedOrigins = () => {
     "https://finance-1oi.pages.dev",
   ];
 
-
   if (process.env.PRODUCTION_URL) {
     origins.push(process.env.PRODUCTION_URL);
   }
@@ -129,6 +128,9 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === "/health" || req.path === "/api/health",
+  keyGenerator: (req) => {
+    return req.user?._id || req.ip;
+  },
 });
 
 // Login brute-force protection
@@ -137,6 +139,9 @@ const authLimiter = rateLimit({
   max: 10, // lowered for security
   message: "Too many login attempts. Try again later.",
   skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    return req.user?._id || req.ip;
+  },
 });
 function validateIncomeStatementQuery({ year, month, startDate, endDate }) {
   if (year !== undefined) {
@@ -174,5 +179,5 @@ export {
   apiLimiter,
   authLimiter,
   getAllowedOrigins,
-  validateIncomeStatementQuery
+  validateIncomeStatementQuery,
 };

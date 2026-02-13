@@ -26,12 +26,18 @@ const createAccountLimiter = rateLimit({
   message: "ສ້າງບັນຊີຫຼາຍເກີນໄປ, ກະລຸນາລອງໃໝ່ໃນພາຍຫຼັງ",
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.user?._id || req.ip;
+  },
 });
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: "ຄຳຮ້ອງຂໍຫຼາຍເກີນໄປ, ກະລຸນາລອງໃໝ່ໃນພາຍຫຼັງ",
+  keyGenerator: (req) => {
+    return req.user?._id || req.ip;
+  },
 });
 
 // ========================

@@ -28,7 +28,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, user } = useAuth();
+  const { login, user, fetchUser } = useAuth();
+
   const navigate = useNavigate();
   const toast = useToast();
   const handleSubmit = async (e) => {
@@ -73,6 +74,9 @@ export default function Login() {
         navigate("/dashboard");
       } else {
         navigate("/opo");
+      }
+      if (!res?.requiresTwoFactor) {
+        await fetchUser();
       }
     } catch (err) {
       const message =

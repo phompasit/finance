@@ -101,6 +101,9 @@ export const registerLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.user?._id || req.ip;
+  },
   handler: (req, res) => {
     res.status(429).json({
       status: "error",
