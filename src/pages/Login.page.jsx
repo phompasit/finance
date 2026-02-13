@@ -75,9 +75,7 @@ export default function Login() {
       } else {
         navigate("/opo");
       }
-      if (!res?.requiresTwoFactor) {
-        await fetchUser();
-      }
+      await fetchUser();
     } catch (err) {
       const message =
         err?.response?.data?.message || err?.message || "ເກີດຂໍ້ຜິດພາດ";
