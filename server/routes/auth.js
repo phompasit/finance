@@ -401,6 +401,7 @@ router.post(
       }
 
       // 8. Two-Factor Authentication (ถ้าเปิดใช้งาน)
+      console.log("user.twoFactorEnabled", user.twoFactorEnabled);
       if (user.twoFactorEnabled) {
         // สร้าง temporary token สำหรับ 2FA
         //สร้าง token แบบสุ่ม 32 bytes
@@ -501,9 +502,12 @@ router.post(
       const responseTime = Date.now() - startTime;
       // ⭐ set cooki
       res.cookie("access_token", token, {
+        // httpOnly: true,
+        // secure: process.env.NODE_ENV === "production",
+        // sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        secure: true,
+        sameSite: "None",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
@@ -641,7 +645,9 @@ router.get("/me", authenticate, async (req, res) => {
 
     // 2️⃣ Fetch user + whitelist fields เท่านั้น
     const user = await User.findById(req.user._id)
-      .select("username email fullName role companyId twoFactorEnabled isSuperAdmin")
+      .select(
+        "username email fullName role companyId twoFactorEnabled isSuperAdmin"
+      )
       .populate({
         path: "companyId",
         select: "name code", // เลือกเฉพาะ field ที่ใช้จริง
@@ -1071,13 +1077,12 @@ router.post("/user/verify-2fa", async (req, res) => {
     const user = await User.findOne({
       twoFactorTempToken: hashedToken,
       twoFactorTempTokenExpires: { $gt: Date.now() },
-    })
+    });
     if (!user) {
       return res.status(401).json({
         message: "Invalid or expired token",
       });
     }
-
 
     // 6. Verify OTP
     const verified = speakeasy.totp.verify({
