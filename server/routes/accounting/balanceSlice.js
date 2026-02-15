@@ -1,4 +1,3 @@
-
 import express from "express";
 import Account from "../../models/accouting_system_models/Account_document.js";
 import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.js";
@@ -520,14 +519,18 @@ router.get("/balance_after", authenticate, async (req, res) => {
        ✅ YEAR RESULT ACCOUNT (331/339 Separate)
        ✅ DO NOT TOUCH 321/329
     ========================================================== */
+    // if (netProfit >= 0) {
+    //   if (!rows["331"]) throw new Error("Account 331 not found");
+    //   rows["331"].movementCr += netProfit;
+    // } else {
+    //   if (!rows["339"]) throw new Error("Account 339 not found");
+    //   rows["339"].movementDr += Math.abs(netProfit);
+    // }
     if (netProfit >= 0) {
-      if (!rows["331"]) throw new Error("Account 331 not found");
-      rows["331"].movementCr += netProfit;
+      if (rows["331"]) rows["331"].movementCr += netProfit;
     } else {
-      if (!rows["339"]) throw new Error("Account 339 not found");
-      rows["339"].movementDr += Math.abs(netProfit);
+      if (rows["339"]) rows["339"].movementDr += Math.abs(netProfit);
     }
-
     /* ==========================================================
        ✅ FIX RETAINED EARNINGS DISPLAY (321/329)
        Equity must not stay on Debit side
