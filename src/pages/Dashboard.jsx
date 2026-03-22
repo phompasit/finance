@@ -27,13 +27,13 @@ export default function DashboardPage() {
   //   fetchData();
   // }, []);
 
-  if (!data) {
-    return (
-      <Center h="60vh">
-        <Spinner size="xl" />
-      </Center>
-    );
-  }
+  // if (!data) {
+  //   return (
+  //     <Center h="60vh">
+  //       <Spinner size="xl" />
+  //     </Center>
+  //   );
+  // }
 
   return (
     <Container maxW="container.xl" py={6}>

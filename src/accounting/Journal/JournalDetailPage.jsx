@@ -63,11 +63,14 @@ const JournalDetailPage = () => {
       {/* HEADER BAR */}
       <Flex justify="space-between" mb={6}>
         <Button
+          fontFamily="Noto Sans Lao, sans-serif"
           leftIcon={<ArrowLeft />}
           variant="ghost"
+          colorScheme="black"
+          background="red"
           onClick={() => navigate("/journal")}
         >
-          Back
+          ກັບຄືນ
         </Button>
 
         <HStack>
@@ -199,37 +202,37 @@ const JournalDetailPage = () => {
             <Thead position="sticky" top={0} zIndex={1} bg="gray.100">
               <Tr>
                 {/* Account Code */}
-                <Th textAlign="center" colSpan={2}>
-                  Account Code
+                <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center" colSpan={2}>
+                  ໝາຍເລກບັນຊິ
                 </Th>
 
                 {/* Account Name */}
-                <Th textAlign="center" colSpan={2}>
-                  Account Name
+                <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center" colSpan={2}>
+                  ຊື່ບັນຊີ
                 </Th>
 
                 {/* LAK Amount */}
-                <Th textAlign="center" colSpan={2}>
-                  Amount (LAK)
+                <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center" colSpan={2}>
+                  ຈຳນວນເງິນຍ (LAK)
                 </Th>
 
                 {/* Original */}
-                <Th textAlign="center" colSpan={2}>
-                  Original Amount
+                <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center" colSpan={2}>
+                  ມູນຄ່າເດິມ
                 </Th>
 
-                <Th textAlign="center">Currency</Th>
-                <Th textAlign="center">Rate</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center">ສະກຸນເງິນ</Th>
+                <Th fontFamily="Noto Sans Lao, sans-serif" textAlign="center">ອັດຕາແລກປ່ຽນ</Th>
               </Tr>
 
               <Tr>
                 {Array.from({ length: 4 }).map((_, i) => (
                   <>
-                    <Th key={`dr-${i}`} textAlign="center" color="green.600">
-                      DR
+                    <Th fontFamily="Noto Sans Lao, sans-serif" key={`dr-${i}`} textAlign="center" color="green.600">
+                      ໜີ້
                     </Th>
-                    <Th key={`cr-${i}`} textAlign="center" color="red.600">
-                      CR
+                    <Th  fontFamily="Noto Sans Lao, sans-serif" key={`cr-${i}`} textAlign="center" color="red.600">
+                      ມີ
                     </Th>
                   </>
                 ))}
@@ -278,24 +281,24 @@ const JournalDetailPage = () => {
                   </Td>
 
                   {/* Original */}
-                  <Td textAlign="right">
+                  <Td fontFamily="Noto Sans Lao, sans-serif" textAlign="right">
                     {ln.side === "dr"
                       ? Number(ln.debitOriginal).toLocaleString()
                       : "-"}
                   </Td>
-                  <Td textAlign="right">
+                  <Td fontFamily="Noto Sans Lao, sans-serif" textAlign="right">
                     {ln.side === "cr"
                       ? Number(ln.creditOriginal).toLocaleString()
                       : "-"}
                   </Td>
 
                   {/* Currency */}
-                  <Td textAlign="center" fontWeight="semibold">
+                  <Td fontFamily="Noto Sans Lao, sans-serif" textAlign="center" fontWeight="semibold">
                     {ln.currency}
                   </Td>
 
                   {/* Rate */}
-                  <Td textAlign="right" color="gray.600">
+                  <Td  textAlign="right" color="gray.600">
                     {Number(ln.exchangeRate).toLocaleString()}
                   </Td>
                 </Tr>
@@ -309,17 +312,17 @@ const JournalDetailPage = () => {
 
         <Flex justify="flex-end" gap={10}>
           <Box textAlign="right">
-            <Text fontSize="sm" color="gray.500">
-              Total Debit (LAK)
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" color="gray.500">
+              ຍອດລວມເບື້ອງໜີ້ (LAK)
             </Text>
-            <Text fontSize="2xl" fontWeight="bold" color="green.600">
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="2xl" fontWeight="bold" color="green.600">
               {Number(j.totalDebitLAK).toLocaleString()}
             </Text>
           </Box>
 
           <Box textAlign="right">
-            <Text fontSize="sm" color="gray.500">
-              Total Credit (LAK)
+            <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" color="gray.500">
+              ຍອດລວມເບື້ອງມີ (LAK)
             </Text>
             <Text fontSize="2xl" fontWeight="bold" color="red.600">
               {Number(j.totalCreditLAK).toLocaleString()}

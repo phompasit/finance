@@ -66,9 +66,14 @@ const StatementOfFinancialPosition = () => {
     currentYear,
     previousYear,
     mode,
+    start,
+    end,
     period,
   } = useSelector((s) => s.reports || {});
-
+  console.log("data:", {
+    start,
+    end,
+  });
   /* ================= PRODUCTION FILTER STATE (เหมือน AssetsPage) ================= */
   const [filter, setFilter] = useState({
     mode: FILTER_MODE.YEAR,
@@ -333,6 +338,8 @@ const StatementOfFinancialPosition = () => {
           previous={previous}
           currentYear={currentYear}
           previousYear={previousYear}
+          start={start}
+          end={end}
           comparable={comparable}
           user={user}
           period={period}

@@ -38,7 +38,7 @@ const ASSET_MAPPING = [
     group: "Current Assets",
     key: "other_receivablesAA",
     label: "ໜີ້ຕ້ອງຮັບ ແລະ ຊັບສິນຄ້າຍຄືກັນ",
-    pattern: "141-148,149,164,167,168",
+    pattern: "141-148,149,164,167,168,151-155,159,160-163,1690-1693",
     excludeFromTotal: true, // ⭐ สำคัญ
   },
   {

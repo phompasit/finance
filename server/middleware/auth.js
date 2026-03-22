@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Session from "../models/Session.js";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /* ===============================================
    🔒 AUTHENTICATE MIDDLEWARE (HARDENED)
@@ -103,7 +103,7 @@ export const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user?._id || req.ip;
+    return req.user?._id ?? ipKeyGenerator(req.ip); // ✅ wrap req.ip
   },
   handler: (req, res) => {
     res.status(429).json({

@@ -1,4 +1,308 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useMemo } from "react";
+
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
+
+/** Labels that render bold + slightly larger */
+const BOLD_LABEL_SET = new Set([
+  "Gross Profit",
+  "Operating Profit (Loss)",
+  "Profit or Loss before Tax",
+  "Profit or Loss for the Year Net of Tax",
+  "Other Comprehensive Income Net of Tax",
+  "Profit or Loss for the Period Net of Tax",
+  "ຜົນໄດ້ຮັບເບື້ອງຕົ້ນ",
+  "ຜົນໄດ້ຮັບ ໃນການທຸລະກິດ",
+  "ຜົນໄດ້ຮັບ ກ່ອນການເສຍອາກອນ",
+  "ຜົນໄດ້ຮັບສຸດທິ ຈາກການດຳເນີນງານ",
+  "ຜົນໄດ້ຮັບສັງລວມ ຫຼັງອາກອນ",
+  "ຜົນໄດ້ຮັບສຸດທິໃນປີ",
+]);
+
+// ─────────────────────────────────────────────────────────────
+// Pure utilities (outside component — stable refs)
+// ─────────────────────────────────────────────────────────────
+
+/** "1,234,567.89"  |  "-" for null/undefined/empty */
+const formatNumber = (num) => {
+  if (num === null || num === undefined || num === "") return "-";
+  const n = Number(num);
+  if (isNaN(n)) return "-";
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+};
+
+/** Date / ISO string → "dd/mm/yyyy" */
+const formatDate = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "";
+  return [
+    String(date.getDate()).padStart(2, "0"),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    date.getFullYear(),
+  ].join("/");
+};
+
+/** "2025-3" → "3/2025"  |  anything else → as-is */
+const formatToMonthYear = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{1,2}$/.test(value))
+    return value ?? "";
+  const [year, month] = value.split("-");
+  return `${Number(month)}/${year}`;
+};
+
+/** Today as "dd/mm/yyyy" */
+const todayLabel = () => {
+  const t = new Date();
+  return [
+    String(t.getDate()).padStart(2, "0"),
+    String(t.getMonth() + 1).padStart(2, "0"),
+    t.getFullYear(),
+  ].join("/");
+};
+
+// ─────────────────────────────────────────────────────────────
+// Print styles
+// ─────────────────────────────────────────────────────────────
+const PRINT_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap');
+  @media print {
+    @page { size: A4; margin: 0; }
+    body  { margin: 0; padding: 0; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .no-print { display: none !important; }
+  }
+`;
+
+// ─────────────────────────────────────────────────────────────
+// Style tokens
+// ─────────────────────────────────────────────────────────────
+const S = {
+  page: {
+    width: "210mm",
+    minHeight: "290mm",
+    margin: "0 auto",
+    background: "#fff",
+    boxShadow: "0 2px 16px rgba(0,0,0,0.10)",
+    fontFamily: "'Noto Sans Lao', sans-serif",
+    boxSizing: "border-box",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  content: {
+    padding: "12mm 15mm",
+    boxSizing: "border-box",
+    fontSize: "9pt",
+    color: "#111",
+    lineHeight: "1.4",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+
+  // ── Header ──
+  header: {
+    display: "grid",
+    gridTemplateColumns: "40% 60%",
+    marginBottom: "16px",
+    gap: "12px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  addrBlock: {
+    fontSize: "8.5pt",
+    lineHeight: "1.65",
+    paddingLeft: "6px",
+    paddingTop: "32px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  addrName: { fontWeight: "700", fontFamily: "Noto Sans Lao, sans-serif" },
+  phone: { marginTop: "4px", fontFamily: "Noto Sans Lao, sans-serif" },
+  titleBlock: { textAlign: "center", fontFamily: "Noto Sans Lao, sans-serif" },
+  govTitle: {
+    fontSize: "11pt",
+    fontWeight: "700",
+    marginBottom: "2px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  slogan: {
+    fontSize: "8.5pt",
+    color: "#444",
+    marginBottom: "10px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  reportTitle: {
+    fontSize: "14pt",
+    fontWeight: "800",
+    letterSpacing: "0.2px",
+    marginBottom: "4px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  periodSubtitle: {
+    fontSize: "8.5pt",
+    color: "#333",
+    marginTop: "4px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+
+  // ── Currency bar ──
+  currencyBar: {
+    display: "flex",
+    justifyContent: "flex-end",
+    fontSize: "8pt",
+    fontStyle: "italic",
+    color: "#555",
+    marginBottom: "7px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+
+  // ── Table ──
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "8.5pt",
+    border: "1px solid #444",
+    marginBottom: "12px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  th: {
+    border: "1px solid #555",
+    borderTop: "2px solid #000",
+    borderBottom: "2px solid #000",
+    padding: "6px 7px",
+    background: "#f0f0f0",
+    fontWeight: "700",
+    fontSize: "9pt",
+    lineHeight: "1.4",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  thLabel: {
+    textAlign: "left",
+    width: "45%",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  thNote: {
+    textAlign: "center",
+    width: "8%",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  thNum: { textAlign: "center", fontFamily: "Noto Sans Lao, sans-serif" },
+
+  cell: {
+    border: "1px solid #ccc",
+    padding: "4px 8px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  cellLabel: { textAlign: "left" },
+  cellLabelIndent: {
+    textAlign: "left",
+    paddingLeft: "20px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  cellNote: {
+    textAlign: "center",
+    color: "#aaa",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  cellNum: {
+    textAlign: "right",
+    fontVariantNumeric: "tabular-nums",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+
+  boldRow: { background: "#fafafa" },
+  boldLabel: {
+    fontWeight: "700",
+    fontSize: "9pt",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+
+  // ── Post-table ──
+  postTable: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginTop: "14px",
+    width: "100%",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  footNote: {
+    fontSize: "7.5pt",
+    fontStyle: "italic",
+    maxWidth: "58%",
+    lineHeight: "1.4",
+    color: "#555",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+  dateLine: {
+    fontSize: "8pt",
+    textAlign: "right",
+    whiteSpace: "nowrap",
+    color: "#333",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+
+  // ── Signatures ──
+  sigRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    marginTop: "30px",
+    fontSize: "8.5pt",
+    textAlign: "center",
+  },
+  sigTitle: {
+    fontWeight: "700",
+    marginBottom: "44px",
+    fontFamily: "Noto Sans Lao, sans-serif",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────────────────────
+
+const Th = ({ children, style }) => (
+  <th style={{ ...S.th, ...style }}>{children}</th>
+);
+
+/** Single income statement line row */
+const LineRow = ({ line, comparable }) => {
+  const isBold = BOLD_LABEL_SET.has(line.label);
+  const isSection =
+    line.label === "Of which:" || line.label?.startsWith("Of which");
+
+  const labelStyle = {
+    ...S.cell,
+    ...(isSection ? S.cellLabelIndent : S.cellLabel),
+    ...(isBold ? S.boldLabel : {}),
+  };
+
+  return (
+    <tr style={isBold ? S.boldRow : undefined}>
+      <td style={labelStyle}>{line.label}</td>
+      <td style={{ ...S.cell, ...S.cellNote }} />
+      <td style={{ ...S.cell, ...S.cellNum }}>{formatNumber(line.cur)}</td>
+      {comparable && (
+        <td style={{ ...S.cell, ...S.cellNum }}>{formatNumber(line.prev)}</td>
+      )}
+    </tr>
+  );
+};
+
+/** Signature block */
+const SigBox = ({ title }) => (
+  <div>
+    <div style={S.sigTitle}>{title}</div>
+    <span style={S.sigLine}>&nbsp;</span>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────
 
 const IncomePrint = forwardRef(
   (
@@ -6,400 +310,217 @@ const IncomePrint = forwardRef(
       companyName = "ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",
       slogan = "ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ",
       user,
-      currentYear = "This Month 12/2025",
-      previousYear = "Previous Month 12/2024",
+      currentYear = "2025-12",
+      previousYear = "2024-12",
       comparable = true,
       period = {},
+      start = null,
+      end = null,
       mode = "",
+      activeFilterLabel = "",
       mergedLines = [],
     },
     ref
   ) => {
-    const formatNumber = (num) => {
-      if (num === null || num === undefined || num === "") return "-";
-      return Number(num).toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      });
-    };
+    // ── Company info ─────────────────────────────────────
+    const companyAddress = useMemo(
+      () =>
+        [
+          user?.companyId?.name,
+          `ທີ່ຢູ່: ${user?.companyId?.address}`,
+          `ເລກປະຈຳຕົວຜູ້ເສຍອາກອນ ${user?.companyId.taxId}`,
+        ].filter(Boolean),
+      [user?.companyId?.name, user?.companyId?.address]
+    );
+    const phone = ` ${user?.companyId?.phone}`;
+    console.log("speriod ", user);
+    // ── Period subtitle ──────────────────────────────────
+    const periodText = useMemo(() => {
+      // ✅ รองรับทั้ง "startDate" และ "statDate" (typo จาก API)
+      const startDate = period?.startDate ?? period?.statDate;
+      const endDate = period?.endDate;
 
-    const companyAddress = [
-      user?.companyId?.name,
-      user?.companyId?.address,
-      "ເລກທີ່ຜູ້ເສຍອາກອນ:2837292",
-    ];
-    const phone = user?.companyId?.phone;
-
-    const formatDate = (d) => {
-      if (!d) return "";
-      const date = new Date(d);
-      if (isNaN(date)) return "";
-
-      const dd = String(date.getDate()).padStart(2, "0");
-      const mm = String(date.getMonth() + 1).padStart(2, "0");
-      const yyyy = date.getFullYear();
-
-      return `${dd}/${mm}/${yyyy}`;
-    };
-
-    const renderPeriodText = () => {
-      if (period?.startDate && period?.endDate) {
-        return `ແຕ່ວັນທີ່: ${formatDate(period.startDate)} ຫາ: ${formatDate(
-          period.endDate
-        )}`;
+      if (startDate && endDate) {
+        return `ແຕ່ວັນທີ່: ${formatDate(startDate)} ຫາ: ${formatDate(endDate)}`;
       }
 
-      if (previousYear && currentYear && mode === "month-compare") {
-        return `ປະຈຳເດືອນ ${currentYear} ${previousYear}`;
+      if (mode === "month-compare") {
+        const yr = currentYear ?? previousYear;
+        return yr != null
+          ? `ປະຈຳເດືອນ ${formatToMonthYear(yr)}`
+          : activeFilterLabel;
       }
 
-      return `ປະຈຳປີ: ${currentYear}`;
-    };
-    const renderCurrentColumnLabel = () => {
-      if (mode === "month-compare") return `ງວດປັດຈຸບັນ ${currentYear}`;
-      return currentYear;
-    };
+      if (mode === "custom") {
+        // ✅ เดิม mode=custom ยังใช้ period.startDate แต่ค่าเป็น undefined
+        //    ใช้ startDate ที่ resolve แล้วแทน
+        return `ແຕ່ວັນທີ່: ${formatDate(startDate)} ຫາ: ${formatDate(endDate)}`;
+      }
 
-    const renderPreviousColumnLabel = () => {
-      if (mode === "month-compare") return `ງວດກ່ອນ ${previousYear}`;
-      return previousYear;
-    };
+      if (mode === "default-compare") {
+        const yr = currentYear ?? previousYear;
+        return yr != null ? `ປະຈຳປີ ${yr}` : activeFilterLabel;
+      }
 
-    const today = new Date();
-    const formattedDate = `${String(today.getDate()).padStart(2, "0")}/${String(
-      today.getMonth() + 1
-    ).padStart(2, "0")}/${today.getFullYear()}`;
+      return activeFilterLabel;
+    }, [
+      period?.startDate,
+      period?.statDate, // ✅ เพิ่ม dependency
+      period?.endDate,
+      mode,
+      currentYear,
+      previousYear,
+      start,
+      end,
+      activeFilterLabel,
+    ]);
+    // ── Column header labels ─────────────────────────────
+    const currentColLabel = useMemo(() => {
+      switch (mode) {
+        case "month-compare":
+          return currentYear != null
+            ? `ງວດປັດຈຸບັນ\n${formatToMonthYear(currentYear)}\nມູນຄ່າຍັງເຫຼືອ`
+            : `${activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
 
+        case "default-compare":
+          return `ປະຈຳປີ ${currentYear ?? activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+
+        case "custom": {
+          // ✅ ใช้ startDate/statDate เหมือน periodText
+          const startDate = period?.startDate ?? period?.statDate;
+          const endDate = period?.endDate;
+          return startDate && endDate
+            ? `ແຕ່ ${formatDate(startDate)}\nຫາ ${formatDate(
+                endDate
+              )}\nມູນຄ່າຍັງເຫຼືອ`
+            : `${activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+        }
+
+        default:
+          return `${activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+      }
+    }, [
+      mode,
+      currentYear,
+      activeFilterLabel,
+      period?.startDate,
+      period?.statDate,
+      period?.endDate,
+    ]);
+
+    const previousColLabel = useMemo(() => {
+      if (!comparable) return null;
+
+      switch (mode) {
+        case "month-compare":
+          return previousYear != null
+            ? `ງວດກ່ອນ\n${formatToMonthYear(previousYear)}\nມູນຄ່າຍັງເຫຼືອ`
+            : `${activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+
+        case "default-compare":
+          return `ປະຈຳປີ ${previousYear ?? activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+
+        case "custom":
+          // custom มักไม่มี previous column แต่ fallback ไว้
+          return `${activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+
+        default:
+          return `${previousYear ?? activeFilterLabel}\nມູນຄ່າຍັງເຫຼືອ`;
+      }
+    }, [comparable, mode, previousYear, activeFilterLabel]);
+    // ────────────────────────────────────────────────────
     return (
-      <div
-        ref={ref}
-        style={{
-          width: "210mm",
-          minHeight: "290mm",
-          padding: "12mm 15mm",
-          margin: "0 auto",
-          background: "#fff",
-          fontFamily: "Noto Sans Lao, sans-serif",
-          fontSize: "9pt",
-          color: "#000",
-          boxSizing: "border-box",
-          pageBreakAfter: "always",
-        }}
-      >
-        {/* ================= HEADER ================= */}
-        {/* ================= HEADER ================= */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "40% 60%",
-            marginBottom: "18px",
-          }}
-        >
-          {/* Left : Address */}
-          <div
-            style={{
-              fontSize: "9pt",
-              lineHeight: "1.45",
-              paddingLeft: "8px",
-              paddingTop: "35px",
-            }}
-          >
-            {companyAddress.map((line, i) => (
-              <div
-                key={i}
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                  fontWeight: i === 0 ? "bold" : "normal",
-                }}
-              >
-                {line}
+      <>
+        <style>{PRINT_STYLES}</style>
+
+        <div ref={ref} style={S.page}>
+          <div style={S.content}>
+            {/* ── HEADER ───────────────────────────── */}
+            <div style={S.header}>
+              {/* Address */}
+              <div style={S.addrBlock}>
+                {companyAddress.map((line, i) => (
+                  <div key={i} style={S.addrName}>
+                    {line}
+                  </div>
+                ))}
+                {phone && <div style={S.phone}>ເບີໂທ: {phone}</div>}
               </div>
-            ))}
-            <div
-              style={{
-                marginTop: "4px",
-                fontFamily: "Noto Sans Lao, sans-serif",
-              }}
-            >
-              ເບີໂທ: {phone}
-            </div>
-          </div>
 
-          {/* Center : Title */}
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: "12pt",
-                fontFamily: "Noto Sans Lao, sans-serif",
-              }}
-            >
-              {companyName}
-            </div>
-            <div
-              style={{
-                fontSize: "10pt",
-                marginBottom: "10px",
-                fontFamily: "Noto Sans Lao, sans-serif",
-              }}
-            >
-              {slogan}
+              {/* Title */}
+              <div style={S.titleBlock}>
+                <div style={S.govTitle}>{companyName}</div>
+                <div style={S.slogan}>{slogan}</div>
+                <div style={S.reportTitle}>ໃບລາຍງານຜົນດຳເນີນງານ</div>
+                <div style={S.periodSubtitle}>{periodText}</div>
+              </div>
             </div>
 
-            <div
-              style={{
-                fontSize: "14pt",
-                fontWeight: "bold",
-                textTransform: "uppercase",
-                fontFamily: "Noto Sans Lao, sans-serif",
-              }}
-            >
-              ໃບລາຍງານຜົນດຳເນີນງານ
-            </div>
-            <div
-              style={{
-                fontFamily: "Noto Sans Lao, sans-serif",
-                fontSize: "9pt",
-                marginTop: "6px",
-              }}
-            >
-              {renderPeriodText()}
-            </div>
-          </div>
-        </div>
+            {/* Currency */}
+            <div style={S.currencyBar}>(ສະກຸນເງິນ: LAK)</div>
 
-        {/* Period and Currency */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "8.5pt",
-            marginBottom: "8px",
-          }}
-        >
-          <div></div>
-          <div
-            style={{
-              fontFamily: "Noto Sans Lao, sans-serif",
-            }}
-          >
-            ສະກຸນເງິນ: LAK
-          </div>
-        </div>
-
-        {/* ================= TABLE ================= */}
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "8.5pt",
-            border: "1px solid #000",
-          }}
-        >
-          <thead>
-            {/* ===== Row 1 : Column headers ===== */}
-            <tr>
-              <th
-                style={{
-                  border: "1px solid #000",
-                  padding: "6px",
-                  width: "45%",
-                  background: "#f5f5f5",
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                }}
-              >
-                ເນື້ອໃນລາຍການ
-              </th>
-              <th
-                style={{
-                  border: "1px solid #000",
-                  padding: "6px",
-                  width: "8%",
-                  background: "#f5f5f5",
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                }}
-              >
-                ໝາຍເຫດ
-              </th>
-              <th
-                style={{
-                  border: "1px solid #000",
-                  padding: "6px",
-                  background: "#f5f5f5",
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                }}
-              >
-                {renderCurrentColumnLabel()} <br />
-                ມູນຄ່າຍັງເຫຼືອ
-              </th>
-
-              {comparable && (
-                <th
-                  style={{
-                    border: "1px solid #000",
-                    padding: "6px",
-                    background: "#f5f5f5",
-                    fontFamily: "Noto Sans Lao, sans-serif",
-                  }}
-                >
-                  {renderPreviousColumnLabel()} <br />
-                  ມູນຄ່າຍັງເຫຼືອ
-                </th>
-              )}
-            </tr>
-          </thead>
-
-          <tbody>
-            {mergedLines?.map((l) => {
-              const boldLabels = [
-                "Gross Profit",
-                "Operating Profit (Loss)",
-                "Profit or Loss before Tax",
-                "Profit or Loss for the Year Net of Tax",
-                "Other Comprehensive Income Net of Tax",
-                "Profit or Loss for the Period Net of Tax",
-                "ຜົນໄດ້ຮັບເບື້ອງຕົ້ນ",
-                "ຜົນໄດ້ຮັບ ໃນການທຸລະກິດ",
-                "ຜົນໄດ້ຮັບ ກ່ອນການເສຍອາກອນ",
-                "ຜົນໄດ້ຮັບສຸດທິ ຈາກການດຳເນີນງານ",
-                "ຜົນໄດ້ຮັບສັງລວມ ຫຼັງອາກອນ",
-                "ຜົນໄດ້ຮັບສຸດທິໃນປີ",
-              ];
-
-              const isBold = boldLabels.includes(l.label);
-              const isSection =
-                l.label === "Of which:" || l.label.startsWith("Of which");
-
-              return (
-                <tr key={l.key}>
-                  <td
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 8px",
-                      paddingBottom: "7px",
-                      fontFamily: "Noto Sans Lao, sans-serif",
-                      fontWeight: isBold ? "bold" : "normal",
-                      fontSize: isBold ? "9pt" : "8.5pt",
-                      paddingLeft: isSection ? "12px" : "8px",
-                    }}
-                  >
-                    {l.label}
-                  </td>
-                  <td
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 8px",
-                      textAlign: "center",
-                      fontFamily: "Noto Sans Lao, sans-serif",
-                    }}
-                  ></td>
-                  <td
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 8px",
-                      textAlign: "right",
-                      fontFamily: "Noto Sans Lao, sans-serif",
-                    }}
-                  >
-                    {formatNumber(l.cur)}
-                  </td>
+            {/* ── TABLE ────────────────────────────── */}
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  <Th style={S.thLabel}>ເນື້ອໃນລາຍການ</Th>
+                  <Th style={S.thNote}>ໝາຍເຫດ</Th>
+                  <Th style={{ ...S.thNum, whiteSpace: "pre-line" }}>
+                    {currentColLabel}
+                  </Th>
                   {comparable && (
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 8px",
-                        textAlign: "right",
-                        fontFamily: "Noto Sans Lao, sans-serif",
-                      }}
-                    >
-                      {formatNumber(l.prev)}
-                    </td>
+                    <Th style={{ ...S.thNum, whiteSpace: "pre-line" }}>
+                      {previousColLabel}
+                    </Th>
                   )}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginTop: "16px",
-            width: "100%",
-          }}
-        >
-          {/* Footer note (ซ้าย) */}
-          <div
-            style={{
-              fontSize: "7.5pt",
-              fontStyle: "italic",
-              fontFamily: "Noto Sans Lao, sans-serif",
-              maxWidth: "60%",
-              lineHeight: 1.4,
-            }}
-          >
-            (1) ໃຫ້ນຳໃຊ້ພຽງແຕ່ ເພື່ອສະເໜີ ເອກະສານລາຍງານການເງິນ ລວມກິດຈະການ.
-          </div>
+              <tbody>
+                {mergedLines.length > 0 ? (
+                  mergedLines.map((line) => (
+                    <LineRow
+                      key={line.key}
+                      line={line}
+                      comparable={comparable}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={comparable ? 4 : 3}
+                      style={{
+                        ...S.cell,
+                        textAlign: "center",
+                        fontStyle: "italic",
+                        color: "#999",
+                        padding: "12px",
+                      }}
+                    >
+                      ບໍ່ມີຂໍ້ມູນ
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
 
-          {/* Date (ขวา) */}
-          <div
-            style={{
-              fontSize: "8pt",
-              fontFamily: "Noto Sans Lao, sans-serif",
-              textAlign: "right",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ທີ່ .......................................,ວັນທີ່ {formattedDate}
-          </div>
-        </div>
-
-        {/* ================= FOOTER SIGNATURES ================= */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            marginTop: "33px",
-            fontSize: "8.5pt",
-            textAlign: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontFamily: "Noto Sans Lao, sans-serif",
-                textDecoration: "underline",
-                fontWeight: "normal",
-              }}
-            >
-              ຜູ້ອຳນວຍການ
+            {/* ── POST-TABLE ───────────────────────── */}
+            <div style={S.postTable}>
+              <div style={S.footNote}>
+                (1) ໃຫ້ນຳໃຊ້ພຽງແຕ່ ເພື່ອສະເໜີ ເອກະສານລາຍງານການເງິນ ລວມກິດຈະການ.
+              </div>
+              <div style={S.dateLine}>{user?.companyId.information || ""}</div>
             </div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontFamily: "Noto Sans Lao, sans-serif",
-                textDecoration: "underline",
-                fontWeight: "normal",
-              }}
-            >
-              ຫົວໜ້າບັນຊີ
-            </div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontFamily: "Noto Sans Lao, sans-serif",
-                textDecoration: "underline",
-                fontWeight: "normal",
-              }}
-            >
-              ຜູ້ສະຫຼຸບ
+
+            {/* ── SIGNATURES ───────────────────────── */}
+            <div style={S.sigRow}>
+              {["ຜູ້ອຳນວຍການ", "ຫົວໜ້າບັນຊີ", "ຜູ້ສະຫຼຸບ"].map((title) => (
+                <SigBox key={title} title={title} />
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 );

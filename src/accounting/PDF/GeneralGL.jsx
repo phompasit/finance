@@ -18,13 +18,13 @@ const formatDate = (d) => {
 
 /* ================= Component ================= */
 const GeneralGL = forwardRef(
-  ({ dateRange = "", user, data, activeTab }, ref) => {
+  ({ dateRange, user, data, activeTab }, ref) => {
     /* ================= Normalize data ================= */
     const dataArray = useMemo(
       () => (Array.isArray(data) ? data : data ? [data] : []),
       [data]
     );
-
+    console.log("dateRange",dateRange)
     /* ================= Process transactions ================= */
     const getTransactionRows = useMemo(() => {
       return (accData) => {
@@ -313,15 +313,7 @@ const GeneralGL = forwardRef(
                     fontSize: 12,
                   }}
                 >
-                  ທີ່........................................., ວັນທີ່:
-                </div>
-                <div
-                  style={{
-                    fontFamily: "'Noto Sans Lao', sans-serif",
-                    fontSize: 12,
-                  }}
-                >
-                  {new Date().toLocaleDateString("en-GB")}
+                 {user?.companyId.information || ""}
                 </div>
               </div>
               {/* ================= Footer Signatures ================= */}

@@ -26,8 +26,8 @@ const incomeSlice = createSlice({
     comparable: false,
     currentYear: null,
     previousYear: null,
-    mode:null,
-    period:null,
+    mode: null,
+    period: null,
     // 🔽 payload
     data: null,
   },
@@ -54,7 +54,7 @@ const incomeSlice = createSlice({
         state.currentYear = payload.currentYear ?? null;
         state.previousYear = payload.previousYear ?? null;
         (state.mode = payload.mode ?? null),
-          (state.period = payload.mode ?? null),
+          (state.period = payload.period ?? null),
           // รองรับทั้งแบบ compare และไม่ compare
           (state.data = payload.data ?? payload);
       })

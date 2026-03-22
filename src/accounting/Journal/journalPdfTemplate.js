@@ -3,6 +3,7 @@
 /**
  * Generates a professional PDF report for journal vouchers
  * Groups entries by month and date with running totals
+ * Includes description column per entry (shown only on first line)
  */
 export default function journalPdfTemplate({ data, user }) {
   if (!Array.isArray(data) || data.length === 0) return;
@@ -12,577 +13,568 @@ export default function journalPdfTemplate({ data, user }) {
   // ============================================================================
 
   const formatNumber = (n) =>
-    n !== undefined && n !== null
+    n !== undefined && n !== null && n !== 0
       ? Number(n).toLocaleString("en-US", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })
       : "";
 
+  const formatNumberTotal = (n) =>
+    n !== undefined && n !== null
+      ? Number(n).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : "0.00";
+
   const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "");
 
   const formatMonthYear = (d) => {
     if (!d) return "";
     const date = new Date(d);
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    return `${month}/${year}`;
+    return `${date.getMonth() + 1}/${date.getFullYear()}`;
   };
 
   const getMonthSortKey = (d) => {
     if (!d) return "";
     const date = new Date(d);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const getDateSortKey = (dateStr) => {
+    const parts = dateStr.split("/");
+    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateStr;
   };
 
   // ============================================================================
-  // DATA PROCESSING - Group by Month and Date
+  // DATA PROCESSING
   // ============================================================================
 
   const groupedData = {};
 
   data.forEach((entry) => {
-    const sortKey = getMonthSortKey(entry.date);
+    const sortKey  = getMonthSortKey(entry.date);
     const monthYear = formatMonthYear(entry.date);
-    const dateKey = formatDate(entry.date);
+    const dateKey  = formatDate(entry.date);
 
     if (!groupedData[sortKey]) {
-      groupedData[sortKey] = {
-        display: monthYear,
-        dates: {},
-      };
+      groupedData[sortKey] = { display: monthYear, dates: {} };
     }
-
     if (!groupedData[sortKey].dates[dateKey]) {
       groupedData[sortKey].dates[dateKey] = [];
     }
-
     groupedData[sortKey].dates[dateKey].push(entry);
   });
 
   // ============================================================================
-  // TABLE GENERATION - Build HTML rows with totals
+  // BUILD TABLE ROWS
   // ============================================================================
 
   const buildTableRows = () => {
     let rows = "";
     let rowNumber = 1;
-    let grandTotalDebitLAK = 0;
+    let grandTotalDebitLAK  = 0;
     let grandTotalCreditLAK = 0;
 
-    Object.keys(groupedData)
-      .sort()
-      .forEach((sortKey) => {
-        const monthData = groupedData[sortKey];
-        const monthYear = monthData.display;
-        let monthTotalDebitLAK = 0;
-        let monthTotalCreditLAK = 0;
+    Object.keys(groupedData).sort().forEach((sortKey) => {
+      const monthData = groupedData[sortKey];
+      const monthYear = monthData.display;
+      let monthTotalDebitLAK  = 0;
+      let monthTotalCreditLAK = 0;
 
-        // Month Header Row
-        rows += `
-        <tr class="month-header">
-          <td colspan="12"><strong>ເດືອນ: ${monthYear}</strong></td>
-        </tr>`;
+      rows += `
+      <tr class="month-header">
+        <td colspan="13">ເດືອນ: ${monthYear}</td>
+      </tr>`;
 
-        Object.keys(monthData.dates).forEach((dateKey) => {
-          let dateTotalDebitLAK = 0;
-          let dateTotalCreditLAK = 0;
+      const sortedDates = Object.keys(monthData.dates).sort((a, b) =>
+        getDateSortKey(a).localeCompare(getDateSortKey(b))
+      );
 
-          // Process each journal entry for this date
-          monthData.dates[dateKey].forEach((entry) => {
-            entry.lines?.forEach((line) => {
-              const account = line.accountId || {};
-              const debitLAK = Number(line.debitLAK || 0);
-              const creditLAK = Number(line.creditLAK || 0);
+      sortedDates.forEach((dateKey) => {
+        let dateTotalDebitLAK  = 0;
+        let dateTotalCreditLAK = 0;
 
-              // Accumulate totals
-              dateTotalDebitLAK += debitLAK;
-              dateTotalCreditLAK += creditLAK;
-              monthTotalDebitLAK += debitLAK;
-              monthTotalCreditLAK += creditLAK;
-              grandTotalDebitLAK += debitLAK;
-              grandTotalCreditLAK += creditLAK;
+        monthData.dates[dateKey].forEach((entry) => {
+          const entryLines = entry.lines || [];
 
-              // Build data row
-              rows += `
-              <tr>
-                <td class="center">${rowNumber++}</td>
-                <td class="center">${dateKey}</td>
-                <td class="center">${entry.reference || ""}</td>
-                <td class="center">${
-                  line.side === "dr" ? account.code || "" : ""
-                }</td>
-                <td class="center">${
-                  line.side === "cr" ? account.code || "" : ""
-                }</td>
-                <td class="left">${account.name || ""}</td>
-                <td class="right">${
-                  line.side === "dr" ? formatNumber(line.debitOriginal) : ""
-                }</td>
-                <td class="right">${
-                  line.side === "cr" ? formatNumber(line.creditOriginal) : ""
-                }</td>
-                <td class="center">${line.currency || ""}</td>
-                <td class="right">${formatNumber(line.exchangeRate)}</td>
-                <td class="right">${formatNumber(line.debitLAK)}</td>
-                <td class="right">${formatNumber(line.creditLAK)}</td>
-              </tr>`;
-            });
+          entryLines.forEach((line, lineIndex) => {
+            const account   = line.accountId || {};
+            const debitLAK  = Number(line.debitLAK  || 0);
+            const creditLAK = Number(line.creditLAK || 0);
+
+            dateTotalDebitLAK  += debitLAK;
+            dateTotalCreditLAK += creditLAK;
+            monthTotalDebitLAK  += debitLAK;
+            monthTotalCreditLAK += creditLAK;
+            grandTotalDebitLAK  += debitLAK;
+            grandTotalCreditLAK += creditLAK;
+
+            const isFirst    = lineIndex === 0;
+            const totalLines = entryLines.length;
+            const rs         = isFirst && totalLines > 1 ? ` rowspan="${totalLines}"` : "";
+
+            const dateCell  = isFirst ? `<td class="center td-date"${rs}>${dateKey}</td>` : "";
+            const refCell   = isFirst ? `<td class="center td-ref"${rs}>${entry.reference || ""}</td>` : "";
+            const descCell  = isFirst ? `<td class="left td-desc"${rs}>${entry.description || ""}</td>` : "";
+
+            rows += `
+            <tr class="data-row">
+              <td class="center td-no">${rowNumber++}</td>
+              ${dateCell}
+              ${refCell}
+              ${descCell}
+              <td class="center td-code">${line.side === "dr" ? account.code || "" : ""}</td>
+              <td class="center td-code">${line.side === "cr" ? account.code || "" : ""}</td>
+              <td class="left td-name">${account.name || ""}</td>
+              <td class="right td-amt">${line.side === "dr" ? formatNumber(line.debitOriginal)  : ""}</td>
+              <td class="right td-amt">${line.side === "cr" ? formatNumber(line.creditOriginal) : ""}</td>
+              <td class="center td-ccy">${line.currency || ""}</td>
+              <td class="right td-rate">${line.exchangeRate && line.exchangeRate !== 1 ? formatNumber(line.exchangeRate) : "1.00"}</td>
+              <td class="right td-lak dr-col">${debitLAK  ? formatNumber(debitLAK)  : ""}</td>
+              <td class="right td-lak cr-col">${creditLAK ? formatNumber(creditLAK) : ""}</td>
+            </tr>`;
           });
-
-          // Daily Subtotal Row
-          rows += `
-          <tr class="date-subtotal">
-            <td colspan="10" class="right"><strong>ຍອດລວມວັນທີ ${dateKey}:</strong></td>
-            <td class="right"><strong>${formatNumber(
-              dateTotalDebitLAK
-            )}</strong></td>
-            <td class="right"><strong>${formatNumber(
-              dateTotalCreditLAK
-            )}</strong></td>
-          </tr>`;
         });
 
-        // Monthly Subtotal Row
         rows += `
-        <tr class="month-subtotal">
-          <td colspan="10" class="right"><strong>ຍອດລວມເດືອນ ${monthYear}:</strong></td>
-          <td class="right"><strong>${formatNumber(
-            monthTotalDebitLAK
-          )}</strong></td>
-          <td class="right"><strong>${formatNumber(
-            monthTotalCreditLAK
-          )}</strong></td>
+        <tr class="date-subtotal">
+          <td colspan="11" class="right">ຍອດລວມວັນທີ ${dateKey}</td>
+          <td class="right">${formatNumberTotal(dateTotalDebitLAK)}</td>
+          <td class="right">${formatNumberTotal(dateTotalCreditLAK)}</td>
         </tr>`;
       });
 
-    return {
-      rows,
-      grandTotalDebitLAK,
-      grandTotalCreditLAK,
-    };
+      rows += `
+      <tr class="month-subtotal">
+        <td colspan="11" class="right">ຍອດລວມເດືອນ ${monthYear}</td>
+        <td class="right">${formatNumberTotal(monthTotalDebitLAK)}</td>
+        <td class="right">${formatNumberTotal(monthTotalCreditLAK)}</td>
+      </tr>`;
+    });
+
+    return { rows, grandTotalDebitLAK, grandTotalCreditLAK };
   };
 
   const { rows, grandTotalDebitLAK, grandTotalCreditLAK } = buildTableRows();
 
   // ============================================================================
-  // PDF CONFIGURATION
+  // CONFIG
   // ============================================================================
 
-  const filename =
-    data.length === 1
-      ? data[0].reference || "journal-voucher"
-      : "journal-voucher-list";
+  const filename = data.length === 1
+    ? data[0].reference || "journal-voucher"
+    : "journal-voucher-list";
 
-  const companyName = user?.companyId?.name || "";
+  const companyName  = user?.companyId?.name  || "";
   const companyPhone = user?.companyId?.phone || "";
-  const currentDate = formatDate(new Date());
+  const currentDate  = formatDate(new Date());
 
   // ============================================================================
-  // HTML TEMPLATE GENERATION
+  // HTML TEMPLATE
   // ============================================================================
 
-  const htmlTemplate = `
-<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="lo">
 <head>
-<meta charset="UTF-8" />
-<title>Journal Voucher - ${filename}</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8"/>
+<title>ບັດຜ່ານບັນຊີ - ${filename}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <style>
-/* ===== PAGE SETUP ===== */
-@page { 
-  size: A4 landscape; 
-  margin: 15mm 12mm;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ─── PAGE ─────────────────────────────────────────────── */
+@page { size: A4 landscape; margin: 12mm 10mm 14mm 10mm; }
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 body {
   font-family: "Noto Sans Lao", sans-serif;
-  font-size: 10pt;
-  color: #000;
-  line-height: 1.5;
+  font-size: 9pt;
+  color: #111;
+  line-height: 1.55;
   background: #fff;
 }
 
-/* ===== HEADER SECTION ===== */
+/* ─── HEADER ────────────────────────────────────────────── */
 .header {
   text-align: center;
-  margin-bottom: 8mm;
-  border-bottom: 2pt solid #000;
-  padding-bottom: 4mm;
+  padding-bottom: 3.5mm;
+  margin-bottom: 4.5mm;
+  border-top: 3pt solid #111;
+  border-bottom: 1pt solid #111;
+  padding-top: 2.5mm;
 }
-
-.header h1 {
-  font-size: 14pt;
+.hd-state {
+  font-size: 11pt;
   font-weight: 700;
-  margin-bottom: 2mm;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 1mm;
 }
-
-.header h2 {
-  font-size: 10pt;
-  font-weight: 400;
-  font-style: italic;
-  margin-bottom: 3mm;
-  color: #333;
+.hd-motto {
+  font-size: 8.5pt;
+  color: #555;
+  letter-spacing: 0.5px;
+  margin-bottom: 3.5mm;
 }
-
-.header h3 {
-  font-size: 15pt;
-  font-weight: 700;
-  margin-top: 3mm;
-  text-decoration: underline;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-/* ===== DOCUMENT INFO ===== */
-.doc-info {
-  margin-bottom: 8mm;
-  font-size: 10pt;
-  line-height: 1.8;
-}
-
-.info-group {
-  margin-bottom: 3mm;
-}
-
-.info-group .label {
-  font-weight: 600;
+.hd-title {
   display: inline-block;
-  width: 80px;
+  font-size: 14.5pt;
+  font-weight: 700;
+  letter-spacing: 3px;
+  padding: 1.5mm 10mm;
+  border-top: 0.75pt solid #888;
+  border-bottom: 0.75pt solid #888;
 }
 
-.info-group .value {
-  display: inline;
+/* ─── META BAR ──────────────────────────────────────────── */
+.meta-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 8.5pt;
+  line-height: 1.75;
+  padding-bottom: 2.5mm;
+  margin-bottom: 3.5mm;
+  border-bottom: 0.5pt solid #bbb;
 }
+.meta-right { text-align: right; color: #555; }
+.ml { font-weight: 600; display: inline-block; min-width: 62px; }
 
-/* ===== TABLE STYLES ===== */
-.table-container {
-  margin: 15px 0 25px 0;
-}
-
+/* ─── TABLE SCAFFOLD ────────────────────────────────────── */
+/*
+  Landscape A4 usable ≈ 267mm after 10mm margins each side.
+  13 columns. Widths in mm:
+  no=4 | date=17 | ref=25 | desc=36 | dr=13 | cr=13 |
+  name=38 | orig-dr=19 | orig-cr=19 | ccy=8 | rate=16 |
+  lak-dr=25 | lak-cr=24  → total = 257mm (safe)
+*/
 table {
   width: 100%;
   border-collapse: collapse;
-  border: 1.5pt solid #000;
-  font-size: 9pt;
+  table-layout: fixed;
+  border: 1.5pt solid #111;
+  font-size: 8pt;
 }
 
+col.c-no      { width:  4mm; }
+col.c-date    { width: 17mm; }
+col.c-ref     { width: 25mm; }
+col.c-desc    { width: 36mm; }
+col.c-drcode  { width: 13mm; }
+col.c-crcode  { width: 13mm; }
+col.c-name    { width: 38mm; }
+col.c-odr     { width: 19mm; }
+col.c-ocr     { width: 19mm; }
+col.c-ccy     { width:  8mm; }
+col.c-rate    { width: 16mm; }
+col.c-ldr     { width: 25mm; }
+col.c-lcr     { width: 24mm; }
+
+/* ─── TH ─────────────────────────────────────────────────── */
 th, td {
-  border: 1px solid #333;
-  padding: 6px 5px;
+  border: 0.5pt solid #888;
+  padding: 3px 2.5px;
   vertical-align: middle;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-th {
-  background: #f5f5f5;
-  color: #000;
-  font-weight: 700;
-  font-size: 9pt;
-  text-align: center;
-  white-space: normal;
-  line-height: 1.3;
-}
-
-td {
-  font-size: 9pt;
-  line-height: 1.4;
-  color: #000;
-}
-
-/* Column Alignment */
-.center { text-align: center; }
-.left { text-align: left; padding-left: 6px; }
-.right { 
-  text-align: right; 
-  padding-right: 6px;
-  font-family: 'Courier New', monospace;
-}
-
-/* Special Rows */
-.month-header td {
-  background: #d0e4f7;
-  font-weight: 700;
-  font-size: 10pt;
-  padding: 8px 6px;
-  border: 1.5px solid #000;
-  text-align: left;
-}
-
-.date-subtotal {
-  background: #f5f5f5;
-}
-
-.date-subtotal td {
+thead th {
+  color: #1e1e1e;
   font-weight: 600;
-  border-top: 1.5px solid #666;
-  font-size: 9pt;
-}
-
-.month-subtotal {
-  background: #e8e8e8;
-}
-
-.month-subtotal td {
-  font-weight: 700;
-  padding: 8px 6px;
-  border-top: 2px solid #000;
-  border-bottom: 2px solid #000;
-  font-size: 9.5pt;
-}
-
-.grand-total-row {
-  background: #c8e6c9;
-  font-weight: 700;
-}
-
-.grand-total-row td {
-  border-top: 3pt solid #000;
-  border-bottom: 3pt double #000;
-  padding: 10px 6px;
-  font-size: 10pt;
-}
-
-/* ===== FOOTER SECTION ===== */
-.footer-info {
-  margin-top: 6mm;
-  margin-bottom: 10mm;
-  display: flex;
-  gap: 30px;
-  justify-content:"flex-end"
-  font-size: 10pt;
-}
-
-/* ===== SIGNATURE SECTION ===== */
-.signatures {
-  margin-top: 12mm;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15mm;
+  font-size: 7.5pt;
   text-align: center;
+  line-height: 1.3;
+  padding: 4px 3px;
+  border-color: #444;
+}
+thead tr:nth-child(2) th {
+  
+  font-size: 7pt;
+  padding: 2.5px 3px;
 }
 
-.signature-box {
-  min-height: 55mm;
+/* ─── ALIGNMENT HELPERS ─────────────────────────────────── */
+.center { text-align: center; }
+.left   { text-align: left;  padding-left: 3.5px; }
+.right  { text-align: right; padding-right: 3.5px; font-variant-numeric: tabular-nums; }
+
+/* ─── CELL STYLES ───────────────────────────────────────── */
+/* row number */
+.td-no {
+  font-size: 7pt;
+  color: #999;
 }
 
-.signature-box .title {
-  font-weight: 700;
-  font-size: 10pt;
-  margin-bottom: 2mm;
+/* date — never wrap */
+.td-date {
+  font-size: 7.5pt;
+  white-space: nowrap;
 }
 
-.signature-box .subtitle {
-  font-size: 9pt;
-  margin-bottom: 18mm;
+/* reference — small, no wrap, ellipsis if overflow */
+.td-ref {
+  font-size: 7pt;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* description — italic, wraps, line-clamp for very long text */
+.td-desc {
+  font-size: 7.5pt;
   font-style: italic;
+  color: #333;
+  line-height: 1.4;
+}
+
+/* account code — semi-bold, no wrap */
+.td-code {
+  font-size: 7.5pt;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* account name — wraps naturally */
+.td-name {
+  font-size: 7.5pt;
+  line-height: 1.4;
+}
+
+/* original amount */
+.td-amt {
+  font-size: 7.5pt;
+}
+
+/* currency */
+.td-ccy {
+  font-size: 7pt;
+  color: #666;
+}
+
+/* exchange rate */
+.td-rate {
+  font-size: 7.5pt;
   color: #555;
 }
 
-.signature-box .line {
-  border-top: 1pt solid #000;
-  margin: 0 auto;
-  width: 75%;
-  margin-bottom: 2mm;
+/* LAK columns */
+.td-lak {
+  font-size: 8pt;
+  font-weight: 600;
+}
+.dr-col { color: #0c2d6b; }
+.cr-col { color: #0d4d1e; }
+
+/* ─── SPECIAL ROWS ──────────────────────────────────────── */
+
+/* zebra — data rows only */
+tbody tr.data-row:nth-child(odd)  td { background: #fff; }
+tbody tr.data-row:nth-child(even) td { background: #f6f7f8; }
+
+/* month header */
+.month-header td {
+  color:#1e1e1e;
+  font-size: 8.5pt;
+  font-weight: 600;
+  padding: 4.5px 6px;
+  border-color: #000;
+  letter-spacing: 0.3px;
 }
 
-.signature-box .name {
+/* date subtotal */
+.date-subtotal td {
+  background: #deeaf7 !important;
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: #0c2d6b;
+  padding: 3px 4px;
+  border-top: 1pt solid #6fa8d0;
+}
+
+/* month subtotal */
+.month-subtotal td {
+  background: #daf0e0 !important;
+  font-size: 8pt;
+  font-weight: 700;
+  color: #0d4d1e;
+  padding: 4px 4px;
+  border-top: 1.5pt solid #27ae60;
+  border-bottom: 1.5pt solid #27ae60;
+}
+
+/* grand total */
+.grand-total-row td {
+  color:#1e1e1e;
   font-size: 9pt;
+  font-weight: 700;
+  padding: 6px 4px;
+  border-top: 2.5pt solid #000;
+  border-bottom: 2.5pt double #000;
 }
 
-/* ===== PRINT OPTIMIZATION ===== */
+/* ─── FOOTER & SIGNATURES ───────────────────────────────── */
+.footer-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18mm;
+  font-size: 8.5pt;
+  color: #444;
+  margin-top: 4mm;
+  margin-bottom: 6mm;
+  padding-top: 2mm;
+  border-top: 0.5pt solid #bbb;
+}
+
+.sigs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8mm;
+  text-align: center;
+  margin-top: 6mm;
+}
+.sig {
+  border: 0.5pt solid #ccc;
+  padding: 3mm 4mm 4mm;
+}
+.sig .s-title { font-size: 9pt; font-weight: 700; margin-bottom: 0.8mm; }
+.sig .s-sub   { font-size: 7.5pt; color: #888; font-style: italic; margin-bottom: 13mm; }
+.sig .s-line  { border-top: 0.75pt solid #333; width: 75%; margin: 0 auto 1.5mm; }
+.sig .s-name  { font-size: 8pt; color: #555; }
+
+/* ─── PRINT ─────────────────────────────────────────────── */
 @media print {
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  
-  table {
-    page-break-inside: auto;
-    font-size: 8.5pt;
-  }
-  
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
-  }
-  
-  thead {
-    display: table-header-group;
-  }
-  
-  th {
-    background: #f5f5f5 !important;
-    font-size: 8pt !important;
-    padding: 5px 4px !important;
-  }
-  
-  td {
-    font-size: 8pt !important;
-    padding: 5px 4px !important;
-  }
-  
-  .month-header td {
-    background: #d0e4f7 !important;
-    font-size: 9pt !important;
-  }
-  
-  .date-subtotal td {
-    background: #f5f5f5 !important;
-  }
-  
-  .month-subtotal td {
-    background: #e8e8e8 !important;
-  }
-  
-  .grand-total-row td {
-    background: #c8e6c9 !important;
-  }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+
+  thead th                        { color:#1e1e1e !important; }
+  thead tr:nth-child(2) th        
+  .month-header td                {  color:#1e1e1e !important; }
+  .date-subtotal td               { background: #deeaf7 !important; }
+  .month-subtotal td              { background: #daf0e0 !important; }
+  .grand-total-row td             {  color:#1e1e1e !important; }
+  tbody tr.data-row:nth-child(even) td { background: #f6f7f8 !important; }
 }
 </style>
 </head>
-
 <body>
 
 <!-- HEADER -->
 <div class="header">
-  <h1>ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</h1>
-  <h2>ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ</h2>
-  <h3>ບັດຜ່ານບັນຊີ</h3>
+  <div class="hd-state">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
+  <div class="hd-motto">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ  ເອກະພາບ  ວັດທະນະຖາວອນ</div>
+  <div class="hd-title">ປື້ມປະຈຳວັນທົ່ວໄປ</div>
 </div>
 
-<!-- DOCUMENT INFO -->
-<div class="doc-info">
-  <div class="info-group">
-    <div><span class="label">ບໍລິສັດ:</span> <span class="value">${companyName}</span></div>
+<!-- META BAR -->
+<div class="meta-bar">
+  <div class="meta-left">
+    ${companyName  ? `<div><span class="ml">ບໍລິສັດ :</span> ${companyName}</div>`  : ""}
+    ${companyPhone ? `<div><span class="ml">ເບີໂທ &nbsp;&nbsp;:</span> ${companyPhone}</div>` : ""}
   </div>
-  <div class="info-group">
-    <div><span class="label">ເບີໂທ:</span> <span class="value">${companyPhone}</span></div>
+  <div class="meta-right">
+    <div><span class="ml">ວັນທີພິມ :</span> ${currentDate}</div>
+    <div><span class="ml">ຈຳນວນ &nbsp;&nbsp;:</span> ${data.length} ລາຍການ</div>
   </div>
 </div>
 
 <!-- TABLE -->
-<div class="table-container">
 <table>
+<colgroup>
+  <col class="c-no">   <col class="c-date">  <col class="c-ref">
+  <col class="c-desc"> <col class="c-drcode"><col class="c-crcode">
+  <col class="c-name"> <col class="c-odr">   <col class="c-ocr">
+  <col class="c-ccy">  <col class="c-rate">
+  <col class="c-ldr">  <col class="c-lcr">
+</colgroup>
 <thead>
 <tr>
-  <th rowspan="2">ລຳດັບ</th>
+  <th rowspan="2">#</th>
   <th rowspan="2">ວັນທີ</th>
   <th rowspan="2">ໃບຢັ້ງຢືນ</th>
+  <th rowspan="2">ລາຍລະອຽດ</th>
   <th colspan="2">ເລກບັນຊີ</th>
-  <th rowspan="2">ຄຳອະທິບາຍ</th>
-  <th colspan="2">ມູນຄ່າເດິມ</th>
-  <th rowspan="2">ສະກຸນເງິນ</th>
-  <th rowspan="2">ອັດຕາແລກປ່ຽນ</th>
-  <th colspan="2">ຈຳນວນເງິນ (LAK)</th>
+  <th rowspan="2">ຊື່ບັນຊີ</th>
+  <th colspan="2">ມູນຄ່າເດີມ</th>
+  <th rowspan="2">ສ.ງ.</th>
+  <th rowspan="2">ອັດຕາ<br>ແລກປ່ຽນ</th>
+  <th colspan="2">ຈຳນວນ (LAK)</th>
 </tr>
 <tr>
-  <th>DR</th>
-  <th>CR</th>
-  <th>DR</th>
-  <th>CR</th>
-  <th>DR</th>
-  <th>CR</th>
+  <th>ໜີ້</th><th>ມີ</th>
+   <th>ໜີ້</th><th>ມີ</th>
+   <th>ໜີ້</th><th>ມີ</th>
 </tr>
 </thead>
-
 <tbody>
 ${rows}
 <tr class="grand-total-row">
-  <td colspan="10" class="center"><strong>ລວມທັງໝົດ / GRAND TOTAL</strong></td>
-  <td class="right"><strong>${formatNumber(grandTotalDebitLAK)}</strong></td>
-  <td class="right"><strong>${formatNumber(grandTotalCreditLAK)}</strong></td>
+  <td colspan="11" class="center">ລວມທັງໝົດ &nbsp;/&nbsp; GRAND TOTAL</td>
+  <td class="right">${formatNumberTotal(grandTotalDebitLAK)}</td>
+  <td class="right">${formatNumberTotal(grandTotalCreditLAK)}</td>
 </tr>
 </tbody>
 </table>
-</div>
 
-<!-- FOOTER INFO -->
-<div class="footer-info">
-  <div>ສະຖານທີ່: .....................................</div>
-  <div>ວັນທີ: ${currentDate}</div>
+<!-- FOOTER -->
+<div class="footer-row">
+  <span>ສະຖານທີ່: _______________________________</span>
+  <span>ວັນທີ: ${currentDate}</span>
 </div>
 
 <!-- SIGNATURES -->
-<div class="signatures">
-  <div class="signature-box">
-    <div class="title">ຜູ້ອໍານວຍການ</div>
-    <div class="subtitle">(CEO)</div>
-    <div class="line"></div>
-    <div class="name">(...............................)</div>
+<div class="sigs">
+  <div class="sig">
+    <div class="s-title">ຜູ້ອໍານວຍການ</div>
+    <div class="s-sub">Director / CEO</div>
+    <div class="s-line"></div>
+    <div class="s-name">( _________________________ )</div>
   </div>
-  
-  <div class="signature-box">
-    <div class="title">ຫົວໜ້າການເງິນ</div>
-    <div class="subtitle">(CFO)</div>
-    <div class="line"></div>
-    <div class="name">(...............................)</div>
+  <div class="sig">
+    <div class="s-title">ຫົວໜ້າບັນຊີ</div>
+    <div class="s-sub">Accounting Manager </div>
+    <div class="s-line"></div>
+    <div class="s-name">( _________________________ )</div>
   </div>
-  
-  <div class="signature-box">
-    <div class="title">ພະນັກງານບັນຊີ</div>
-    <div class="subtitle">(Accountant)</div>
-    <div class="line"></div>
-    <div class="name">(...............................)</div>
+  <div class="sig">
+    <div class="s-title">ຜູ້ສະຫຼຸບ</div>
+    <div class="s-sub">Accountant</div>
+    <div class="s-line"></div>
+    <div class="s-name">( _________________________ )</div>
   </div>
 </div>
 
 <script>
 window.onload = function () {
-  const element = document.body;
-
   html2pdf()
     .set({
-          margin: [25, 25, 25, 25],
-      filename: '${filename}.pdf',
-      image: {
-        type: "jpeg",
-        quality: 0.95
-      },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-
-      },
-      jsPDF: {
-        unit: "mm",
-        format: "a5",
-        orientation: "landscape"
-      },
+      margin: [12, 10, 14, 10],
+      filename: "${filename}.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2.5, useCORS: true, letterRendering: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
     })
-    .from(element)
+    .from(document.body)
     .save()
-    .then(() => {
-      console.log('PDF generated successfully');
-    })
-    .catch((error) => {
-      console.error('PDF generation error:', error);
-    });
+    .then(() => console.log("PDF saved: ${filename}.pdf"))
+    .catch((err) => console.error("PDF error:", err));
 };
 </script>
-
 </body>
-</html>
-  `;
+</html>`;
 
   // ============================================================================
-  // RENDER PDF IN NEW WINDOW
+  // RENDER
   // ============================================================================
 
   const win = window.open("", "_blank");
-  win.document.write(htmlTemplate);
+  if (!win) {
+    console.error("Popup blocked — please allow popups for this site.");
+    return;
+  }
+  win.document.write(html);
   win.document.close();
 }

@@ -3,7 +3,7 @@ import Account_document from "../../models/accouting_system_models/Account_docum
 import { authenticate } from "../../middleware/auth.js";
 import JournalEntry from "../../models/accouting_system_models/journalEntry_models.js";
 import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.js";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import { body, param, validationResult } from "express-validator";
 
@@ -27,7 +27,7 @@ const createAccountLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user?._id || req.ip;
+    return req.user?._id ?? ipKeyGenerator(req.ip); // ✅ wrap req.ip
   },
 });
 
@@ -36,7 +36,7 @@ const generalLimiter = rateLimit({
   max: 100,
   message: "ຄຳຮ້ອງຂໍຫຼາຍເກີນໄປ, ກະລຸນາລອງໃໝ່ໃນພາຍຫຼັງ",
   keyGenerator: (req) => {
-    return req.user?._id || req.ip;
+    return req.user?._id ?? ipKeyGenerator(req.ip); // ✅ wrap req.ip
   },
 });
 

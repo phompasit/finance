@@ -527,6 +527,8 @@ router.get(
         return res.json({
           success: true,
           comparable: false,
+                   start: startDate,
+          end: endDate,
           mode: "custom",
           data: { current },
         });
@@ -592,12 +594,13 @@ router.get(
         end: new Date(previousYear, 11, 31, 23, 59, 59, 999),
         accounts,
       });
-
       return res.json({
         success: true,
         comparable: true,
         currentYear,
         previousYear,
+        startDate,
+        endDate,
         mode: "default-compare",
         data: { current, previous },
       });

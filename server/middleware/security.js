@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -129,7 +129,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => req.path === "/health" || req.path === "/api/health",
   keyGenerator: (req) => {
-    return req.user?._id || req.ip;
+    return req.user?._id ?? ipKeyGenerator(req.ip); // ✅ wrap req.ip
   },
 });
 
@@ -140,7 +140,7 @@ const authLimiter = rateLimit({
   message: "Too many login attempts. Try again later.",
   skipSuccessfulRequests: true,
   keyGenerator: (req) => {
-    return req.user?._id || req.ip;
+    return req.user?._id ?? ipKeyGenerator(req.ip); // ✅ wrap req.ip
   },
 });
 function validateIncomeStatementQuery({ year, month, startDate, endDate }) {

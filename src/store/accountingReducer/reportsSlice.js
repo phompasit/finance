@@ -120,6 +120,8 @@ const reportsSlice = createSlice({
         state.currentYear = p.currentYear;
         state.previousYear = p.previousYear;
         state.mode = p.mode;
+        state.start=p.start,
+        state.end = p.end,
         state.data = p.data || { current: [], previous: [] };
       })
       .addCase(fetchStatement.rejected, (state, action) => {

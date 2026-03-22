@@ -10,10 +10,18 @@ import {
   apiLimiter,
   validateIncomeStatementQuery,
 } from "../../middleware/security.js";
+
 const router = express.Router();
 
 /* ============================================================================
-   1) INCOME STATEMENT MAPPING (ใช้เฉพาะบัญชี category = "ອື່ນໆ")
+   CONSTANTS
+============================================================================ */
+const MAX_DATE_RANGE_DAYS = 400;
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2100;
+
+/* ============================================================================
+   1) INCOME STATEMENT MAPPING
 ============================================================================ */
 const INCOME_MAPPING = [
   {
@@ -21,50 +29,39 @@ const INCOME_MAPPING = [
     label: "ລາຍຮັບຈາກກິດຈະການປົກກະຕິ",
     pattern: "701-709,711-718,719",
   },
-
   {
     key: "cost_of_sales",
     label: "ຕົ້ນທຶນຂາຍ",
     pattern: "601-609,611-619,621-629,631-638,641-648,681-688,782-788",
   },
-
   {
     key: "other_income",
     label: "ລາຍຮັບອື່ນໆ ຈາກການດຳເນີນງານປົກກະຕິ",
     pattern: "741,748,751-758",
   },
-
   {
     key: "distribution_costs",
     label: "ຕົ້ນທຶນຈຳໜ່າຍ",
     pattern: "601-609,611-619,621-629,631-638,641-648,681-688,782-788",
   },
-
   {
     key: "administrative_expenses",
     label: "ຕົ້ນທຶນບໍລິຫານ",
     pattern: "601-609,611-619,621-629,631-638,641-648,681-688,782-788",
   },
-
   {
     key: "other_expenses",
     label: "ຄ່າໃຊ້ຈ່າຍອື່ນໆ ໃນການທຸລະກິດ",
     pattern: "651-658",
   },
-
-  // finance
   { key: "finance_income", label: "ລາຍຮັບການເງິນ", pattern: "761-768" },
   { key: "finance_cost", label: "ລາຍຈ່າຍການເງິນ", pattern: "661-668" },
-
-  // tax
   {
     key: "current_tax",
     label: "ອາກອນຕ້ອງຈ່າຍ ບ້ວງຜົນໄດ້ຮັບປົກກະຕິ",
     pattern: "691",
   },
   { key: "deferred_tax", label: "ອາກອນເຍື້ອນຊຳລະ", pattern: "694,699" },
-
-  // OCI
   {
     key: "tax_before_income",
     label: "ລາຍຮັບສັງລວມຫຼັງອາກອນ",
@@ -78,7 +75,55 @@ const INCOME_MAPPING = [
 ];
 
 /* ============================================================================
-   2) PATTERN PARSER
+   2) DATE HELPERS
+============================================================================ */
+
+/**
+ * Convert any value to a valid Date, or return null.
+ */
+function toDate(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Build a start-of-day Date for the given year/month/day.
+ */
+function startOf(year, month = 0, day = 1) {
+  return new Date(year, month, day, 0, 0, 0, 0);
+}
+
+/**
+ * Build an end-of-day Date.
+ * month is 1-based for readability at call-sites.
+ */
+function endOf(year, month, day) {
+  return new Date(year, month, day, 23, 59, 59, 999);
+}
+
+/**
+ * Full-year range [Jan 1 … Dec 31].
+ */
+function yearRange(year) {
+  return {
+    start: startOf(year, 0, 1),
+    end: endOf(year, 11, 31),
+  };
+}
+
+/**
+ * Full-month range for a given year + 1-based month.
+ */
+function monthRange(year, month) {
+  return {
+    start: startOf(year, month - 1, 1),
+    end: endOf(year, month, 0), // day-0 of next month = last day of this month
+  };
+}
+
+/* ============================================================================
+   3) PATTERN PARSER
 ============================================================================ */
 function parsePattern(pattern) {
   return pattern
@@ -120,62 +165,49 @@ function matchCodeWithParsed(code, parsedPatterns) {
   return false;
 }
 
+/* Pre-parse all patterns once at startup */
+const PARSED_INCOME_MAPPING = INCOME_MAPPING.map((m) => ({
+  ...m,
+  parsed: parsePattern(m.pattern),
+}));
+
 /* ============================================================================
-   3) CATEGORY → INCOME STATEMENT LINE MAPPING
+   4) CATEGORY → LINE MAPPING
 ============================================================================ */
+const CATEGORY_LINE_MAP = {
+  ຕົ້ນທຸນຂາຍ: "cost_of_sales",
+  ຕົ້ນທຸນຈຳຫນ່າຍ: "distribution_costs",
+  ຕົ້ນທຸນບໍລິຫານ: "administrative_expenses",
+};
+
 function categoryToLine(cat) {
-  switch (cat) {
-    case "ຕົ້ນທຸນຂາຍ":
-      return "cost_of_sales";
-    case "ຕົ້ນທຸນຈຳຫນ່າຍ":
-      return "distribution_costs";
-    case "ຕົ້ນທຸນບໍລິຫານ":
-      return "administrative_expenses";
-    default:
-      return null; // fallback → pattern
-  }
+  return CATEGORY_LINE_MAP[cat] ?? null;
 }
 
 /* ============================================================================
-   4) DATE RANGE
+   5) CORE: buildIncomeStatement
 ============================================================================ */
-function parseDateRange(query) {
-  const { preset, startDate, endDate } = query;
-  const end = endDate ? new Date(endDate) : new Date();
-  end.setHours(23, 59, 59, 999);
-
-  let start;
-  if (preset) {
-    start = new Date(end.getFullYear(), end.getMonth() - (preset - 1), 1);
-  } else if (startDate) {
-    start = new Date(startDate);
-  } else {
-    start = new Date(end.getFullYear(), 0, 1);
-  }
-
-  start.setHours(0, 0, 0, 0);
-  return { start, end };
-}
 async function buildIncomeStatement({ companyId, start, end }) {
-  const MAX_DAYS = 400;
-  if ((end - start) / 86400000 > MAX_DAYS) {
-    throw new Error("Date range too large");
-  }
-  if (!(start instanceof Date) || isNaN(start))
-    throw new Error("Invalid start");
-  if (!(end instanceof Date) || isNaN(end)) throw new Error("Invalid end");
-  if (start > end) throw new Error("Start after end");
+  /* ---- Validate dates ---- */
+  if (!(start instanceof Date) || isNaN(start.getTime()))
+    throw new Error("Invalid start date");
+  if (!(end instanceof Date) || isNaN(end.getTime()))
+    throw new Error("Invalid end date");
+  if (start > end) throw new Error("Start date must not be after end date");
+  if ((end - start) / 86_400_000 > MAX_DATE_RANGE_DAYS)
+    throw new Error(`Date range exceeds ${MAX_DATE_RANGE_DAYS} days`);
 
-  /* ------------------------ Load accounts ------------------------ */
+  /* ---- Load accounts ---- */
   const accounts = await Account.find({ companyId }).lean();
-  const idToAcc = {};
-  accounts.forEach((acc) => {
-    idToAcc[String(acc._id)] = acc;
-  });
+  if (!accounts.length) {
+    return buildEmptyResult();
+  }
 
-  /* ------------------------ Init rows --------------------------- */
+  const idToAcc = Object.fromEntries(accounts.map((a) => [String(a._id), a]));
+
+  /* ---- Initialise per-account rows ---- */
   const rows = {};
-  accounts.forEach((acc) => {
+  for (const acc of accounts) {
     rows[acc.code] = {
       accountId: String(acc._id),
       code: acc.code,
@@ -189,89 +221,76 @@ async function buildIncomeStatement({ companyId, start, end }) {
       endingDr: 0,
       endingCr: 0,
     };
-  });
+  }
 
-  /* --------------------- Opening ------------------------ */
+  /* ---- Opening balances ---- */
   const opens = await OpeningBalance.find({
     companyId,
     year: start.getFullYear(),
   }).lean();
 
-  opens.forEach((ob) => {
+  for (const ob of opens) {
     const acc = idToAcc[String(ob.accountId)];
-    if (!acc) return;
-    const code = acc.code;
+    if (!acc || !rows[acc.code]) continue;
+    rows[acc.code].openingDr += Number(ob.debit || 0);
+    rows[acc.code].openingCr += Number(ob.credit || 0);
+  }
 
-    rows[code].openingDr += Number(ob.debit || 0);
-    rows[code].openingCr += Number(ob.credit || 0);
-  });
-
-  /* --------------------- Movements ------------------------ */
-  const cursor = await JournalEntry.find({
+  /* ---- Journal movements ---- */
+  const cursor = JournalEntry.find({
     companyId,
     date: { $gte: start, $lte: end },
   })
     .select("lines.accountId lines.amountLAK lines.side")
+    .lean()
     .cursor();
 
   for await (const j of cursor) {
-    for (const ln of j.lines || []) {
+    for (const ln of j.lines ?? []) {
       const acc = idToAcc[String(ln.accountId)];
-      if (!acc) continue;
-      const code = acc.code;
+      if (!acc || !rows[acc.code]) continue;
       const amt = Number(ln.amountLAK || 0);
-
-      if (ln.side === "dr") rows[code].movementDr += amt;
-      else rows[code].movementCr += amt;
+      if (ln.side === "dr") rows[acc.code].movementDr += amt;
+      else rows[acc.code].movementCr += amt;
     }
   }
-  /* --------------------- Roll-up child → parent ---------------- */
+
+  /* ---- Roll-up: child → parent (DFS, cycle-safe) ---- */
   const childrenMap = {};
-  Object.values(rows).forEach((r) => {
-    if (!r.parentCode) return;
-    if (!childrenMap[r.parentCode]) childrenMap[r.parentCode] = [];
-    childrenMap[r.parentCode].push(r.code);
-  });
-  //////ການຄຳນວນ
-  const rolled = new Set(); // ป้องกันคำนวณซ้ำ
-  const visiting = new Set(); // ป้องกัน cycle
+  for (const r of Object.values(rows)) {
+    if (!r.parentCode) continue;
+    (childrenMap[r.parentCode] ??= []).push(r.code);
+  }
+
+  const rolled = new Set();
+  const visiting = new Set();
 
   function roll(code) {
-    if (!rows[code]) return;
-
-    // ถ้าคำนวณไปแล้ว ไม่ต้องทำซ้ำ
-    if (rolled.has(code)) return;
-
-    // Cycle detection
+    if (!rows[code] || rolled.has(code)) return;
     if (visiting.has(code)) {
-      console.warn(`Cycle detected in account tree at ${code}`);
+      console.warn(`[incomeStatement] Cycle detected at account ${code}`);
       return;
     }
 
     visiting.add(code);
-
-    const children = childrenMap[code] || [];
-    for (const c of children) {
-      if (!rows[c]) continue;
-
-      roll(c);
-
-      rows[code].openingDr += rows[c].openingDr;
-      rows[code].openingCr += rows[c].openingCr;
-      rows[code].movementDr += rows[c].movementDr;
-      rows[code].movementCr += rows[c].movementCr;
+    for (const child of childrenMap[code] ?? []) {
+      if (!rows[child]) continue;
+      roll(child);
+      rows[code].openingDr += rows[child].openingDr;
+      rows[code].openingCr += rows[child].openingCr;
+      rows[code].movementDr += rows[child].movementDr;
+      rows[code].movementCr += rows[child].movementCr;
     }
-
     visiting.delete(code);
     rolled.add(code);
   }
 
-  Object.values(rows)
-    .filter((r) => !r.parentCode)
-    .forEach((r) => roll(r.code));
+  for (const r of Object.values(rows)) {
+    if (!r.parentCode) roll(r.code);
+  }
 
-  /* --------------------- Compute ending ------------------------ */
-  Object.values(rows).forEach((r) => {
+  /* ---- Compute ending balances ---- */
+  for (const r of Object.values(rows)) {
     const isDr = r.normalSide === "Dr";
     const net = isDr
       ? r.openingDr - r.openingCr + (r.movementDr - r.movementCr)
@@ -279,58 +298,49 @@ async function buildIncomeStatement({ companyId, start, end }) {
 
     r.endingDr = r.endingCr = 0;
     if (net >= 0) {
-      if (isDr) r.endingDr = net;
-      else r.endingCr = net;
+      isDr ? (r.endingDr = net) : (r.endingCr = net);
     } else {
-      if (isDr) r.endingCr = -net;
-      else r.endingDr = -net;
+      isDr ? (r.endingCr = -net) : (r.endingDr = -net);
     }
-  });
+  }
 
-  /* ============================================================================
-       6) CALCULATE INCOME STATEMENT — LEAF ONLY!
-    ============================================================================ */
+  /* ---- Classify leaf accounts into income statement lines ---- */
+  const isParent = new Set(
+    Object.values(rows)
+      .map((r) => r.parentCode)
+      .filter(Boolean)
+  );
+  const leafAccounts = Object.values(rows).filter((r) => !isParent.has(r.code));
 
-  const leafAccounts = Object.values(rows).filter((r) => {
-    return !Object.values(rows).some((x) => x.parentCode === r.code);
-  });
+  const lines = Object.fromEntries(
+    PARSED_INCOME_MAPPING.map((m) => [
+      m.key,
+      { key: m.key, label: m.label, amount: 0, accounts: [] },
+    ])
+  );
 
-  const parsedMap = INCOME_MAPPING.map((m) => ({
-    ...m,
-    parsed: parsePattern(m.pattern),
-  }));
-
-  const lines = {};
-  parsedMap.forEach((m) => {
-    lines[m.key] = {
-      key: m.key,
-      label: m.label,
-      amount: 0,
-      accounts: [],
-    };
-  });
-  leafAccounts.forEach((r) => {
+  for (const r of leafAccounts) {
     const acc = idToAcc[r.accountId];
-    if (!acc) return;
+    if (!acc) continue;
 
-    const catLine = categoryToLine(acc.category);
     const signed = -(r.endingDr - r.endingCr);
+    const catLine = categoryToLine(acc.category);
 
-    if (catLine) {
+    if (catLine && lines[catLine]) {
       lines[catLine].amount += signed;
       lines[catLine].accounts.push(r);
-      return;
+      continue;
     }
-    parsedMap.forEach((m) => {
+
+    for (const m of PARSED_INCOME_MAPPING) {
       if (matchCodeWithParsed(r.code, m.parsed)) {
         lines[m.key].amount += signed;
         lines[m.key].accounts.push(r);
       }
-    });
-  });
-  /* ============================================================================
-       7) FINANCIAL CALCULATIONS
-    ============================================================================ */
+    }
+  }
+
+  /* ---- Financial calculations ---- */
   const revenue = lines.revenue.amount;
   const cost = lines.cost_of_sales.amount;
   const gross = revenue - cost;
@@ -340,103 +350,113 @@ async function buildIncomeStatement({ companyId, start, end }) {
   const otherIncome = lines.other_income.amount;
   const otherExp = lines.other_expenses.amount;
 
-  const operating = gross + otherIncome - (dist - admin - otherExp);
-
+  // operating = gross + otherIncome - dist - admin - otherExp
+  const operating = (gross + otherIncome) - dist + admin - otherExp;
+  console.log(admin)
+  console.log(gross , otherIncome  , dist  ,admin  ,otherExp)
   const finIncome = lines.finance_income.amount;
   const finCost = lines.finance_cost.amount;
-
   const pbt = operating + finIncome - finCost;
 
   const tax = lines.current_tax.amount;
   const deferred = lines.deferred_tax.amount;
-
   const nets = pbt - tax - deferred;
-  ///ຫລັງອາກອນ
-  const income_before_tex = lines.tax_before_income.amount;
 
-  const expense_before_tax = lines.tax_before_expense.amount;
-  const net = nets - (income_before_tex - expense_before_tax);
+  const ociIncome = lines.tax_before_income.amount;
+  const ociExpense = lines.tax_before_expense.amount;
+  const ociNet = ociIncome - ociExpense;
+  const net = nets + ociNet;
+
+  /* ---- Build output lines array ---- */
+  const outputLines = [
+    lines.revenue,
+    lines.cost_of_sales,
+    { key: "gross_profit", label: "ຜົນໄດ້ຮັບເບື້ອງຕົ້ນ", amount: gross },
+    lines.other_income,
+    lines.distribution_costs,
+    lines.administrative_expenses,
+    lines.other_expenses,
+    {
+      key: "operating_profit",
+      label: "ຜົນໄດ້ຮັບ ໃນການທຸລະກິດ",
+      amount: operating,
+    },
+    lines.finance_income,
+    lines.finance_cost,
+    {
+      key: "profit_before_tax",
+      label: "ຜົນໄດ້ຮັບ ກ່ອນການເສຍອາກອນ",
+      amount: pbt,
+    },
+    lines.current_tax,
+    lines.deferred_tax,
+    {
+      key: "net_profit",
+      label: "ຜົນໄດ້ຮັບສຸດທິ ຈາກການດຳເນີນງານ",
+      amount: nets,
+    },
+    { key: "out1", label: "ທີ່ເປັນສ່ວນຂອງ", amount: 0 },
+    { key: "out2", label: "ພູດສ່ວນ ຂອງຜົນປະໂຫຍດສ່ວນນ້ອຍ (1)", amount: 0 },
+    { key: "out3", label: "ພູດສ່ວນ ຂອງກຸ່ມ (1)", amount: 0 },
+    lines.tax_before_income,
+    lines.tax_before_expense,
+    { key: "out4", label: "ຜົນໄດ້ຮັບສັງລວມ ຫຼັງອາກອນ", amount: ociNet },
+    { key: "out5", label: "ຜົນໄດ້ຮັບສຸດທິໃນປີ", amount: net },
+    { key: "out6", label: "ທີ່ເປັນສ່ວນຂອງ", amount: 0 },
+    { key: "out7", label: "ພູດສ່ວນ ຂອງຜົນປະໂຫຍດສ່ວນນ້ອຍ (1)", amount: 0 },
+    { key: "out8", label: "ພູດສ່ວນ ຂອງກຸ່ມ (1)", amount: 0 },
+  ];
+
   return {
-    lines: [
-      lines.revenue,
-      lines.cost_of_sales,
-      { key: "gross_profit", label: "ຜົນໄດ້ຮັບເບື້ອງຕົ້ນ", amount: gross },
-      lines.other_income,
-      lines.distribution_costs,
-      lines.administrative_expenses,
-      lines.other_expenses,
-      {
-        key: "operating_profit",
-        label: "ຜົນໄດ້ຮັບ ໃນການທຸລະກິດ",
-        amount: operating,
-      },
-      lines.finance_income,
-      lines.finance_cost,
-      {
-        key: "profit_before_tax",
-        label: "ຜົນໄດ້ຮັບ ກ່ອນການເສຍອາກອນ",
-        amount: pbt,
-      },
-      lines.current_tax,
-      lines.deferred_tax,
-      {
-        key: "net_profit",
-        label: "ຜົນໄດ້ຮັບສຸດທິ ຈາກການດຳເນີນງານ",
-        amount: nets,
-      },
-      {
-        key: "out1",
-        label: "ທີ່ເປັນສ່ວນຂອງ",
-        amount: 0,
-      },
-      {
-        key: "out2",
-        label: "ພູດສ່ວນ ຂອງຜົນປະໂຫຍດສ່ວນນ້ອຍ (1)",
-        amount: 0,
-      },
-      {
-        key: "out3",
-        label: "ພູດສ່ວນ ຂອງກຸ່ມ (1)",
-        amount: 0,
-      },
-      lines?.tax_before_income,
-      lines?.tax_before_expense,
-      {
-        key: "out4",
-        label: "ຜົນໄດ້ຮັບສັງລວມ ຫຼັງອາກອນ",
-        amount: income_before_tex - expense_before_tax,
-      },
-      {
-        key: "out5",
-        label: "ຜົນໄດ້ຮັບສຸດທິໃນປີ",
-        amount: net,
-      },
-      {
-        key: "out6",
-        label: "ທີ່ເປັນສ່ວນຂອງ",
-        amount: 0,
-      },
-      {
-        key: "out7",
-        label: "ພູດສ່ວນ ຂອງຜົນປະໂຫຍດສ່ວນນ້ອຍ (1)",
-        amount: 0,
-      },
-      {
-        key: "out8",
-        label: "ພູດສ່ວນ ຂອງກຸ່ມ (1)",
-        amount: 0,
-      },
-    ],
-    totals: { revenue, gross, operating, pbt, net },
+    lines: outputLines,
+    totals: { revenue, gross, operating, pbt, nets, net },
+  };
+}
+
+/* ---- Empty result when no accounts exist ---- */
+function buildEmptyResult() {
+  const outputLines = [
+    ...INCOME_MAPPING.map((m) => ({
+      key: m.key,
+      label: m.label,
+      amount: 0,
+      accounts: [],
+    })),
+    { key: "gross_profit", label: "ຜົນໄດ້ຮັບເບື້ອງຕົ້ນ", amount: 0 },
+    { key: "operating_profit", label: "ຜົນໄດ້ຮັບ ໃນການທຸລະກິດ", amount: 0 },
+    { key: "profit_before_tax", label: "ຜົນໄດ້ຮັບ ກ່ອນການເສຍອາກອນ", amount: 0 },
+    { key: "net_profit", label: "ຜົນໄດ້ຮັບສຸດທິ ຈາກການດຳເນີນງານ", amount: 0 },
+    { key: "out4", label: "ຜົນໄດ້ຮັບສັງລວມ ຫຼັງອາກອນ", amount: 0 },
+    { key: "out5", label: "ຜົນໄດ້ຮັບສຸດທິໃນປີ", amount: 0 },
+  ];
+  return {
+    lines: outputLines,
+    totals: { revenue: 0, gross: 0, operating: 0, pbt: 0, nets: 0, net: 0 },
   };
 }
 
 /* ============================================================================
-   5) MAIN ROUTE — INCOME STATEMENT
+   6) INPUT VALIDATION HELPERS
+============================================================================ */
+function validateYear(year) {
+  return Number.isInteger(year) && year >= MIN_YEAR && year <= MAX_YEAR;
+}
+
+function validateMonth(month) {
+  return Number.isInteger(month) && month >= 1 && month <= 12;
+}
+
+/* ============================================================================
+   7) MAIN ROUTE — GET /income-statement
 ============================================================================ */
 router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
   try {
-    const companyId = req.user.companyId;
+    const companyId = req.user?.companyId;
+    if (!companyId) {
+      return res.status(401).json({ success: false, error: "Unauthorised" });
+    }
+
+    /* ---- Resolve filter from query + accounting periods ---- */
     const periods = await Period.find({ companyId }).lean();
 
     const {
@@ -446,55 +466,54 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
       endDate,
       mode,
       systemDefaultYear,
-    } = resolveReportFilter({
-      query: req.query,
-      periods,
-    });
-
+    } = resolveReportFilter({ query: req.query, periods });
+    console.log(
+      "year, month, startDate, endDate, mode, systemDefaultYear ",
+      year,
+      month,
+      startDate,
+      endDate,
+      mode,
+      systemDefaultYear
+    );
+    /* ---- Schema-level validation (middleware) ---- */
     validateIncomeStatementQuery({
       year: req.query.year ? Number(req.query.year) : undefined,
       month: req.query.month ? Number(req.query.month) : undefined,
       startDate: req.query.startDate,
       endDate: req.query.endDate,
     });
-    if (month && (month < 1 || month > 12))
-      return res.status(400).json({ error: "Invalid month" });
 
-    if (year && (year < 2000 || year > 2100))
-      return res.status(400).json({ error: "Invalid year" });
+    /* ---- Business-rule validation ---- */
+    if (year !== undefined && !validateYear(year))
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid year (2000-2100)" });
 
-    if (startDate && isNaN(startDate))
-      return res.status(400).json({ error: "Invalid startDate" });
+    if (month !== undefined && !validateMonth(month))
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid month (1-12)" });
 
+    /* ---- Closed-year index ---- */
     const closedYears = periods
       .filter((p) => p.isClosed)
       .map((p) => p.year)
       .sort((a, b) => a - b);
 
-    /* =====================================================
-       MODE 1: MONTH COMPARE (year + month)
-       ex: 2025-10 vs 2024-10
-    ===================================================== */
-    if (mode === "month" && req.query.year) {
+    /* ==================================================
+         MODE 1: MONTH COMPARE  (year + month)
+         e.g. 2025-03 vs 2024-03
+      ================================================== */
+    if (mode === "month" && year) {
       const prevYear = year - 1;
+      const cur = monthRange(year, month);
+      const prev = monthRange(prevYear, month);
 
-      const curStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
-      const curEnd = new Date(year, month, 0, 23, 59, 59, 999);
-
-      const prevStart = new Date(prevYear, month - 1, 1, 0, 0, 0, 0);
-      const prevEnd = new Date(prevYear, month, 0, 23, 59, 59, 999);
-
-      const current = await buildIncomeStatement({
-        companyId,
-        start: curStart,
-        end: curEnd,
-      });
-
-      const previous = await buildIncomeStatement({
-        companyId,
-        start: prevStart,
-        end: prevEnd,
-      });
+      const [current, previous] = await Promise.all([
+        buildIncomeStatement({ companyId, ...cur }),
+        buildIncomeStatement({ companyId, ...prev }),
+      ]);
 
       return res.json({
         success: true,
@@ -506,40 +525,51 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
       });
     }
 
-    /* =====================================================
-       MODE 2: PRESET / CUSTOM RANGE (NO COMPARE)
-    ===================================================== */
+    /* ==================================================
+         MODE 2: PRESET / CUSTOM RANGE  (no comparison)
+      ================================================== */
     if (mode === "preset" || mode === "custom") {
-      const current = await buildIncomeStatement({
-        companyId,
-        start: startDate,
-        end: endDate,
-      });
+      const start = toDate(startDate);
+      const end = toDate(endDate);
+
+      if (!start)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid or missing startDate" });
+      if (!end)
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid or missing endDate" });
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
+      const current = await buildIncomeStatement({ companyId, start, end });
 
       return res.json({
         success: true,
         comparable: false,
         mode,
+        period:{
+          endDate:end,
+          statDate:start,
+        },
         year,
         data: { current },
       });
     }
 
-    /* =====================================================
-       MODE 3: USER SELECT YEAR → YEAR COMPARE
-    ===================================================== */
-    if (mode === "year" && req.query.year && year !== systemDefaultYear) {
-      const current = await buildIncomeStatement({
-        companyId,
-        start: new Date(year, 0, 1),
-        end: new Date(year, 11, 31, 23, 59, 59, 999),
-      });
+    /* ==================================================
+         MODE 3: USER-SELECTED YEAR  (year compare)
+      ================================================== */
+    if (mode === "year" && year && year !== systemDefaultYear) {
+      const cur = yearRange(year);
+      const prev = yearRange(year - 1);
 
-      const previous = await buildIncomeStatement({
-        companyId,
-        start: new Date(year - 1, 0, 1),
-        end: new Date(year - 1, 11, 31, 23, 59, 59, 999),
-      });
+      const [current, previous] = await Promise.all([
+        buildIncomeStatement({ companyId, ...cur }),
+        buildIncomeStatement({ companyId, ...prev }),
+      ]);
 
       return res.json({
         success: true,
@@ -551,31 +581,31 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
       });
     }
 
-    /* =====================================================
-       MODE 4: DEFAULT → LAST CLOSED YEAR COMPARE
-    ===================================================== */
+    /* ==================================================
+         MODE 4: DEFAULT — last closed year + next year
+         Fallback to current calendar year if no periods closed
+      ================================================== */
     if (!closedYears.length) {
+      const fallbackYear = new Date().getFullYear();
+      const cur = yearRange(fallbackYear);
+      const current = await buildIncomeStatement({ companyId, ...cur });
+
       return res.json({
         success: true,
         comparable: false,
-        message: "ยังไม่มีปีที่ปิดบัญชี",
+        mode: "default-no-closed",
+        currentYear: fallbackYear,
+        data: { current },
       });
     }
 
     const previousYear = closedYears.at(-1);
     const currentYear = previousYear + 1;
 
-    const current = await buildIncomeStatement({
-      companyId,
-      start: new Date(currentYear, 0, 1),
-      end: new Date(currentYear, 11, 31, 23, 59, 59, 999),
-    });
-
-    const previous = await buildIncomeStatement({
-      companyId,
-      start: new Date(previousYear, 0, 1),
-      end: new Date(previousYear, 11, 31, 23, 59, 59, 999),
-    });
+    const [current, previous] = await Promise.all([
+      buildIncomeStatement({ companyId, ...yearRange(currentYear) }),
+      buildIncomeStatement({ companyId, ...yearRange(previousYear) }),
+    ]);
 
     return res.json({
       success: true,
@@ -586,8 +616,14 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
       data: { current, previous },
     });
   } catch (err) {
-    console.error("income-statement error:", err);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    console.error("[income-statement]", err.message, err.stack);
+    res
+      .status(500)
+      .json({
+        success: false,
+        error: "Internal Server Error",
+        detail: err.message,
+      });
   }
 });
 

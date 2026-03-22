@@ -145,7 +145,7 @@ const TrialBalancePrint = forwardRef(
                 style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
                 class="company-name-en"
               >
-                ເລກປະຈຳຕົວຜູ້ເສຍອາກອນ: 022920-101
+                ເລກປະຈຳຕົວຜູ້ເສຍອາກອນ: {user?.companyId?.taxId || ""}
               </div>
               <div
                 style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
@@ -251,7 +251,7 @@ const TrialBalancePrint = forwardRef(
             className="texts"
           >
             {" "}
-            ທີ່.............................., ວັນທີ່...../...../.....
+            {user?.companyId?.information}
           </div>
           {/* ===== FOOTER ===== */}
           <div className="footer">

@@ -25,12 +25,13 @@ const CashAccountSchema = new mongoose.Schema({
 
 const CompanySchema = new mongoose.Schema(
   {
-    name: { type: String, default: "บริษัท ตัวอย่าง จำกัด" },
+    name: { type: String, default: "ບໍລິສັດ..............." },
     address: { type: String, default: "" },
     phone: { type: String, default: "" },
     email: { type: String, default: "" },
     logo: { type: String, default: "" },
-
+    taxId: { type: Number, default: 0 },
+    information: { type: String, default: "" },
     // ⭐ หลายบัญชีธนาคาร
     bankAccounts: [BankAccountSchema],
 

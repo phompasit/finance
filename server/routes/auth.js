@@ -401,7 +401,6 @@ router.post(
       }
 
       // 8. Two-Factor Authentication (ถ้าเปิดใช้งาน)
-      console.log("user.twoFactorEnabled", user.twoFactorEnabled);
       if (user.twoFactorEnabled) {
         // สร้าง temporary token สำหรับ 2FA
         //สร้าง token แบบสุ่ม 32 bytes
@@ -418,10 +417,17 @@ router.post(
           twoFactorTempTokenExpires: Date.now() + 10 * 60 * 1000, // 10 นาที
         });
 
+        // ✅ แก้แล้ว — เก็บ tempToken ใน httpOnly cookie แทน
+        res.cookie("2fa_temp_token", tempToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "None",
+          maxAge: 10 * 60 * 1000, // 10 นาที
+        });
         return res.status(200).json({
           requiresTwoFactor: true,
-          tempToken,
           message: "กรุณากรอกรหัส 2FA",
+          // ❌ ไม่ส่ง tempToken กลับใน body อีกต่อไป
         });
       }
 
@@ -620,7 +626,7 @@ router.post("/logout", authenticate, async (req, res) => {
     // ⭐ สำคัญ: clear httpOnly cookie
     res.clearCookie("access_token", {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "None",
       secure: process.env.NODE_ENV === "production",
     });
 
@@ -650,7 +656,7 @@ router.get("/me", authenticate, async (req, res) => {
       )
       .populate({
         path: "companyId",
-        select: "name code", // เลือกเฉพาะ field ที่ใช้จริง
+        select: "name address taxId information phone", // เลือกเฉพาะ field ที่ใช้จริง
       })
       .lean(); // 3️⃣ ป้องกัน mutation / performance ดีขึ้น
     // 4️⃣ User ไม่พบ / ถูกลบ
@@ -823,18 +829,13 @@ const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
 const uploadImageLogo = async (image) => {
   try {
     return new Promise((resolve, reject) => {
-      if (!file) throw new Error("No file uploaded");
-
-      // 1️⃣ file size check
-      if (file.size > MAX_FILE_SIZE) {
+      if (!image) throw new Error("No file uploaded");
+      if (image.size > MAX_FILE_SIZE) {
         throw new Error("File too large (max 2MB)");
       }
-
-      // 2️⃣ mimetype check
-      if (!ALLOWED_MIME.includes(file.mimetype)) {
+      if (!ALLOWED_MIME.includes(image.mimetype)) {
         throw new Error("Invalid file type");
       }
-
       const stream = cloudinary.uploader.upload_stream(
         {
           folder: "finance/image_company",
@@ -848,23 +849,21 @@ const uploadImageLogo = async (image) => {
           resolve(result.secure_url);
         }
       );
-      // ❗️ส่งเฉพาะ image.buffer
-      stream.end(image?.buffer);
+      stream.end(image.buffer);
     });
   } catch (error) {
     console.error("❌ Cloudinary upload error:", error);
     throw new Error("Image upload failed");
   }
 };
+// ✅ แก้แล้ว — ย้าย const publicId ขึ้นมาก่อน
 const deleteCloudinaryImage = async (imageUrl) => {
   try {
-    if (!publicId) return;
-
-    // whitelist path
+    if (!imageUrl) return;
+    const publicId = imageUrl.split("/").pop().split(".")[0];
     if (!publicId.startsWith("finance/image_company/")) {
       throw new Error("Invalid publicId");
     }
-    const publicId = imageUrl.split("/").pop().split(".")[0];
     await cloudinary.uploader.destroy(`finance/image_company/${publicId}`);
   } catch (err) {
     console.error("⚠️ Failed to delete old image from Cloudinary:", err);
@@ -887,7 +886,7 @@ router.patch(
 
       // ดึงข้อมูลจาก body
       let { username, email, password, role, companyId } = req.body;
-
+      console.log("companyId", companyId);
       // ถ้า companyId ส่งมาเป็น string → parse
       if (companyId && typeof companyId === "string") {
         companyId = JSON.parse(companyId);
@@ -946,6 +945,8 @@ router.patch(
           address: companyId.address,
           phone: companyId.phone,
           email: companyId.email,
+          taxId: companyId.taxId,
+          information: companyId.information,
         };
         // 📌 ถ้ามีไฟล์โลโก้ใหม่
         if (req.file) {
@@ -992,22 +993,37 @@ router.patch(
 // ================= SETUP 2FA =================
 router.get("/user/2fa/setup", apiLimiter, authenticate, async (req, res) => {
   try {
-    console.log(req.user);
-    const secret = speakeasy.generateSecret({
-      length: 20,
-      name: `FinanceApp (${req.user.role})`,
-    });
+    const user = await User.findById(req.user._id).select(
+      "+twoFactorSecret +twoFactorEnabled"
+    );
 
-    await User.findByIdAndUpdate(req.user._id, {
-      twoFactorSecret: secret.base32,
-    });
+    // ถ้า 2FA เปิดอยู่แล้ว ไม่ต้อง setup ซ้ำ
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ message: "2FA is already enabled" });
+    }
 
-    const qr = await QRCode.toDataURL(secret.otpauth_url);
+    let secretBase32 = user.twoFactorSecret;
 
-    res.json({
-      qr,
-      secret: secret.base32,
+    // สร้าง secret ใหม่เฉพาะตอนที่ยังไม่มี
+    if (!secretBase32) {
+      const secret = speakeasy.generateSecret({
+        length: 20,
+        name: `FinanceApp (${req.user.role})`,
+      });
+      secretBase32 = secret.base32;
+      await User.findByIdAndUpdate(req.user._id, {
+        twoFactorSecret: secretBase32,
+      });
+    }
+
+    const otpauthUrl = speakeasy.otpauthURL({
+      secret: secretBase32,
+      label: `FinanceApp (${req.user.role})`,
+      encoding: "base32",
     });
+    const qr = await QRCode.toDataURL(otpauthUrl);
+
+    res.json({ qr, secret: secretBase32 });
   } catch (error) {
     console.error("2FA setup error:", error);
     res.status(500).json({ message: "2FA setup failed" });
@@ -1050,73 +1066,76 @@ router.post("/user/2fa/enable", authLimiter, authenticate, async (req, res) => {
 // ================= VERIFY LOGIN 2FA =================
 
 // ================= VERIFY LOGIN 2FA =================
+// ✅ อ่าน tempToken จาก cookie แทน req.body
 router.post("/user/verify-2fa", async (req, res) => {
   try {
-    const { tempToken, code } = req.body;
-
-    // 1. Validate input
+    const { code } = req.body;
+    const tempToken = req.cookies["2fa_temp_token"]; // ✅ อ่านจาก cookie
+    console.log("tempToken", tempToken);
     if (!tempToken || !code) {
-      return res.status(400).json({
-        message: "Missing verification data",
-      });
+      return res.status(400).json({ message: "Missing verification data" });
     }
-
     if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({
-        message: "Invalid code format",
-      });
+      return res.status(400).json({ message: "Invalid code format" });
     }
 
-    // 3. Hash tempToken
     const hashedToken = crypto
       .createHash("sha256")
       .update(tempToken)
       .digest("hex");
 
-    // 4. Find user
     const user = await User.findOne({
       twoFactorTempToken: hashedToken,
       twoFactorTempTokenExpires: { $gt: Date.now() },
-    });
+    }).select("+twoFactorSecret +twoFactorAttempts +twoFactorLockedUntil");
     if (!user) {
-      return res.status(401).json({
-        message: "Invalid or expired token",
-      });
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
 
-    // 6. Verify OTP
+    // ✅ Check lockout ก่อน verify (Fix 4 รวมอยู่ที่นี่)
+    if (user.twoFactorLockedUntil && user.twoFactorLockedUntil > Date.now()) {
+      const minutesLeft = Math.ceil(
+        (user.twoFactorLockedUntil - Date.now()) / 60000
+      );
+      return res.status(429).json({
+        message: `ລອງໃໝ່ໃນອີກ ${minutesLeft} ນາທີ`,
+      });
+    }
+    console.log("secret:", user.twoFactorSecret);
+    console.log("code received:", code);
+    console.log("server unix time:", Math.floor(Date.now() / 1000));
+    console.log(
+      "expected token:",
+      speakeasy.totp({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+      })
+    );
+
     const verified = speakeasy.totp.verify({
       secret: user.twoFactorSecret,
       encoding: "base32",
       token: code,
       window: 1,
     });
-
+    console.log("verified", verified);
     if (!verified) {
       user.twoFactorAttempts = (user.twoFactorAttempts || 0) + 1;
-
-      // lock after 5 attempts
       if (user.twoFactorAttempts >= 5) {
         user.twoFactorLockedUntil = Date.now() + 15 * 60 * 1000;
         user.twoFactorAttempts = 0;
       }
-
       await user.save();
-
-      return res.status(401).json({
-        message: "Invalid authentication code",
-      });
+      return res.status(401).json({ message: "Invalid authentication code" });
     }
 
-    // 7. Reset 2FA attempts + clear temp token
+    // Clear temp token + attempts
     user.twoFactorAttempts = 0;
     user.twoFactorLockedUntil = undefined;
     user.twoFactorTempToken = undefined;
     user.twoFactorTempTokenExpires = undefined;
 
     const sessionId = crypto.randomBytes(16).toString("hex");
-
-    // 8. Create access token
     const token = jwt.sign(
       {
         userId: user._id,
@@ -1134,21 +1153,22 @@ router.post("/user/verify-2fa", async (req, res) => {
       }
     );
 
-    // 9. Set cookie
+    // ✅ Clear 2fa temp cookie
+    res.clearCookie("2fa_temp_token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+    });
+
     res.cookie("access_token", token, {
       httpOnly: true,
       secure: true,
       sameSite: "None",
-      // httpOnly: true,
-      // secure: process.env.NODE_ENV === "production",
-      // sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // 10. Create session
     const ipAddress = req.ip;
     const userAgent = req.get("user-agent");
-
     await Session.create({
       userId: user._id,
       sessionId,
@@ -1160,16 +1180,66 @@ router.post("/user/verify-2fa", async (req, res) => {
     });
 
     await user.save();
-
-    // 11. Response (no token in body)
-    res.json({
-      message: "Login success",
-    });
+    res.json({ message: "Login success" });
   } catch (error) {
     console.error("2FA verify error:", error);
-    res.status(500).json({
-      message: "2FA verification failed",
-    });
+    res.status(500).json({ message: "2FA verification failed" });
   }
 });
+
+// ================= DISABLE 2FA =================
+router.post(
+  "/user/2fa/disable",
+  authLimiter,
+  authenticate,
+  async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      // ต้องยืนยัน code ก่อนปิด — กัน attacker ที่ขโมย session มาปิด 2FA
+      if (!token || typeof token !== "string" || token.length !== 6) {
+        return res
+          .status(400)
+          .json({ message: "ກະລຸນາຢືນຢັນດ້ວຍລະຫັດ 2FA ກ່ອນ" });
+      }
+
+      const user = await User.findById(req.user._id).select(
+        "+twoFactorSecret +twoFactorEnabled"
+      );
+
+      if (!user.twoFactorEnabled) {
+        return res.status(400).json({ message: "2FA ຍັງບໍ່ໄດ້ເປີດໃຊ້ງານ" });
+      }
+
+      // ยืนยัน code ก่อนเสมอ
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+        token,
+        window: 2,
+      });
+
+      if (!verified) {
+        return res.status(401).json({ message: "ລະຫັດ 2FA ບໍ່ຖືກຕ້ອງ" });
+      }
+
+      // ปิด 2FA และ clear ทุก field ที่เกี่ยวข้อง
+      await User.findByIdAndUpdate(req.user._id, {
+        $unset: {
+          twoFactorSecret: "",
+          twoFactorTempToken: "",
+          twoFactorTempTokenExpires: "",
+          twoFactorLockedUntil: "",
+          twoFactorAttempts: "",
+        },
+        $set: { twoFactorEnabled: false },
+      });
+
+      res.json({ message: "ປິດ 2FA ສຳເລັດ" });
+    } catch (error) {
+      console.error("2FA disable error:", error);
+      res.status(500).json({ message: "2FA disable failed" });
+    }
+  }
+);
 export default router;
