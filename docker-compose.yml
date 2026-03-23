@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    container_name: finance_app
+    ports:
+      - "127.0.0.1:5001:5001"
+    env_file:
+      - server/.env
+    restart: unless-stopped

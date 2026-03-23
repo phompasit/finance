@@ -88,13 +88,10 @@ if (!MONGODB_URI) {
 
 // Mongoose connection options
 const mongooseOptions = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
 };
-
 mongoose
   .connect(MONGODB_URI, mongooseOptions)
   .then(() => {
