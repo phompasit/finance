@@ -5,7 +5,7 @@ import React, { forwardRef, useMemo } from "react";
 // ─────────────────────────────────────────────────────────────
 const GROUP_LABEL_MAP = {
   "Current Assets": "ຊັບສິນໝູນວຽນ",
-  "Non-Current Assets": "ຊັບສິນບໍ່ໝູນວຽນ",
+  "Non-current Assets": "ຊັບສິນບໍ່ໝູນວຽນ",
 };
 
 /**

@@ -82,6 +82,19 @@ const ACCOUNTING_MENU = [
   {
     section: "ສະມຸດບັນຊີ",
     items: [
+      { label: "ປື້ມບັນຊີປະຈຳວັນ", path: "/journal", icon: FiBook },
+      { label: "ປື້ມຕິດຕາມ", path: "/ledger", icon: FiBook },
+
+      {
+        label: "ຊັບສິນ",
+        path: "/fixed-assets",
+        icon: FiBook,
+      },
+    ],
+  },
+  {
+    section: "ງົບການເງິນ",
+    items: [
       { label: "ໃບດຸ່ນດຽງທົ່ວໄປ", path: "/balance-sheet", icon: FiBook },
       {
         label: "ໃບດຸ່ນດ່ຽງຫລັງສ້າງຜົນດຳເນີນງານ",
@@ -93,16 +106,6 @@ const ACCOUNTING_MENU = [
         path: "/income-expense-balance-sheet",
         icon: FiBook,
       },
-      {
-        label: "ຊັບສິນ",
-        path: "/fixed-assets",
-        icon: FiBook,
-      },
-    ],
-  },
-  {
-    section: "ງົບການເງິນ",
-    items: [
       { label: "ໃບລາຍງານໜີ້ສິນ", path: "/statement", icon: FiBook },
       {
         label: "ໃບລາຍງານຊັບສິນ",
@@ -121,8 +124,6 @@ const ACCOUNTING_MENU = [
     items: [
       { label: "ຜັງບັນຊີ", path: "/chart-account", icon: FiLayers },
       { label: "ຍອດຍົກມາ", path: "/opening-balance", icon: FiTrendingUp },
-      { label: "ປື້ມບັນຊີປະຈຳວັນ", path: "/journal", icon: FiBook },
-      { label: "ປື້ມຕິດຕາມ", path: "/ledger", icon: FiBook },
       { label: "ປິດບັນຊີ", path: "/closing_account", icon: FiBook },
     ],
   },
@@ -259,11 +260,11 @@ export default function Layout() {
           bg={sidebarBg}
         >
           <HStack>
-            <IconButton
+            {/* <IconButton
               icon={colorMode === "light" ? <FiMoon /> : <FiSun />}
               onClick={toggleColorMode}
               variant="ghost"
-            />
+            /> */}
           </HStack>
 
           <HStack>

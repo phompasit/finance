@@ -518,6 +518,19 @@ const IncomePrint = forwardRef(
                 <SigBox key={title} title={title} />
               ))}
             </div>
+          <div
+            style={{
+              marginTop: "28px",
+              fontSize: "7pt",
+              color: "#888",
+              textAlign: "center",
+              paddingTop: "50px",
+              fontFamily: "'Noto Sans Lao', sans-serif",
+            }}
+          >
+            ພັດທະນາໂດຍ | ບໍລິສັດ: SmartAcc Co., Ltd |{" "}
+            {new Date().toLocaleString("en-GB")}
+          </div>
           </div>
         </div>
       </>

@@ -296,10 +296,11 @@ const StatementOfFinancialPosition = () => {
       {activeFilterLabel && <ActiveFilterBar label={activeFilterLabel} />}
       <Divider mb={4} />
       <Box display={"flex"} justifyContent={"flex-end"}>
-        <Button m="3" colorScheme="red" onClick={handleExportPDF}>
-          Export PDF
+        <Button          fontFamily="Noto Sans Lao, sans-serif" m="3" colorScheme="red" onClick={handleExportPDF}>
+          ສົ່ງອອກ PDF
         </Button>
         <Button
+                 fontFamily="Noto Sans Lao, sans-serif"
           onClick={() => {
             exportBalanceSheetExcel({
               current: current,
@@ -318,7 +319,7 @@ const StatementOfFinancialPosition = () => {
           m="3"
           colorScheme="green"
         >
-          Export Excel
+          ສົ່ງອອກ Excel
         </Button>
       </Box>
       {/* ---------- FILTER (ใช้ตัวเดียวกับ AssetsPage) ---------- */}

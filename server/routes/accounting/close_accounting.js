@@ -469,13 +469,11 @@ router.post(
       await AccountingPeriod.updateOne(
         { companyId, year },
         {
-          isClosed: true,
-          closedAt: new Date(),
-          closedBy: userId,
-          summary: {
-            income,
-            expense,
-            netProfit,
+          $set: {
+            isClosed: true,
+            closedAt: new Date(),
+            closedBy: userId,
+            summary: { income, expense, netProfit },
           },
         },
         { upsert: true, session }

@@ -352,8 +352,6 @@ async function buildIncomeStatement({ companyId, start, end }) {
 
   // operating = gross + otherIncome - dist - admin - otherExp
   const operating = (gross + otherIncome) - dist + admin - otherExp;
-  console.log(admin)
-  console.log(gross , otherIncome  , dist  ,admin  ,otherExp)
   const finIncome = lines.finance_income.amount;
   const finCost = lines.finance_cost.amount;
   const pbt = operating + finIncome - finCost;
@@ -467,15 +465,7 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
       mode,
       systemDefaultYear,
     } = resolveReportFilter({ query: req.query, periods });
-    console.log(
-      "year, month, startDate, endDate, mode, systemDefaultYear ",
-      year,
-      month,
-      startDate,
-      endDate,
-      mode,
-      systemDefaultYear
-    );
+
     /* ---- Schema-level validation (middleware) ---- */
     validateIncomeStatementQuery({
       year: req.query.year ? Number(req.query.year) : undefined,

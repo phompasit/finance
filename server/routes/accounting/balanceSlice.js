@@ -20,7 +20,30 @@ const router = express.Router();
 /* ============================================================================
    🔒 SECURITY: Input Validation & Sanitization
 ============================================================================ */
+function sortByAccountCode(a, b) {
+  const codeA = String(a.code).trim();
+  const codeB = String(b.code).trim();
 
+  // ดึงเลขหน้าสุดออกมาเปรียบเทียบก่อน
+  const firstA = parseInt(codeA[0], 10);
+  const firstB = parseInt(codeB[0], 10);
+
+  if (firstA !== firstB) return firstA - firstB;
+
+  // เลขหน้าเท่ากัน → เรียงตัวเลขทั้งหมดจากน้อยไปมาก
+  // รองรับทั้ง "1011" และ "1.1.1"
+  const partsA = codeA.split(".").map(Number);
+  const partsB = codeB.split(".").map(Number);
+
+  const len = Math.max(partsA.length, partsB.length);
+  for (let i = 0; i < len; i++) {
+    const segA = partsA[i] ?? 0;
+    const segB = partsB[i] ?? 0;
+    if (segA !== segB) return segA - segB;
+  }
+
+  return 0;
+}
 /**
  * Validate and sanitize year parameter
  */
@@ -300,10 +323,8 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
           r.endingDr !== 0 ||
           r.endingCr !== 0
       )
-      .sort((a, b) =>
-        a.code.localeCompare(b.code, undefined, { numeric: true })
-      );
-
+      .sort(sortByAccountCode);
+console.log("SORTED:", list.map(r => r.code));
     /* ===============================
        7) RESPONSE
     =============================== */
@@ -587,10 +608,7 @@ router.get("/balance_after", authenticate, async (req, res) => {
           r.endingDr ||
           r.endingCr
       )
-      .sort((a, b) =>
-        a.code.localeCompare(b.code, undefined, { numeric: true })
-      );
-
+      .sort(sortByAccountCode);
     /* ================= Calculate Totals (Leaf Only ✅) ================= */
 
     function calculateTotals(list) {
@@ -627,7 +645,9 @@ router.get("/balance_after", authenticate, async (req, res) => {
     );
 
     // ✅ Leaf = code ที่ไม่ใช่ parent ของใคร
-    const leafList = list.filter((r) => !parentCodes.has(r.code));
+    const leafList = list
+      .filter((r) => !parentCodes.has(r.code))
+      .sort(sortByAccountCode);
 
     // ✅ Totals leaf only
     const totals = calculateTotals(leafList);
@@ -852,9 +872,7 @@ router.get(
             r.endingDr !== 0 ||
             r.endingCr !== 0
         )
-        .sort((a, b) =>
-          a.code.localeCompare(b.code, undefined, { numeric: true })
-        );
+        .sort(sortByAccountCode);
 
       let balance = 0;
       balance = totals.endingCr - totals.endingDr;

@@ -23,14 +23,6 @@ const accountingPeriodSchema = new mongoose.Schema(
       index: true,
     },
 
-    month: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 12,
-      index: true,
-    },
-
     startDate: {
       type: Date,
       required: true,

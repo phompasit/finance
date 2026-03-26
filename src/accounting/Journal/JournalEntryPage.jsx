@@ -247,7 +247,7 @@ const JournalEntryPage = () => {
           <Button
             leftIcon={<Plus size={16} />}
             colorScheme="blue"
-            isDisabled={isReadOnlyYear}
+            // isDisabled={isReadOnlyYear}
             fontFamily="Noto Sans Lao, sans-serif"
             onClick={() => navigate("/journal_add&edit")}
           >

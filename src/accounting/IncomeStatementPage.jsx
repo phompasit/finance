@@ -365,13 +365,13 @@ const IncomeStatementPage = () => {
 
         {/* RIGHT: export buttons */}
         <HStack>
-          <Button colorScheme="red" onClick={handleExportPDF}>Export PDF</Button>
-          <Button colorScheme="green" onClick={() => exportReport({
+          <Button fontFamily="Noto Sans Lao, sans-serif" colorScheme="red" onClick={handleExportPDF}>ສົ່ງອອກ  PDF</Button>
+          <Button fontFamily="Noto Sans Lao, sans-serif"  colorScheme="green" onClick={() => exportReport({
             current, previous, currentYear, previousYear,
             comparable, user, period, formatNum, mode,
             activeFilterLabel, mergedLines,
           })}>
-            Export Excel
+            ສົ່ງອອກ Excel
           </Button>
         </HStack>
       </Flex>

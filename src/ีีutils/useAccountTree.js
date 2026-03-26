@@ -22,7 +22,7 @@ export function useAccountTree(list = [], search = "") {
     });
 
     const sortTree = (nodes) => {
-      nodes.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+     
       nodes.forEach((n) => n.children && sortTree(n.children));
     };
 

@@ -15,8 +15,6 @@ const TrialBalancePrint = forwardRef(
         return (
           <React.Fragment key={acc.code}>
             <tr className={isParent ? "parent-row" : "child-row"}>
-  
-
               <td
                 className={`account-name ${isParent ? "parent-name" : ""}`}
                 style={{
@@ -289,6 +287,19 @@ const TrialBalancePrint = forwardRef(
               </div>
             </div>
           </div>
+        </div>
+        <div
+          style={{
+            marginTop: "28px",
+            fontSize: "7pt",
+            color: "#888",
+            textAlign: "center",
+            paddingTop: "50px",
+            fontFamily: "'Noto Sans Lao', sans-serif",
+          }}
+        >
+          ພັດທະນາໂດຍ | ບໍລິສັດ: SmartAcc Co., Ltd |{" "}
+          {new Date().toLocaleString("en-GB")}
         </div>
       </div>
     );
