@@ -64,7 +64,7 @@ function TwoFactorAuth() {
 
       navigate("/user");
     } catch (err) {
-      console.log(err);
+  
       toast({
         title: "Invalid code",
         description: "Please try again",

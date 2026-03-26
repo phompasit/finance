@@ -22,7 +22,6 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  console.log(user);
   // =========================
   // Fetch current user
   // =========================
@@ -49,11 +48,10 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post("/api/auth/login", { email, password });
 
     // ถ้าต้องกรอก 2FA
+    // แก้เป็น ✅
     if (data.requiresTwoFactor) {
-      return {
-        requiresTwoFactor: true,
-        tempToken: data.tempToken,
-      };
+      return { requiresTwoFactor: true };
+      // tempToken อยู่ใน httpOnly cookie อัตโนมัติ
     }
 
     // ถ้า login สำเร็จปกติ
@@ -62,13 +60,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   ////-==========
-  const verifyTwoFactor = async (tempToken, code) => {
-    await api.post("/api/auth/user/verify-2fa", {
-      tempToken,
-      code,
-    });
-
-    await fetchUser(); // ตอนนี้ค่อยดึง user
+  const verifyTwoFactor = async (code) => {
+    await api.post("/api/auth/user/verify-2fa", { code });
+    // cookie จัดการ tempToken เองอัตโนมัติ
+    await fetchUser();
   };
 
   //===============
@@ -77,11 +72,11 @@ export const AuthProvider = ({ children }) => {
   // =========================
   const logout = async () => {
     try {
-      await api.post("/api/auth/logout"); // แนะนำให้ backend clear cookie
+      await api.post("/api/auth/logout");
     } catch {}
     setUser(null);
+    window.location.href = "/login"; // ✅ เพิ่มบรรทัดนี้
   };
-
   return (
     <AuthContext.Provider
       value={{

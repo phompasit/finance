@@ -1,13 +1,17 @@
+// models/User.js
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+
 const loginHistorySchema = new mongoose.Schema({
-  timestamp: { type: Date, default: Date.now },
-  ipAddress: { type: String },
-  userAgent: { type: String },
-  sessionId: { type: String },
+  timestamp:  { type: Date, default: Date.now },
+  ipAddress:  { type: String },
+  userAgent:  { type: String },
+  sessionId:  { type: String },
 });
+
 const userSchema = new mongoose.Schema(
   {
+    // ─── Identity ──────────────────────────────────────────────
     username: {
       type: String,
       required: true,
@@ -24,61 +28,73 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+      select: false, // ✅ ไม่ดึงมาโดยอัตโนมัติ ต้อง .select("+password") ชัดเจน
     },
+    fullName: { type: String },
+
+    // ─── Role & Status ─────────────────────────────────────────
     role: {
       type: String,
       enum: ["admin", "staff", "user", "master"],
       default: "user",
     },
-    fullName: {
-      type: String,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    isSuperAdmin: { type: Boolean, default: false },
+    isActive:     { type: Boolean, default: true },  // ✅ ลบ duplicate ออก
+
+    // ─── Company ───────────────────────────────────────────────
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
     },
-    isSuperAdmin: {
-      type: Boolean,
-    },
-    loginAttempts: { type: Number, default: 0 },
-    lastFailedLogin: { type: Date },
-    lockedUntil: { type: Date },
-    isActive: { type: Boolean, default: true },
-    lastLogin: { type: Date },
-    lastLoginIp: { type: String },
-    lastLoginUserAgent: { type: String },
-    refreshToken: { type: String },
-    refreshTokenExpiry: { type: Date },
-    loginHistory: [loginHistorySchema],
 
-    twoFactorEnabled: { type: Boolean, default: false },
-    twoFactorSecret: { type: String },
-    twoFactorTempToken: { type: String },
+    // ─── Login tracking ────────────────────────────────────────
+    lastLogin:          { type: Date },
+    lastLoginIp:        { type: String },
+    lastLoginUserAgent: { type: String },
+    loginHistory:       { type: [loginHistorySchema], default: [] },
+
+    // ─── Account lockout (DB-level) ────────────────────────────
+    // ⚠️  In-memory Map ใน auth.js จัดการ fast-path
+    // field เหล่านี้ใช้สำหรับ persistent lock (รอด server restart)
+    loginAttempts:  { type: Number, default: 0 },
+    lastFailedLogin:{ type: Date },
+    lockedUntil:    { type: Date },           // DB-level lock timestamp
+
+    // ─── 2FA ───────────────────────────────────────────────────
+    twoFactorEnabled:    { type: Boolean, default: false },
+    twoFactorSecret:     { type: String, select: false }, // ✅ ไม่ดึงมา default
+
+    // temp token ตอน login (รอยืนยัน 2FA)
+    twoFactorTempToken:        { type: String, select: false },
     twoFactorTempTokenExpires: { type: Date },
+
+    // brute-force protection สำหรับ 2FA
+    // ✅ เพิ่ม — มีใช้ใน verify-2fa route แต่ไม่มีใน schema เดิม!
+    twoFactorAttempts:   { type: Number, default: 0 },
+    twoFactorLockedUntil:{ type: Date },
   },
   {
     timestamps: true,
   }
 );
 
-// Hash password before saving
+// ─── Hooks ──────────────────────────────────────────────────────
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
-  this.password = await bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 12); // ✅ 12 rounds แทน 10
 });
 
-// Compare password method
+// ─── Methods ────────────────────────────────────────────────────
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  console.log(
-    "Comparing password:",
-    await bcrypt.compare(candidatePassword, this.password)
-  );
-  return await bcrypt.compare(candidatePassword, this.password);
+  return bcrypt.compare(candidatePassword, this.password);
+  // ✅ ลบ console.log ออก — อย่า log password operations ใน production
 };
+
+// ─── Indexes ────────────────────────────────────────────────────
+// ✅ เพิ่ม index สำหรับ query ที่ใช้บ่อย
+userSchema.index({ email: 1 });
+userSchema.index({ companyId: 1, role: 1 });
+userSchema.index({ lockedUntil: 1 }, { sparse: true }); // sparse เพราะส่วนใหญ่ null
 
 export default mongoose.model("User", userSchema);

@@ -16,7 +16,115 @@ const VALID_TYPES = ["asset", "liability", "equity", "income", "expense"];
 const MAX_CODE_LENGTH = 20;
 const MAX_NAME_LENGTH = 255;
 const MAX_CATEGORY_LENGTH = 100;
-const RESTRICTED_PARENT_CODES = ["321", "329", "331", "339"];
+const RESTRICTED_PARENT_CODES = [
+  "321",
+  "1011",
+  "329",
+  "331",
+  "339",
+  "1391",
+  "1392",
+  "1394",
+  "1395",
+  "1396",
+  "1397",
+  "1398",
+  "301",
+  "302",
+  "303",
+  "308",
+  "309",
+  "311",
+  "312",
+  "4041",
+  "4042",
+  "4043",
+  "405",
+  "408",
+  "4031",
+  "4032",
+  "4201",
+  "4202",
+  "4203",
+  "4204",
+  "4205",
+  "4206",
+  "4207",
+  "4208",
+  "4211",
+  "4212",
+  "4213",
+  "4218",
+  "4221",
+  "4222",
+  "4226",
+  "4228",
+  "430",
+  "431",
+  "432",
+  "433",
+  "434",
+  "435",
+  "436",
+  "437",
+  "438",
+  "441",
+  "442",
+  "443",
+  "447",
+  "448",
+  "451",
+  "452",
+  "453",
+  "454",
+  "455",
+  "456",
+  "457",
+  "458",
+  "461",
+  "462",
+  "463",
+  "464",
+  "465",
+  "466",
+  "468",
+  "471",
+  "472",
+  "473",
+  "474",
+  "475",
+  "477",
+  "478",
+  "4811",
+  "4812",
+  "4813",
+  "4816",
+  "4818",
+  "4821",
+  "4822",
+  "4829",
+  "4911",
+  "4912",
+  "4913",
+  "4914",
+  "4915",
+  "492",
+  "493",
+  "494",
+  "495",
+  "496",
+  "497",
+  "498",
+  "501",
+  "506",
+  "507",
+  "511",
+  "512",
+  "518",
+  "581",
+  "582",
+  "583",
+];
 // ========================
 // RATE LIMITING
 // ========================
@@ -555,85 +663,3 @@ router.delete(
 );
 
 export default router;
-
-// /**
-//  * 5) DELETE — ลบบัญชี (เช็คก่อนว่ามีลูกไหม)
-//  */
-// router.delete("/:id", authenticate, async (req, res) => {
-//   try {
-//     const acc = await Account_document.findById(req.params.id);
-//     if (!acc) return res.status(404).json({ error: "ไม่พบบัญชี" });
-
-//     // ตรวจสอบว่ามีบัญชีย่อยไหม
-//     const child = await Account_document.findOne({
-//       parentCode: acc.code,
-//       companyId: acc.companyId,
-//     });
-
-//     if (child) {
-//       return res.status(400).json({
-//         success: false,
-//         error: "ลบไม่ได้: ยังมีบัญชีย่อยอยู่",
-//       });
-//     }
-
-//     await acc.deleteOne();
-
-//     res.json({ success: true, message: "ลบสำเร็จ" });
-//   } catch (err) {
-//     res.status(400).json({ success: false, error: err.message });
-//   }
-// });
-// /**
-//  * 3) CREATE CHILD ACCOUNT — เพิ่มบัญชีย่อย
-//  */
-// router.post("/create-child", authenticate, async (req, res) => {
-//   try {
-//     const userId = req.user._id;
-//     const companyId = req.user.companyId;
-//     if (!companyId && !userId) {
-//       return res.status(400).json({
-//         error: "please login before",
-//       });
-//     }
-//     const { parentCode, code, name, type, normalSide, category } = req.body;
-//     if (!code || !name || !type) {
-//       return res.status(400).json({ error: "Missing required fields" });
-//     }
-
-//     const exists = await Account_document.findOne({
-//       companyId,
-//       code,
-//     });
-
-//     if (exists) {
-//       return res.status(409).json({ error: "Account code already exists" });
-//     }
-//     // ตรวจสอบว่าบัญชีหลักมีจริง
-//     const parent = await Account_document.findOne({
-//       companyId: req.user.companyId,
-//       code: parentCode,
-//     });
-
-//     if (!parent) {
-//       return res.status(400).json({
-//         success: false,
-//         error: "ไม่พบบัญชีหลัก (parentCode)",
-//       });
-//     }
-
-//     const account = await Account_document.create({
-//       companyId: req.user.companyId,
-//       parentCode,
-//       code,
-//       name,
-//       type: type || parent.type,
-//       normalSide,
-//       category,
-//     });
-
-//     res.json({ success: true, account });
-//   } catch (err) {
-//     res.status(400).json({ success: false, error: err.message });
-//   }
-// });

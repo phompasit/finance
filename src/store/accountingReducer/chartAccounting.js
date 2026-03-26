@@ -141,7 +141,7 @@ export const accountSlice = createSlice({
       })
       .addCase(createAccount.fulfilled, (state, { payload }) => {
         state.loader = false;
-        state.successMessage = "เพิ่มบัญชีสำเร็จ";
+        state.successMessage = "ເພີ່ມສຳເລັດ";
         state.accounts.push(payload);
       })
       .addCase(createAccount.rejected, (state, { payload }) => {
@@ -157,7 +157,7 @@ export const accountSlice = createSlice({
       })
       .addCase(updateAccount.fulfilled, (state, { payload }) => {
         state.loader = false;
-        state.successMessage = "แก้ไขบัญชีสำเร็จ";
+        state.successMessage = "ແກ້ໄຂສຳເລັດ";
 
         // update list
         state.accounts = state.accounts.map((item) =>
@@ -177,7 +177,7 @@ export const accountSlice = createSlice({
       })
       .addCase(deleteAccount.fulfilled, (state, { payload }) => {
         state.loader = false;
-        state.successMessage = "ลบสำเร็จ";
+        state.successMessage = "ລົບສຳເລັດ";
 
         state.accounts = state.accounts.filter((a) => a._id !== payload.id);
       })

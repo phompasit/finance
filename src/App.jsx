@@ -119,9 +119,15 @@ function App() {
         </Route>
         {/* ================= FALLBACK ================= */}
         <Route path="*" element={<NotFound />} />
-
-        <Route path="2fa-setup" element={<TwoFactorAuth />} />
-        <Route path="2faVerify" element={<Verify2FA />} />
+        <Route path="/2faVerify" element={<Verify2FA />} />
+        <Route
+          path="/2fa-setup"
+          element={
+            <PrivateRoute>
+              <TwoFactorAuth />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </AuthProvider>
   );

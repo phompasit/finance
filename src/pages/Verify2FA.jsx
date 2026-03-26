@@ -411,7 +411,7 @@ function Verify2FA() {
       await fetchUser();
       setTimeout(() => navigate("/"), 800);
     } catch (err) {
-      console.log(err);
+    
       const msg = err?.response?.data?.message || "Verification failed";
       setHasError(true);
       setCode(["", "", "", "", "", ""]);

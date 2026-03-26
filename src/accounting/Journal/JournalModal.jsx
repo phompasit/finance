@@ -359,7 +359,7 @@ export default function JournalModal() {
     value: c,
     label: c,
   }));
-  const RESTRICTED_PARENT_CODES = ["321", "329", "331", "339"];
+  const RESTRICTED_PARENT_CODES = ["321","1011", "329", "331", "339"];
 
   /* ✅ เอาเฉพาะบัญชีย่อย + parent พิเศษ */
   const accountOptions = accounts

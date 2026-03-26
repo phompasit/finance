@@ -229,18 +229,19 @@ router.post("/", authenticate, apiLimiter, async (req, res) => {
     }
 
     // SECURITY: Verify all accounts belong to user's company (Critical!)
-    // ต้องทำก่อน startTransaction เพื่อหลีกเลี่ยง abort transaction ที่ยังไม่ได้เริ่ม
-    // const accountCheck = await Account.countDocuments({
-    //   _id: { $in: accountIds },
-    //   companyId: req.user.companyId
-    // });
+    const accountCheck = await Account.countDocuments({
+      _id: { $in: accountIds },
+      companyId: req.user.companyId,
+    });
 
-    // if (accountCheck !== accountIds.length) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: "Access denied: One or more accounts do not belong to your company"
-    //   });
-    // }
+    if (accountCheck !== accountIds.length) {
+      await session.abortTransaction();
+      return res.status(403).json({
+        success: false,
+        error:
+          "Access denied: One or more accounts do not belong to your company",
+      });
+    }
 
     // Validate dates
     const purchaseDateObj = new Date(purchaseDate);

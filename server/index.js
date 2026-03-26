@@ -33,7 +33,7 @@ import income_statementRoutes from "./routes/accounting/incomeStatement.js";
 import closingRoutes from "./routes/accounting/close_accounting.js";
 import BooksRoutes from "./routes/accounting/cashBook.js";
 
-import fixedAssetRoutes from "./routes/accounting/fixedAsset.js"
+import fixedAssetRoutes from "./routes/accounting/fixedAsset.js";
 // Security middleware
 import {
   corsOptions,
@@ -41,6 +41,8 @@ import {
   authLimiter,
 } from "./middleware/security.js";
 import cookieParser from "cookie-parser";
+import { sanitizeInput } from "./middleware/sanitize.js";
+import errorHandler from "./middleware/errorHandler.js";
 const app = express();
 
 // ============================================
@@ -55,6 +57,7 @@ app.use(cookieParser());
 // 4. Body parsing with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(sanitizeInput); // ✅ ใส่หลัง body parser เสมอ — body ต้อง parse ก่อนถึง sanitize ได้
 app.use(express.static("dist"));
 
 // 5. Prevent NoSQL injection
@@ -161,11 +164,11 @@ app.use("/api/statement-assets", statementAssetsRoutes);
 app.use("/api/income-statement", income_statementRoutes);
 app.use("/api/accounting", closingRoutes);
 app.use("/api/book", BooksRoutes);
-app.use('/api/fixAsset' ,fixedAssetRoutes)
+app.use("/api/fixAsset", fixedAssetRoutes);
 // ============================================
 // 🔒 STATIC FILES & SPA (Last priority)
 // ============================================
-
+app.use(errorHandler);
 // Only serve static files in production
 // ============================================
 // 🔒 ERROR HANDLING

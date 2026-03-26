@@ -23,6 +23,7 @@ import mongoose from "mongoose";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { apiLimiter, authLimiter } from "../middleware/security.js";
+import RefreshToken from "../models/RefreshToken.js";
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -63,7 +64,7 @@ router.post("/register", registerLimiter, authenticate, async (req, res) => {
           "ລະຫັດຜ່ານຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ ປະກອບດ້ວຍຕົວພິມໃຫ່ຍ ພິມນ້ອຍ ຕົວອັກສອນ ແລະ ອັກຂະລະພິເສດ",
       });
     }
-    const allowedRoles = ["admin", "staff", "master"];
+    const allowedRoles = ["admin", "staff", "master", "user"];
     const userRole = role || "user";
     if (!allowedRoles.includes(userRole)) {
       return res.status(400).json({
@@ -445,28 +446,37 @@ router.post(
           iat: Math.floor(Date.now() / 1000),
           isSuperAdmin: plainUser?.isSuperAdmin,
         },
-        process.env.JWT_SECRET || "secret",
+        process.env.JWT_SECRET,
         {
-          expiresIn: process.env.JWT_EXPIRE,
+          expiresIn: "15m",
           algorithm: "HS256",
           issuer: "admin",
           audience: "admin",
         }
       );
       // 10. Generate refresh token
+      // 10. Generate refresh token
       const refreshToken = crypto.randomBytes(40).toString("hex");
       const refreshTokenExpiry = new Date(
         Date.now() + 30 * 24 * 60 * 60 * 1000
-      ); // 30 วัน
+      );
 
-      // 11. Update user login info
+      // บันทึกแยกใน RefreshToken collection (ไม่เก็บใน User อีกต่อไป)
+      await RefreshToken.create({
+        token: refreshToken,
+        userId: user._id,
+        sessionId,
+        expiresAt: refreshTokenExpiry,
+        ipAddress,
+        userAgent,
+      });
+
+      // 11. Update user login info (ลบ refreshToken ออกจาก User)
       await User.findByIdAndUpdate(user._id, {
         lastLogin: new Date(),
         lastLoginIp: ipAddress,
         lastLoginUserAgent: userAgent,
         loginAttempts: 0,
-        refreshToken,
-        refreshTokenExpiry,
         $push: {
           loginHistory: {
             timestamp: new Date(),
@@ -484,11 +494,10 @@ router.post(
       await Session.create({
         userId: user._id,
         sessionId,
-        token,
-        refreshToken,
         ipAddress,
         userAgent,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        token: token,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isActive: true,
       });
 
@@ -504,22 +513,27 @@ router.post(
         timestamp: new Date(),
       });
 
-      // 15. Calculate response time (เพื่อตรวจสอบ timing attack)
-      const responseTime = Date.now() - startTime;
       // ⭐ set cooki
-      res.cookie("access_token", token, {
-        // httpOnly: true,
-        // secure: process.env.NODE_ENV === "production",
-        // sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      // ส่ง refresh token ใน httpOnly cookie
+      res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        path: "/api/auth/refresh", // จำกัด path
+      });
+
+      // Access token อายุสั้นลง (15 นาที แทน 7 วัน)
+      res.cookie("access_token", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        maxAge: 15 * 60 * 1000, // 15 นาที
       });
 
       // 16. Send response
       res.json({
-        expiresIn: 7 * 24 * 60 * 60,
+        expiresIn: 15 * 60, // ✅ 900 วินาที = 15 นาที
         user: {
           id: user._id,
           username: user.username,
@@ -529,13 +543,10 @@ router.post(
         },
         session: {
           sessionId,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
     } catch (error) {
-      // 17. Secure error handling
-      console.error("Login error:", error);
-
       await ErrorLog.create({
         endpoint: "/login",
         error: error.message,
@@ -543,7 +554,7 @@ router.post(
         ipAddress: req.ip,
         timestamp: new Date(),
       });
-
+      console.log(error);
       // ไม่เปิดเผยรายละเอียดข้อผิดพลาด
       res.status(500).json({
         message: "Something with Wrong please try again",
@@ -602,17 +613,21 @@ async function getLocationFromIp(ip) {
 router.post("/logout", authenticate, async (req, res) => {
   try {
     const sessionId = req.user?.sessionId;
+    const incomingRefresh = req.cookies["refresh_token"];
 
-    // ปิด session ถ้ามี
+    // Revoke refresh token
+    if (incomingRefresh) {
+      await RefreshToken.findOneAndUpdate(
+        { token: incomingRefresh },
+        { revokedAt: new Date() }
+      );
+    }
+
     if (sessionId) {
       await Session.updateOne(
         { sessionId },
-        {
-          isActive: false,
-          logoutAt: new Date(),
-        }
+        { isActive: false, logoutAt: new Date() }
       );
-
       await AuditLog.create({
         action: "LOGOUT",
         userId: req.user._id,
@@ -623,21 +638,22 @@ router.post("/logout", authenticate, async (req, res) => {
       });
     }
 
-    // ⭐ สำคัญ: clear httpOnly cookie
     res.clearCookie("access_token", {
       httpOnly: true,
       sameSite: "None",
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
+    });
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      sameSite: "None",
+      secure: true,
+      path: "/api/auth/refresh", // ✅ ต้องใส่ให้ตรงกับตอน set cookie
     });
 
-    return res.status(200).json({
-      message: "ອອກຈາກລະບົບສຳເລັດ",
-    });
+    return res.status(200).json({ message: "ອອກຈາກລະບົບສຳເລັດ" });
   } catch (error) {
     console.error("Logout error:", error);
-    res.status(500).json({
-      message: "Something with Wrong please try again",
-    });
+    res.status(500).json({ message: "Something went wrong" });
   }
 });
 
@@ -860,11 +876,13 @@ const uploadImageLogo = async (image) => {
 const deleteCloudinaryImage = async (imageUrl) => {
   try {
     if (!imageUrl) return;
-    const publicId = imageUrl.split("/").pop().split(".")[0];
-    if (!publicId.startsWith("finance/image_company/")) {
-      throw new Error("Invalid publicId");
-    }
-    await cloudinary.uploader.destroy(`finance/image_company/${publicId}`);
+    // Cloudinary URL: .../finance/image_company/abc123.jpg
+    const urlParts = imageUrl.split("/");
+    const folderIndex = urlParts.indexOf("finance");
+    if (folderIndex === -1) return; // ไม่ใช่ URL ของ cloudinary เรา
+    const publicId = urlParts.slice(folderIndex).join("/").split(".")[0];
+    // publicId = "finance/image_company/abc123"
+    await cloudinary.uploader.destroy(publicId);
   } catch (err) {
     console.error("⚠️ Failed to delete old image from Cloudinary:", err);
   }
@@ -886,7 +904,6 @@ router.patch(
 
       // ดึงข้อมูลจาก body
       let { username, email, password, role, companyId } = req.body;
-      console.log("companyId", companyId);
       // ถ้า companyId ส่งมาเป็น string → parse
       if (companyId && typeof companyId === "string") {
         companyId = JSON.parse(companyId);
@@ -1071,7 +1088,6 @@ router.post("/user/verify-2fa", async (req, res) => {
   try {
     const { code } = req.body;
     const tempToken = req.cookies["2fa_temp_token"]; // ✅ อ่านจาก cookie
-    console.log("tempToken", tempToken);
     if (!tempToken || !code) {
       return res.status(400).json({ message: "Missing verification data" });
     }
@@ -1087,7 +1103,9 @@ router.post("/user/verify-2fa", async (req, res) => {
     const user = await User.findOne({
       twoFactorTempToken: hashedToken,
       twoFactorTempTokenExpires: { $gt: Date.now() },
-    }).select("+twoFactorSecret +twoFactorAttempts +twoFactorLockedUntil");
+    }).select(
+      "+twoFactorSecret +twoFactorAttempts +twoFactorLockedUntil isSuperAdmin role companyId"
+    );
     if (!user) {
       return res.status(401).json({ message: "Invalid or expired token" });
     }
@@ -1101,16 +1119,6 @@ router.post("/user/verify-2fa", async (req, res) => {
         message: `ລອງໃໝ່ໃນອີກ ${minutesLeft} ນາທີ`,
       });
     }
-    console.log("secret:", user.twoFactorSecret);
-    console.log("code received:", code);
-    console.log("server unix time:", Math.floor(Date.now() / 1000));
-    console.log(
-      "expected token:",
-      speakeasy.totp({
-        secret: user.twoFactorSecret,
-        encoding: "base32",
-      })
-    );
 
     const verified = speakeasy.totp.verify({
       secret: user.twoFactorSecret,
@@ -1118,7 +1126,6 @@ router.post("/user/verify-2fa", async (req, res) => {
       token: code,
       window: 1,
     });
-    console.log("verified", verified);
     if (!verified) {
       user.twoFactorAttempts = (user.twoFactorAttempts || 0) + 1;
       if (user.twoFactorAttempts >= 5) {
@@ -1134,7 +1141,8 @@ router.post("/user/verify-2fa", async (req, res) => {
     user.twoFactorLockedUntil = undefined;
     user.twoFactorTempToken = undefined;
     user.twoFactorTempTokenExpires = undefined;
-
+    const ipAddress = req.ip;
+    const userAgent = req.get("user-agent");
     const sessionId = crypto.randomBytes(16).toString("hex");
     const token = jwt.sign(
       {
@@ -1146,13 +1154,38 @@ router.post("/user/verify-2fa", async (req, res) => {
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: process.env.JWT_EXPIRE,
+        expiresIn: "15m",
         algorithm: "HS256",
         issuer: "admin",
         audience: "admin",
       }
     );
-
+    const newRefreshToken = crypto.randomBytes(40).toString("hex");
+    await user.save();
+    await RefreshToken.create({
+      token: newRefreshToken,
+      userId: user._id,
+      sessionId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      ipAddress: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+    await Session.create({
+      userId: user._id,
+      sessionId,
+      // ไม่เก็บ token จริง — ใช้ sessionId เป็น key แทน
+      ipAddress,
+      userAgent,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+    });
+    res.cookie("refresh_token", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: "/api/auth/refresh",
+    });
     // ✅ Clear 2fa temp cookie
     res.clearCookie("2fa_temp_token", {
       httpOnly: true,
@@ -1164,22 +1197,9 @@ router.post("/user/verify-2fa", async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "None",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 15 * 60 * 1000, // ✅ 15 นาที เหมือนกัน
     });
 
-    const ipAddress = req.ip;
-    const userAgent = req.get("user-agent");
-    await Session.create({
-      userId: user._id,
-      sessionId,
-      token,
-      ipAddress,
-      userAgent,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      isActive: true,
-    });
-
-    await user.save();
     res.json({ message: "Login success" });
   } catch (error) {
     console.error("2FA verify error:", error);
@@ -1242,4 +1262,148 @@ router.post(
     }
   }
 );
+
+router.post("/refresh", async (req, res) => {
+  try {
+    const incomingToken = req.cookies["refresh_token"];
+    const ipAddress = req.ip;
+    const userAgent = req.get("user-agent");
+
+    if (!incomingToken) {
+      return res.status(401).json({ message: "No refresh token" });
+    }
+
+    // ค้นหา token ใน DB (ทั้ง valid และ revoked)
+    const storedToken = await RefreshToken.findOne({ token: incomingToken });
+
+    // ⚠️ REUSE DETECTION: token ไม่มีใน DB เลย
+    if (!storedToken) {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    // ⚠️ REUSE DETECTION: token ถูก revoke ไปแล้ว = อาจถูกขโมย!
+    if (storedToken.revokedAt) {
+      console.warn(
+        `🚨 Refresh token reuse detected! userId: ${storedToken.userId}`
+      );
+
+      // Revoke ทุก token ของ user นั้นทันที (kick ออกทุก session)
+      await RefreshToken.updateMany(
+        { userId: storedToken.userId, revokedAt: null },
+        { revokedAt: new Date() }
+      );
+
+      await AuditLog.create({
+        action: "REFRESH_TOKEN_REUSE_DETECTED",
+        userId: storedToken.userId,
+        ipAddress,
+        userAgent,
+        timestamp: new Date(),
+      });
+
+      res.clearCookie("refresh_token", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+        path: "/api/auth/refresh", // ✅ ต้องใส่ให้ตรงกับตอน set cookie
+      });
+      res.clearCookie("access_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+      });
+
+      return res.status(401).json({
+        message: "Security violation detected. Please login again.",
+      });
+    }
+
+    // ตรวจสอบ expiry
+    if (storedToken.expiresAt < new Date()) {
+      await RefreshToken.findByIdAndUpdate(storedToken._id, {
+        revokedAt: new Date(),
+      });
+      return res.status(401).json({ message: "Refresh token expired" });
+    }
+
+    // ✅ Valid → Rotate!
+    const user = await User.findById(storedToken.userId).select(
+      "role companyId isSuperAdmin isActive"
+    );
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "User not found or inactive" });
+    }
+
+    // ออก tokens ใหม่
+    const sessionId = crypto.randomBytes(16).toString("hex");
+    const newAccessToken = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role,
+        sessionId,
+        companyId: user.companyId,
+        isSuperAdmin: user.isSuperAdmin,
+        iat: Math.floor(Date.now() / 1000),
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "15m",
+        algorithm: "HS256",
+        issuer: "admin",
+        audience: "admin",
+      }
+    );
+
+    const newRefreshToken = crypto.randomBytes(40).toString("hex");
+    const newRefreshExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Revoke token เก่า และบันทึกว่าถูกแทนที่ด้วย token อะไร
+    await RefreshToken.findByIdAndUpdate(storedToken._id, {
+      revokedAt: new Date(),
+      replacedByToken: newRefreshToken,
+    });
+
+    // บันทึก token ใหม่
+    await RefreshToken.create({
+      token: newRefreshToken,
+      userId: user._id,
+      sessionId,
+      expiresAt: newRefreshExpiry,
+      ipAddress,
+      userAgent,
+    });
+
+    // Log
+    await AuditLog.create({
+      action: "TOKEN_REFRESHED",
+      userId: user._id,
+      sessionId,
+      ipAddress,
+      userAgent,
+      timestamp: new Date(),
+    });
+
+    // Set cookies ใหม่
+    res.cookie("refresh_token", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: "/api/auth/refresh",
+    });
+
+    res.cookie("access_token", newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.json({ message: "Token refreshed", expiresIn: 15 * 60 });
+  } catch (error) {
+    console.error("Refresh error:", error);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+});
 export default router;

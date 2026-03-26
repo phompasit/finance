@@ -28,48 +28,8 @@ const createLimiter = rateLimit({
 const modifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50, // จำกัดการแก้ไข/ลบ
-  message: "Too many requests"
+  message: "Too many requests",
 });
-
-// Input sanitization middleware
-const sanitizeInput = (req, res, next) => {
-  if (!req.body) return next();
-
-  const sanitizeValue = (value) => {
-    // ✅ Only sanitize strings
-    if (typeof value === "string") {
-      // Trim + collapse spaces
-      const cleaned = value.trim().replace(/\s+/g, " ");
-
-      // ✅ Limit max length to prevent payload abuse
-      return cleaned.slice(0, 1000);
-    }
-
-    // ✅ Prevent Mongo operator injection
-    if (typeof value === "object" && value !== null) {
-      for (const key of Object.keys(value)) {
-        if (key.startsWith("$")) {
-          throw new Error("Invalid input: Mongo operator not allowed");
-        }
-      }
-    }
-
-    return value;
-  };
-
-  try {
-    Object.keys(req.body).forEach((key) => {
-      req.body[key] = sanitizeValue(req.body[key]);
-    });
-
-    next();
-  } catch (err) {
-    return res.status(400).json({
-      success: false,
-      error: err.message,
-    });
-  }
-};
 
 // Authorization check - ตรวจสอบสิทธิ์การเข้าถึง
 const checkPermission = (requiredRole) => {
@@ -111,8 +71,6 @@ const checkPermission = (requiredRole) => {
     }
   };
 };
-
-router.use(sanitizeInput); // ทำความสะอาด input
 
 /* =====================================================
    HELPER FUNCTIONS

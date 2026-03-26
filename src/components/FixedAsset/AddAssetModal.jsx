@@ -484,16 +484,26 @@ const AddAssetModal = () => {
   // override usage logic (ไม่ลบของเดิม)
   const canEditGeneralFixed = !isLockedAfterDepreciation;
   const canEditGeneral = canEditGeneralFixed;
-  const accountOptions = useMemo(
-    () =>
-      accounts
-        ?.filter((a) => a.parentCode)
-        .map((a) => ({
-          value: a._id,
-          label: `${a.code} - ${a.name}`,
-        })) || [],
-    [accounts]
-  );
+  const RESTRICTED_PARENT_CODES = ["321","1011", "329", "331", "339"];
+
+  /* ✅ เอาเฉพาะบัญชีย่อย + parent พิเศษ */
+  const accountOptions = accounts
+    ?.filter((a) => {
+      // ✅ บัญชีย่อยทั้งหมดเลือกได้
+      if (a.parentCode) return true;
+
+      // ✅ parent หลักพิเศษ (321/329/331/339) เลือกได้
+      if (RESTRICTED_PARENT_CODES.includes(a.code)) return true;
+
+      // ❌ parent หลักอื่นซ่อนหมด
+      return false;
+    })
+    .map((a) => ({
+      value: a._id,
+      code: a.code,
+      parentCode: a.parentCode,
+      label: `${a.code} - ${a.name}`,
+    }));
 
   // Handlers
   const onChange = useCallback(
