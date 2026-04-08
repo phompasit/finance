@@ -50,7 +50,7 @@ function App() {
       <Routes>
         {/* ================= PUBLIC ================= */}
         <Route path="/login" element={<Login />} />
-        {/* <Route path="/register" element={<RegisterForm />} /> */}
+        <Route path="/register" element={<RegisterForm />} />
         {/* ================= PRIVATE ================= */}
         <Route
           path="/"

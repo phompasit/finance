@@ -224,7 +224,7 @@ export default function Login() {
           </form>
 
           {/* ===== Register ===== */}
-          {/* <Button
+          <Button
             as={RouterLink}
             to="/register"
             variant="ghost"
@@ -234,7 +234,7 @@ export default function Login() {
             _hover={{ color: "teal.300", bg: "transparent" }}
           >
             ລົງທະບຽນບັນຊີໃໝ່
-          </Button> */}
+          </Button>
         </VStack>
       </Box>
     </Center>

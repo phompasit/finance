@@ -17,6 +17,7 @@ const ASSET_MAPPING = [
     pattern: "101,102,109",
   },
   {
+    
     group: "Current Assets",
     key: "financial_instruments_current",
     label: "ເຄື່ອງມືການເງິນ ແລະ ຊັບສິນຄ້າຍຄືກັນ",

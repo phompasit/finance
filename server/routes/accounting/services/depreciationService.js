@@ -362,7 +362,7 @@ export async function postDepreciationForAsset(req, res) {
               {
                 companyId,
                 userId,
-                date: new Date(year, month, 0),
+                date: new Date(startYear, startMonth, 0),
                 description: `Depreciation ${startMonth}/${startYear} - ${asset.name}`,
                 reference: asset.assetCode,
                 source: "depreciation",
@@ -517,7 +517,7 @@ export async function postDepreciationForAsset(req, res) {
       await session.abortTransaction();
     }
 
-    console.error("Post depreciation error:", err.message);
+    console.error("Post depreciation error:", err);
 
     if (err.name === "ValidationError") {
       return res.status(400).json({

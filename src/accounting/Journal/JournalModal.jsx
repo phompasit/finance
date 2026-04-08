@@ -34,6 +34,7 @@ import Select from "react-select";
 import { useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { ArrowBackIcon } from "@chakra-ui/icons";
+import { blockedCodes, CHART_ORDER } from "./Chart";
 
 const CURRENCIES = ["LAK", "USD", "THB", "CNY"];
 
@@ -68,7 +69,7 @@ export default function JournalModal() {
     const random4 = Math.floor(1000 + Math.random() * 9000);
     return `GL-${today}-${random4}`;
   };
-   const bg = useColorModeValue("gray.50", "gray.900");
+  const bg = useColorModeValue("gray.50", "gray.900");
   const resetForm = () => {
     setHeader({
       date: new Date().toISOString().slice(0, 10),
@@ -359,26 +360,20 @@ export default function JournalModal() {
     value: c,
     label: c,
   }));
-  const RESTRICTED_PARENT_CODES = ["321","1011", "329", "331", "339"];
-
+  const RESTRICTED_PARENT_CODES = ["321", "1011", "329", "331", "339"];
   /* ✅ เอาเฉพาะบัญชีย่อย + parent พิเศษ */
-  const accountOptions = accounts
-    ?.filter((a) => {
-      // ✅ บัญชีย่อยทั้งหมดเลือกได้
-      if (a.parentCode) return true;
-
-      // ✅ parent หลักพิเศษ (321/329/331/339) เลือกได้
-      if (RESTRICTED_PARENT_CODES.includes(a.code)) return true;
-
-      // ❌ parent หลักอื่นซ่อนหมด
-      return false;
-    })
-    .map((a) => ({
-      value: a._id,
-      code: a.code,
-      parentCode: a.parentCode,
-      label: `${a.code} - ${a.name}`,
-    }));
+  const accountOptions = useMemo(
+    () =>
+      accounts
+        ?.filter((a) => !blockedCodes.includes(a.code))
+        .map((a) => ({
+          value: a._id, // Use the MongoDB ID here
+          label: `${a.code} - ${a.name}`,
+          code: a.code, // Keep code for filtering logic
+          parentCode: a.parentCode,
+        })) || [],
+    [accounts]
+  );
   const filteredAccountOptions = accountOptions.filter((opt) => {
     // ✅ เลือก parent พิเศษได้
     if (RESTRICTED_PARENT_CODES.includes(opt.code)) return true;
@@ -388,7 +383,6 @@ export default function JournalModal() {
 
     return true;
   });
-
   return (
     <>
       <style>

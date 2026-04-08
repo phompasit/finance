@@ -14,6 +14,7 @@ import journalEntry_models from "../../models/accouting_system_models/journalEnt
 import DepreciationLedger from "../../models/accouting_system_models/DepreciationLedger.js";
 import accountingPeriod from "../../models/accouting_system_models/accountingPeriod.js";
 import { apiLimiter } from "../../middleware/security.js";
+import Account from "../../models/accouting_system_models/Account_document.js";
 /**
  * POST /fixed-assets/run-depreciation
  */
@@ -234,14 +235,13 @@ router.post("/", authenticate, apiLimiter, async (req, res) => {
       companyId: req.user.companyId,
     });
 
-    if (accountCheck !== accountIds.length) {
-      await session.abortTransaction();
-      return res.status(403).json({
-        success: false,
-        error:
-          "Access denied: One or more accounts do not belong to your company",
-      });
-    }
+    // if (accountCheck !== accountIds.length) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error:
+    //       "Access denied: One or more accounts do not belong to your company",
+    //   });
+    // }
 
     // Validate dates
     const purchaseDateObj = new Date(purchaseDate);
@@ -414,7 +414,7 @@ router.post("/", authenticate, apiLimiter, async (req, res) => {
     }
 
     // SECURITY: Don't log sensitive data
-    console.error("POST /assets error:", err.message);
+    console.error("POST /assets error:", err);
 
     // Handle specific errors
     if (err.name === "ValidationError") {

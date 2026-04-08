@@ -238,7 +238,7 @@ const CompanyAdminDashboard = memo(
     const pageBg = useColorModeValue("gray.50", "gray.900");
 
     if (!company || !admin) return null;
-
+    console.log("authUser",authUser)
     return (
       <Box minH="100vh" bg={pageBg} py={8}>
         <Container maxW="container.xl">
@@ -550,7 +550,7 @@ const CompanyAdminDashboard = memo(
                         - ບໍ່ມີຂໍ້ມູນ -
                       </Text>
                     ) : (
-                      authUser.companyId.bankAccounts.map((acc) => (
+                      authUser.companyId.bankAccounts?.map((acc) => (
                         <Box
                           key={acc._id}
                           p={3}

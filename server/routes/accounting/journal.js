@@ -560,7 +560,6 @@ router.post(
         totalCredit,
       } = validateAndCalculateLines(lines);
       const accountIds = validatedLines.map((l) => l.accountId);
-
       const count = await Account_document.countDocuments({
         _id: { $in: accountIds },
         companyId: req.user.companyId,

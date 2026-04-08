@@ -37,7 +37,7 @@ const INCOME_MAPPING = [
   {
     key: "other_income",
     label: "ລາຍຮັບອື່ນໆ ຈາກການດຳເນີນງານປົກກະຕິ",
-    pattern: "741,748,751-758",
+    pattern: "741,748,751 ,752,753-758",
   },
   {
     key: "distribution_costs",
@@ -52,7 +52,7 @@ const INCOME_MAPPING = [
   {
     key: "other_expenses",
     label: "ຄ່າໃຊ້ຈ່າຍອື່ນໆ ໃນການທຸລະກິດ",
-    pattern: "651-658",
+    pattern: "651,652,653-658",
   },
   { key: "finance_income", label: "ລາຍຮັບການເງິນ", pattern: "761-768" },
   { key: "finance_cost", label: "ລາຍຈ່າຍການເງິນ", pattern: "661-668" },
@@ -351,7 +351,7 @@ async function buildIncomeStatement({ companyId, start, end }) {
   const otherExp = lines.other_expenses.amount;
 
   // operating = gross + otherIncome - dist - admin - otherExp
-  const operating = (gross + otherIncome) - dist + admin - otherExp;
+  const operating = (gross + otherIncome) - dist + admin + otherExp;
   const finIncome = lines.finance_income.amount;
   const finCost = lines.finance_cost.amount;
   const pbt = operating + finIncome - finCost;

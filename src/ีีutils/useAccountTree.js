@@ -1,4 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { blockedCodes } from "../accounting/Journal/Chart";
+
+
+
+
 
 export function useAccountTree(list = [], search = "") {
   const [expanded, setExpanded] = useState({});
@@ -21,36 +26,29 @@ export function useAccountTree(list = [], search = "") {
       }
     });
 
-    const sortTree = (nodes) => {
-     
-      nodes.forEach((n) => n.children && sortTree(n.children));
-    };
-
-    sortTree(roots);
     return roots;
   }, [list]);
 
-  // Filter tree by search
-  const filteredTree = useMemo(() => {
-    if (!search) return tree;
+  // Filter tree: ให้ลูกที่ไม่ blocked ขึ้น แม้ parent blocked
+const filteredTree = useMemo(() => {
+  const filterNode = (node) => {
+    // กรองลูกก่อน
+    const children = (node.children || [])
+      .map(filterNode)
+      .filter(Boolean)
+      .flat(); // แบน array เพื่อไม่ให้ซ้อน
 
-    const q = search.toLowerCase();
-    const filterNode = (node) => {
-      const match =
-        node.code?.toLowerCase().includes(q) ||
-        node.name?.toLowerCase().includes(q);
+    if (blockedCodes.includes(node.code)) {
+      // Node blocked → return children (ไม่เอา node ตัวเอง)
+      return children.length ? children : null;
+    }
 
-      const children = (node.children || [])
-        .map(filterNode)
-        .filter(Boolean);
+    // Node ปกติ → return node พร้อม children
+    return [{ ...node, children }];
+  };
 
-      return match || children.length
-        ? { ...node, children }
-        : null;
-    };
-
-    return tree.map(filterNode).filter(Boolean);
-  }, [tree, search]);
+  return tree.map(filterNode).flat().filter(Boolean);
+}, [tree]);
 
   const toggle = (code) => {
     setExpanded((p) => ({ ...p, [code]: !p[code] }));

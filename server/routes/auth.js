@@ -24,6 +24,8 @@ import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { apiLimiter, authLimiter } from "../middleware/security.js";
 import RefreshToken from "../models/RefreshToken.js";
+import Account from "../models/accouting_system_models/Account_document.js";
+import { seedChartOfAccounts } from "../utils/accountCode.js";
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -157,6 +159,8 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
       companyId: companyId._id,
       isSuperAdmin: true,
     });
+    // auto seed ผังบัญชี
+    await seedChartOfAccounts(Account, companyId._id, user._id);
     await user.save();
 
     res.status(201).json({
@@ -672,7 +676,7 @@ router.get("/me", authenticate, async (req, res) => {
       )
       .populate({
         path: "companyId",
-        select: "name address taxId information phone", // เลือกเฉพาะ field ที่ใช้จริง
+        select: "name address taxId information phone bankAccounts cashAccounts", // เลือกเฉพาะ field ที่ใช้จริง
       })
       .lean(); // 3️⃣ ป้องกัน mutation / performance ดีขึ้น
     // 4️⃣ User ไม่พบ / ถูกลบ

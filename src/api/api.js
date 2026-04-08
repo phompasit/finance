@@ -24,7 +24,7 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error?.response?.status;
-
+    console.log(status);
     // ถ้า 401 และยังไม่เคย retry
     if (status === 401 && !originalRequest._retry) {
       // ถ้ากำลัง refresh อยู่ → เข้าคิวรอ
@@ -43,7 +43,7 @@ api.interceptors.response.use(
         // ขอ access token ใหม่
         await api.post("/api/auth/refresh");
         processQueue(null);
-        // retry request เดิม
+        //    // retry request เดิม
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);

@@ -15,34 +15,18 @@ import {
   resolveReportFilter,
 } from "../../utils/balanceSheetFuntions.js";
 import accountingPeriod from "../../models/accouting_system_models/accountingPeriod.js";
+import { CHART_ORDER } from "../../utils/accountCode.js";
 const router = express.Router();
 
 /* ============================================================================
    🔒 SECURITY: Input Validation & Sanitization
 ============================================================================ */
 function sortByAccountCode(a, b) {
-  const codeA = String(a.code).trim();
-  const codeB = String(b.code).trim();
-
-  // ดึงเลขหน้าสุดออกมาเปรียบเทียบก่อน
-  const firstA = parseInt(codeA[0], 10);
-  const firstB = parseInt(codeB[0], 10);
-
-  if (firstA !== firstB) return firstA - firstB;
-
-  // เลขหน้าเท่ากัน → เรียงตัวเลขทั้งหมดจากน้อยไปมาก
-  // รองรับทั้ง "1011" และ "1.1.1"
-  const partsA = codeA.split(".").map(Number);
-  const partsB = codeB.split(".").map(Number);
-
-  const len = Math.max(partsA.length, partsB.length);
-  for (let i = 0; i < len; i++) {
-    const segA = partsA[i] ?? 0;
-    const segB = partsB[i] ?? 0;
-    if (segA !== segB) return segA - segB;
-  }
-
-  return 0;
+  const idxA = CHART_ORDER.indexOf(String(a.code).trim());
+  const idxB = CHART_ORDER.indexOf(String(b.code).trim());
+  if (idxA === -1) return 1;
+  if (idxB === -1) return -1;
+  return idxA - idxB;
 }
 /**
  * Validate and sanitize year parameter
@@ -310,9 +294,6 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
     const childrenMap = buildTree(rows);
     rollUp(rows, childrenMap);
     computeEnding(rows);
-
-    const totals = calculateTotals(rows);
-
     const list = Object.values(rows)
       .filter(
         (r) =>
@@ -324,7 +305,40 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
           r.endingCr !== 0
       )
       .sort(sortByAccountCode);
-console.log("SORTED:", list.map(r => r.code));
+    const parentCodes = new Set(
+      list.filter((r) => r.parentCode).map((r) => r.parentCode)
+    );
+    function calculateTotals(list) {
+      return list.reduce(
+        (sum, r) => {
+          // 🔒 SECURITY: Sanitize all values
+          sum.openingDr += sanitizeAmount(r.openingDr);
+          sum.openingCr += sanitizeAmount(r.openingCr);
+
+          sum.movementDr += sanitizeAmount(r.movementDr);
+          sum.movementCr += sanitizeAmount(r.movementCr);
+
+          sum.endingDr += sanitizeAmount(r.endingDr);
+          sum.endingCr += sanitizeAmount(r.endingCr);
+
+          return sum;
+        },
+        {
+          openingDr: 0,
+          openingCr: 0,
+          movementDr: 0,
+          movementCr: 0,
+          endingDr: 0,
+          endingCr: 0,
+        }
+      );
+    }
+    // ✅ Leaf = code ที่ไม่ใช่ parent ของใคร
+    const leafList = list
+      .filter((r) => !parentCodes.has(r.code))
+      .sort(sortByAccountCode);
+    const totals = calculateTotals(leafList);
+
     /* ===============================
        7) RESPONSE
     =============================== */
@@ -508,7 +522,8 @@ router.get("/balance_after", authenticate, async (req, res) => {
 
         const acc = accountMap.get(String(l.accountId));
         if (!acc) return;
-
+        // 🔒 exclude 652, 752
+        // if (/^(652|752)(\.\d+|\d|$)/.test(acc.code)) return;
         // 🔒 SECURITY: Sanitize amount
         const amt = sanitizeAmount(l.amountLAK);
         if (amt <= 0) return;

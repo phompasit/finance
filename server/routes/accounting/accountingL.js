@@ -6,6 +6,11 @@ import OpeningBalance from "../../models/accouting_system_models/OpeningBalance.
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import { body, param, validationResult } from "express-validator";
+import {
+  DEFAULT_ACCOUNT_CODES,
+  getCurrentDepth,
+  getDepthLimit,
+} from "../../utils/accountCode.js";
 
 const router = express.Router();
 
@@ -286,9 +291,37 @@ router.post(
       if (parentCode && RESTRICTED_PARENT_CODES.includes(parentCode)) {
         return res.status(403).json({
           success: false,
-          error: `ບໍ່ອະນຸຍາດໃຫ້ສ້າງບັນຊີຍ່ອຍພາຍໃຕ້ ${parentCode} (ກຳໄລ/ຂາດ)`,
+          error: `ບໍ່ອະນຸຍາດໃຫ້ສ້າງບັນຊີຍ່ອຍພາຍໃຕ້ ${parentCode}`,
         });
       }
+      ////
+      // ========================
+      // ✅ ตรวจสอบ Depth Limit
+      // ========================
+      if (parentCode) {
+        // หาว่า parentCode อยู่ใต้ root ที่มี depth limit ไหม
+        const depthConfig = getDepthLimit(parentCode);
+
+        if (depthConfig !== null) {
+          // นับว่า parentCode อยู่ระดับที่เท่าไหร่จาก root
+          const currentDepth = await getCurrentDepth(
+            parentCode,
+            companyId,
+            Account_document
+          );
+
+          // currentDepth = ระดับที่ parent อยู่
+          // ถ้าสร้างลูกเพิ่ม จะเป็น currentDepth + 1
+          if (currentDepth + 1 > depthConfig.maxDepth) {
+            return res.status(403).json({
+              success: false,
+              error: `ບໍ່ອະນຸຍາດໃຫ້ສ້າງບັນຊີຍ່ອຍເກີນ ${depthConfig.maxDepth} ລະດັບ ພາຍໃຕ້ ${depthConfig.rootCode}`,
+            });
+          }
+        }
+      }
+
+      ////
       // Normalize
       const accountCode = String(code).trim();
       const accountCategory = String(category || "").trim();
@@ -427,7 +460,13 @@ router.patch(
       // Normalize
       const accountCode = String(code).trim();
       const accountCategory = String(category || "").trim();
-
+      // ✅ ป้องกันบัญชีที่อยู่ใน DEFAULT chart of accounts
+      if (DEFAULT_ACCOUNT_CODES.has(accountCode)) {
+        return res.status(403).json({
+          success: false,
+          error: "ບໍ່ສາມາດອັບເດດບັນຊີເລີ່ມຕົ້ນ (Default) ໄດ້",
+        });
+      }
       // ตรวจสอบว่าบัญชีนี้เป็นของบริษัทนี้จริง
       const existingAccount = await Account_document.findOne({
         _id: id,
@@ -562,6 +601,9 @@ router.get("/tree", authenticate, generalLimiter, async (req, res) => {
 /**
  * 5) DELETE — ลบบัญชีย่อย
  */
+// constants/restrictedAccounts.js
+
+// ใน route
 router.delete(
   "/account-document/:id",
   authenticate,
@@ -577,20 +619,12 @@ router.delete(
       const { id } = req.params;
       const companyId = req.user.companyId;
 
-      // ตรวจสอบว่าบัญชีมีอยู่และเป็นของบริษัทนี้
+      // ✅ หา account ก่อนเสมอ
       const account = await Account_document.findOne({
         _id: id,
         companyId,
       }).lean();
-      // ========================
-      // ✅ PROTECT RETAINED EARNINGS
-      // ========================
-      if (RESTRICTED_PARENT_CODES.includes(account.code)) {
-        return res.status(403).json({
-          success: false,
-          error: "ບໍ່ສາມາດລົບບັນຊີກຳໄລ/ຂາດທຶນສະສົມໄດ້",
-        });
-      }
+
       if (!account) {
         return res.status(404).json({
           success: false,
@@ -598,11 +632,11 @@ router.delete(
         });
       }
 
-      // กันลบบัญชีหลัก
-      if (account.parentCode === null) {
+      // ✅ ป้องกันบัญชีที่อยู่ใน DEFAULT chart of accounts
+      if (DEFAULT_ACCOUNT_CODES.has(account.code)) {
         return res.status(403).json({
           success: false,
-          error: "ບໍ່ສາມາດລົບເລກບັນຊີຫຼັກໄດ້",
+          error: "ບໍ່ສາມາດລົບບັນຊີເລີ່ມຕົ້ນ (Default) ໄດ້",
         });
       }
 
@@ -645,7 +679,6 @@ router.delete(
         });
       }
 
-      // ลบบัญชี
       await Account_document.findOneAndDelete({ _id: id, companyId });
 
       res.json({

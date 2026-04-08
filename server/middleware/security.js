@@ -135,7 +135,7 @@ const apiLimiter = rateLimit({
 
 // Login brute-force protection
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 1 * 60 * 1000,
   max: 10, // lowered for security
   message: "Too many login attempts. Try again later.",
   skipSuccessfulRequests: true,

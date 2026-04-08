@@ -28,6 +28,14 @@ import {
   useDisclosure,
   useToast,
   IconButton,
+    Table,          // ✅ เพิ่ม
+  TableContainer, // ✅ เพิ่ม
+  Thead,          // ✅ เพิ่ม
+  Tbody,          // ✅ เพิ่ม
+  Tr,             // ✅ เพิ่ม
+  Th,             // ✅ เพิ่ม
+  Td,             // ✅ เพิ่ม
+  Grid,           // ✅ เพิ่ม
 } from "@chakra-ui/react";
 import {
   Search,
@@ -49,6 +57,7 @@ import {
 } from "../store/accountingReducer/chartAccounting";
 import Swal from "sweetalert2";
 import LedgerLoading from "../components/Loading";
+import { blockedCodesForChartAccount } from "./Journal/Chart";
 
 /**
  * Chart of Accounts with explicit Cost-of-Goods-Sold / Distribution / Administrative grouping.
@@ -100,7 +109,6 @@ const TreeNode = React.memo(function TreeNode({
   const balance = (account?.balanceDr || 0) - (account?.balanceCr || 0);
   const canEdit = isAdmin || !account?.isMainAccount;
   const canDelete = !account?.isMainAccount && children.length === 0;
-
   return (
     <Box>
       <Flex
@@ -177,7 +185,7 @@ const TreeNode = React.memo(function TreeNode({
         <Box ml={6}>
           {children.map((child) => (
             <TreeNode
-              key={child._id || child.code}
+              key={child._id}
               account={child}
               children={child.children || []}
               level={level + 1}
@@ -372,11 +380,15 @@ const ChartOfAccountsWithCostCenters = () => {
   const parentOptions = useMemo(
     () =>
       accounts
-        ?.filter((a) => !a.parentCode) // only top-level (main) accounts
-        .map((a) => ({ value: a.code, label: `${a.code} - ${a.name}` })) || [],
+        ?.filter((a) => !blockedCodesForChartAccount.includes(a.code)) // เอาทุก account ที่ไม่ถูก block
+        .map((a) => ({
+          value: a.code,
+          label: a.parentCode
+            ? ` ${a.code} - ${a.name}` // แสดง parent → child
+            : `${a.code} - ${a.name}`, // top-level
+        })) || [],
     [accounts]
   );
-
   /* ---------- Sorted top-level tree by requested order ---------- */
   const sortedTree = useMemo(() => {
     if (!tree) return [];
@@ -422,22 +434,47 @@ const ChartOfAccountsWithCostCenters = () => {
 
   /* ---------- Filter search across tree: we're still rendering full tree but you can enhance to filter ---------- */
   // For now we keep search as client-only filter for top-level nodes by account name/code
+  // แทนที่ฟังก์ชัน filteredTop เดิม
   const filteredTop = useMemo(() => {
-    if (!searchTerm) return sortedTree;
-    const q = searchTerm.toLowerCase();
-    return sortedTree.map((n) => {
-      // shallow filter children too: simple approach - keep node if name/code matches or any child's name/code matches
-      const matches = (acc) =>
-        (acc.name || "").toLowerCase().includes(q) ||
-        (acc.code || "").toLowerCase().includes(q);
+    if (!searchTerm.trim()) return sortedTree;
+    const q = searchTerm.toLowerCase().trim();
 
-      if (matches(n.account)) return n;
-      // deep search children, if any match keep node but don't prune children to keep structure simpler
-      const anyChildMatch = JSON.stringify(n).toLowerCase().includes(q);
-      if (anyChildMatch) return n;
-      return n; // keep anyway to preserve tree; you can implement pruning later
-    });
+    // recursive function: คืน node ที่ match หรือมี child ที่ match
+    function filterNode(node) {
+      const acc = node.account || node;
+      const matches =
+        (acc?.name || "").toLowerCase().includes(q) ||
+        (acc?.code || "").toLowerCase().includes(q);
+
+      const filteredChildren = (node.children || [])
+        .map(filterNode)
+        .filter(Boolean);
+
+      if (matches || filteredChildren.length > 0) {
+        return { ...node, children: filteredChildren };
+      }
+      return null;
+    }
+
+    return sortedTree.map(filterNode).filter(Boolean);
   }, [sortedTree, searchTerm]);
+  // เพิ่ม useEffect นี้ใต้ state declarations
+  useEffect(() => {
+    if (!searchTerm.trim()) return;
+
+    // auto expand ทุก node ที่ filter ผ่าน
+    const newExpanded = {};
+    function collectCodes(nodes) {
+      nodes.forEach((node) => {
+        if ((node.children || []).length > 0) {
+          newExpanded[node.account?.code || node.code] = true;
+          collectCodes(node.children);
+        }
+      });
+    }
+    collectCodes(filteredTop);
+    setExpanded(newExpanded);
+  }, [searchTerm, filteredTop]);
   if (loader) {
     return <LedgerLoading />;
   }
@@ -453,6 +490,10 @@ const ChartOfAccountsWithCostCenters = () => {
             >
               ຜັງບັນຊີວິສະຫະກິດ
             </Text>
+            <p style={{ fontFamily: "Noto Sans Lao, sans-serif", color: "#666" }}>
+              ທ່ານສາມາດເພີ່ມ, ແກ້ໄຂ ຫຼື ລົບ ເລກໝາຍບັນຊີຕາມທີ່ອະນຸຍາດໄດ້ ຍົກເວັ້ນຫມາຍເລກບັນຊີທີ່ບໍ່ອະນຸຍາດໃຫ້ມີຍ່ອຍ. 
+              ຫາກທ່ານໃຊ້ຫມາຍເລກບັນຊີໄດ້ກະລຸນາເປີດບັນຊີຍ່ອຍພາຍໃຕ້ບັນຊີຫຼັກ ເພື່ອເຮັດໃຫ້ເລກໝາຍບັນຊີແນ່ນອນ ແລະ ສາມາດເພີ່ມໝາຍເລກບັນຊີໃນໝາຍເລກແລະນຳໃຊ້ຢ່າງຖືກຕ້ອງ.
+            </p>
           </Box>
 
           <HStack spacing={3}>
@@ -511,7 +552,10 @@ const ChartOfAccountsWithCostCenters = () => {
 
           <Box maxH="calc(100vh - 320px)" overflowY="auto">
             {filteredTop
-              ?.sort((a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type])
+              ?.sort(
+                (a, b) =>
+                  TYPE_ORDER[a.account?.type] - TYPE_ORDER[b.account?.type]
+              )
               ?.map((node) => (
                 <TreeNode
                   key={node._id}
@@ -526,6 +570,76 @@ const ChartOfAccountsWithCostCenters = () => {
                 />
               ))}
           </Box>
+
+                   {/* วางใต้ <p> description เดิม */}
+
+<Box mt={4} p={4} bg="gray.50" borderRadius="lg" border="1px solid" borderColor="gray.200">
+  
+  {/* Row บน: 2 card summary */}
+  <Grid templateColumns="1fr 1fr" gap={3} mb={4}>
+    
+    {/* Card 1: ตัวอย่าง depth */}
+    <Box bg="white" p={3} borderRadius="md" border="1px solid" borderColor="gray.200">
+      <Text fontSize="xs" color="gray.500" mb={2} fontFamily="Noto Sans Lao">
+        ການສ້າງບັນຊີຍ່ອຍ (ຕົວຢ່າງ 606)
+      </Text>
+      <HStack spacing={2} flexWrap="wrap">
+        <Badge colorScheme="blue" borderRadius="full" px={3}>606</Badge>
+        <Text color="gray.400">→</Text>
+        <Badge colorScheme="green" borderRadius="full" px={3}>6063.001</Badge>
+        <Text color="gray.400">→</Text>
+        <Badge colorScheme="red" borderRadius="full" px={3}>❌ ຕໍ່ໄດ້</Badge>
+      </HStack>
+    </Box>
+
+    {/* Card 2: ห้ามสร้างยอย */}
+    <Box bg="white" p={3} borderRadius="md" border="1px solid" borderColor="gray.200">
+      <Text fontSize="xs" color="gray.500" mb={2} fontFamily="Noto Sans Lao">
+        ໝາຍເລກທີ່ຫ້າມສ້າງຍ່ອຍ (Default)
+      </Text>
+      <HStack spacing={1} flexWrap="wrap">
+        {["321","329","1011","501"].map(code => (
+          <Badge key={code} colorScheme="orange" fontSize="xs">{code}</Badge>
+        ))}
+        <Text fontSize="xs" color="gray.400">ແລະ ອື່ນໆ...</Text>
+      </HStack>
+    </Box>
+  </Grid>
+
+  {/* ตาราง Depth สรุป */}
+  {/* <TableContainer>
+    <Table size="sm" variant="simple">
+      <Thead bg="gray.100">
+        <Tr>
+          <Th fontFamily="Noto Sans Lao">ໝາຍເລກ</Th>
+          <Th fontFamily="Noto Sans Lao">ລະດັບ 1</Th>
+          <Th fontFamily="Noto Sans Lao">ລະດັບ 2</Th>
+          <Th fontFamily="Noto Sans Lao">ຫຼາຍກວ່ານີ້</Th>
+        </Tr>
+      </Thead>
+      <Tbody>
+        <Tr>
+          <Td fontWeight="bold">606</Td>
+          <Td><Badge colorScheme="green">✓ ໄດ້</Badge></Td>
+          <Td><Badge colorScheme="green">✓ ໄດ້</Badge></Td>
+          <Td><Badge colorScheme="red">✕ ຫ້າມ</Badge></Td>
+        </Tr>
+        <Tr>
+          <Td fontWeight="bold">507</Td>
+          <Td><Badge colorScheme="green">✓ ໄດ້</Badge></Td>
+          <Td><Badge colorScheme="red">✕ ຫ້າມ</Badge></Td>
+          <Td><Badge colorScheme="red">✕ ຫ້າມ</Badge></Td>
+        </Tr>
+        <Tr>
+          <Td>ອື່ນໆ</Td>
+          <Td><Badge colorScheme="green">✓ ໄດ້</Badge></Td>
+          <Td><Badge colorScheme="green">✓ ໄດ້</Badge></Td>
+          <Td><Badge colorScheme="green">✓ ໄດ້</Badge></Td>
+        </Tr>
+      </Tbody>
+    </Table>
+  </TableContainer> */}
+</Box>
         </Box>
 
         {/* Expense detail grouped by cost categories */}
@@ -542,7 +656,7 @@ const ChartOfAccountsWithCostCenters = () => {
               <VStack spacing={4}>
                 <FormControl>
                   <FormLabel fontFamily="Noto Sans Lao, sans-serif">
-                    ເລືອກໝາຍເລກບັນຊີ(ຖ້າຈະສ້າງບັນຊີຫຼັກ ບໍ່ເລືອກ)
+                    ເລືອກໝາຍເລກບັນຊີ
                   </FormLabel>
                   <SelectReact
                     options={parentOptions}
