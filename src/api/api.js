@@ -7,7 +7,6 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// ป้องกัน refresh loop
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -19,15 +18,27 @@ const processQueue = (error) => {
   failedQueue = [];
 };
 
+// URLs ที่ไม่ควร retry (ป้องกัน loop)
+const SKIP_REFRESH_URLS = [
+  "/api/auth/refresh",
+  "/api/auth/login",
+  "/api/auth/logout",
+  
+];
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
     const status = error?.response?.status;
-    console.log(status);
-    // ถ้า 401 และยังไม่เคย retry
-    if (status === 401 && !originalRequest._retry) {
-      // ถ้ากำลัง refresh อยู่ → เข้าคิวรอ
+    const requestUrl = originalRequest?.url || "";
+
+    // ✅ ถ้าเป็น URL ที่ไม่ควร refresh หรือเคย retry แล้ว → ออกเลย
+    const shouldSkip = SKIP_REFRESH_URLS.some((url) =>
+      requestUrl.includes(url)
+    );
+
+    if (status === 401 && !originalRequest._retry && !shouldSkip) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -40,14 +51,11 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // ขอ access token ใหม่
         await api.post("/api/auth/refresh");
         processQueue(null);
-        //    // retry request เดิม
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        // refresh ล้มเหลว → logout จริงๆ
         if (window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
