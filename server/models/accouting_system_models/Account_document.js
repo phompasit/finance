@@ -32,10 +32,15 @@ const Account_documentSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["asset", "liability", "equity", "income", "expense"],
+      enum: ["asset", "liability", "equity", "income", "expense","other"],
       required: true,
     },
-
+    level: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 5,
+    },
     // ⭐ Normal Balance ของบัญชี: Dr หรือ Cr
     normalSide: {
       type: String,
@@ -74,6 +79,7 @@ Account_documentSchema.pre("validate", function () {
       this.normalSide = "Cr";
     }
   }
+
 });
 const Account_document = mongoose.model(
   "Account_document",

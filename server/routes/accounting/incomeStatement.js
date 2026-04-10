@@ -214,6 +214,7 @@ async function buildIncomeStatement({ companyId, start, end }) {
       name: acc.name,
       parentCode: acc.parentCode || null,
       normalSide: acc.normalSide || "Dr",
+      level: acc.level ?? null,
       openingDr: 0,
       openingCr: 0,
       movementDr: 0,
@@ -264,7 +265,6 @@ async function buildIncomeStatement({ companyId, start, end }) {
 
   const rolled = new Set();
   const visiting = new Set();
-
   function roll(code) {
     if (!rows[code] || rolled.has(code)) return;
     if (visiting.has(code)) {
@@ -276,10 +276,14 @@ async function buildIncomeStatement({ companyId, start, end }) {
     for (const child of childrenMap[code] ?? []) {
       if (!rows[child]) continue;
       roll(child);
-      rows[code].openingDr += rows[child].openingDr;
-      rows[code].openingCr += rows[child].openingCr;
-      rows[code].movementDr += rows[child].movementDr;
-      rows[code].movementCr += rows[child].movementCr;
+
+      // ✅ roll-up เฉพาะ level 1-3 เท่านั้น
+      if (rows[code].level < 4) {
+        rows[code].openingDr += rows[child].openingDr;
+        rows[code].openingCr += rows[child].openingCr;
+        rows[code].movementDr += rows[child].movementDr;
+        rows[code].movementCr += rows[child].movementCr;
+      }
     }
     visiting.delete(code);
     rolled.add(code);
@@ -305,13 +309,23 @@ async function buildIncomeStatement({ companyId, start, end }) {
   }
 
   /* ---- Classify leaf accounts into income statement lines ---- */
+  /* ---- Classify leaf accounts into income statement lines ---- */
   const isParent = new Set(
     Object.values(rows)
       .map((r) => r.parentCode)
       .filter(Boolean)
   );
-  const leafAccounts = Object.values(rows).filter((r) => !isParent.has(r.code));
-
+  const leafAccounts = Object.values(rows).filter(
+    (r) => r.level === 4 || r.level === 5
+  );
+  console.log(
+    Object.values(rows)
+      .filter((r) => ["606", "6063.001"].includes(r.code))
+      .map((r) => ({ code: r.code, level: r.level, parentCode: r.parentCode }))
+  );
+  const displayAccounts = leafAccounts.filter(
+    (r) => r.endingDr !== 0 || r.endingCr !== 0
+  );
   const lines = Object.fromEntries(
     PARSED_INCOME_MAPPING.map((m) => [
       m.key,
@@ -319,6 +333,7 @@ async function buildIncomeStatement({ companyId, start, end }) {
     ])
   );
 
+  // รอบที่ 1: คำนวณ amount จาก level 1-3 (leaf จริงๆ)
   for (const r of leafAccounts) {
     const acc = idToAcc[r.accountId];
     if (!acc) continue;
@@ -328,18 +343,32 @@ async function buildIncomeStatement({ companyId, start, end }) {
 
     if (catLine && lines[catLine]) {
       lines[catLine].amount += signed;
-      lines[catLine].accounts.push(r);
       continue;
     }
-
     for (const m of PARSED_INCOME_MAPPING) {
       if (matchCodeWithParsed(r.code, m.parsed)) {
         lines[m.key].amount += signed;
-        lines[m.key].accounts.push(r);
       }
     }
   }
 
+  // รอบที่ 2: push accounts เฉพาะ level 4-5 ที่มีตัวเลข
+  for (const r of displayAccounts) {
+    const acc = idToAcc[r.accountId];
+    if (!acc) continue;
+
+    const catLine = categoryToLine(acc.category);
+
+    if (catLine && lines[catLine]) {
+      lines[catLine].accounts.push(r);
+      continue;
+    }
+    for (const m of PARSED_INCOME_MAPPING) {
+      if (matchCodeWithParsed(r.code, m.parsed)) {
+        lines[m.key].accounts.push(r);
+      }
+    }
+  }
   /* ---- Financial calculations ---- */
   const revenue = lines.revenue.amount;
   const cost = lines.cost_of_sales.amount;
@@ -351,7 +380,7 @@ async function buildIncomeStatement({ companyId, start, end }) {
   const otherExp = lines.other_expenses.amount;
 
   // operating = gross + otherIncome - dist - admin - otherExp
-  const operating = (gross + otherIncome) - dist + admin + otherExp;
+  const operating = gross + otherIncome - dist + admin + otherExp;
   const finIncome = lines.finance_income.amount;
   const finCost = lines.finance_cost.amount;
   const pbt = operating + finIncome - finCost;
@@ -540,9 +569,9 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
         success: true,
         comparable: false,
         mode,
-        period:{
-          endDate:end,
-          statDate:start,
+        period: {
+          endDate: end,
+          statDate: start,
         },
         year,
         data: { current },
@@ -607,13 +636,11 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error("[income-statement]", err.message, err.stack);
-    res
-      .status(500)
-      .json({
-        success: false,
-        error: "Internal Server Error",
-        detail: err.message,
-      });
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+      detail: err.message,
+    });
   }
 });
 

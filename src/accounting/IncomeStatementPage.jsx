@@ -60,50 +60,81 @@ const BOLD_LABELS = [
 ];
 
 /* ================= SUB-ROW (account detail) ================= */
-const AccountSubRow = ({ account, comparable }) => (
-  <Tr bg="blue.50">
-    {/* indent + code + name */}
-    <Td pl={10} fontFamily="Noto Sans Lao, sans-serif" fontSize="xs" color="gray.700">
-      <HStack spacing={2}>
-        <Badge fontSize="0.7em" colorScheme="gray" variant="outline">
-          {account.code}
-        </Badge>
-        <Text fontFamily="Noto Sans Lao, sans-serif">{account.name}</Text>
-      </HStack>
-      {/* movement & ending */}
-      <HStack spacing={4} mt={1} fontSize="xs" color="gray.500">
-        {/* <Text>Dr: {formatNum(account.movementDr)}</Text>
-        <Text>Cr: {formatNum(account.movementCr)}</Text> */}
-        <Text color="gray.400">|</Text>
-        <Text fontFamily="Noto Sans Lao, sans-serif">ໜີ້: {formatNum(account.endingDr)}</Text>
-        <Text fontFamily="Noto Sans Lao, sans-serif">ມິ: {formatNum(account.endingCr)}</Text>
-      </HStack>
-    </Td>
-    <Td isNumeric fontSize="xs" color="gray.700">
-      {formatNum(account.endingDr - account.endingCr)}
-    </Td>
-    {comparable && <Td isNumeric fontSize="xs" color="gray.500">—</Td>}
-  </Tr>
-);
+const AccountSubRow = ({ account, comparable }) => {
+  const curDr = account.endingDr || 0;
+  const curCr = account.endingCr || 0;
+  const prevDr = account.prevEndingDr || 0;
+  const prevCr = account.prevEndingCr || 0;
+
+  // ✅ ซ่อนถ้าไม่มีตัวเลขทั้ง current และ previous
+  if (curDr === 0 && curCr === 0 && prevDr === 0 && prevCr === 0) return null;
+
+  return (
+    <Tr bg="blue.50">
+      <Td
+        pl={10}
+        fontFamily="Noto Sans Lao, sans-serif"
+        fontSize="xs"
+        color="gray.700"
+      >
+        <HStack spacing={2}>
+          <Badge fontSize="0.7em" colorScheme="gray" variant="outline">
+            {account.code}
+          </Badge>
+          <Text fontFamily="Noto Sans Lao, sans-serif">{account.name}</Text>
+        </HStack>
+        <HStack spacing={4} mt={1} fontSize="xs" color="gray.500">
+          <Text color="gray.400">|</Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif">
+            ໜີ້: {formatNum(curDr)}
+          </Text>
+          <Text fontFamily="Noto Sans Lao, sans-serif">
+            ມິ: {formatNum(curCr)}
+          </Text>
+        </HStack>
+      </Td>
+
+      <Td isNumeric fontSize="xs" color="gray.700">
+        {formatNum(curDr - curCr)}
+      </Td>
+
+      {comparable && (
+        <Td isNumeric fontSize="xs" color="gray.500">
+          {prevDr === 0 && prevCr === 0 ? "—" : formatNum(prevDr - prevCr)}
+        </Td>
+      )}
+    </Tr>
+  );
+};
 
 /* ================= MAIN ROW ================= */
 const MainRow = ({ line, comparable, isDetailed }) => {
   const [expanded, setExpanded] = useState(false);
 
   const isBold = BOLD_LABELS.includes(line.label);
-  console.log("line",line)
   const hasAccounts = line.accounts && line.accounts.length > 0;
-  const canExpand = isDetailed && hasAccounts;
-  const isZero = (line.cur || 0)  && (line.prev || 0) 
 
-  // auto-collapse when switching out of detailed mode
+  // ✅ แก้ไข: บัญชีที่มีตัวเลข (endingDr หรือ endingCr มีค่า)
+  const activeAccounts = hasAccounts
+    ? line.accounts.filter((acc) => {
+        const hasCur = acc.endingDr !== 0 || acc.endingCr !== 0;
+        const hasPrev =
+          (acc.prevEndingDr || 0) !== 0 || (acc.prevEndingCr || 0) !== 0;
+        return hasCur || hasPrev; // ✅ มีตัวเลขในปีใดปีหนึ่งก็แสดง
+      })
+    : [];
+
+  const hasActiveAccounts = activeAccounts.length > 0;
+  const canExpand = isDetailed && hasActiveAccounts;
+
+  // ✅ แก้ไข: ซ่อน row ที่ไม่มีบัญชีที่มีตัวเลขเลย (ยกเว้น bold rows)
+  const shouldHide = isDetailed && !hasActiveAccounts && !isBold;
+
   React.useEffect(() => {
     if (!isDetailed) setExpanded(false);
   }, [isDetailed]);
 
-  // ເຊື່ອງ row ທີ່ amount = 0 ໃນ mode ລະອຽດ (ຍົກເວັ້ນ bold rows)
-  // early return ຕ້ອງຢູ່ຫຼັງ hooks ທັງໝົດ
-  if (isDetailed && isZero && !isBold) return null;
+  if (shouldHide) return null;
 
   return (
     <>
@@ -114,10 +145,9 @@ const MainRow = ({ line, comparable, isDetailed }) => {
       >
         <Td fontFamily="Noto Sans Lao, sans-serif">
           <HStack spacing={1}>
-            {/* expand icon — only show if detailed & has children */}
             {isDetailed && (
-              <Box fontFamily="Noto Sans Lao, sans-serif" w={4} h={4} flexShrink={0}>
-                {hasAccounts ? (
+              <Box w={4} h={4} flexShrink={0}>
+                {hasActiveAccounts ? (
                   <Icon
                     as={expanded ? ChevronDownIcon : ChevronRightIcon}
                     color="blue.400"
@@ -133,29 +163,29 @@ const MainRow = ({ line, comparable, isDetailed }) => {
             ) : (
               <Text fontFamily="Noto Sans Lao, sans-serif">{line.label}</Text>
             )}
-            {/* badge showing account count in detailed mode */}
-            {isDetailed && hasAccounts && (
+            {/* ✅ Badge แสดงเฉพาะบัญชีที่มีตัวเลข */}
+            {isDetailed && hasActiveAccounts && (
               <Badge ml={1} colorScheme="blue" fontSize="0.65em">
-                {line.accounts.length}
+                {activeAccounts.length}
               </Badge>
             )}
           </HStack>
         </Td>
 
-        <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric fontWeight={isBold ? "bold" : "normal"}>
+        <Td isNumeric fontWeight={isBold ? "bold" : "normal"}>
           {formatNum(line.cur)}
         </Td>
 
         {comparable && (
-          <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric fontWeight={isBold ? "bold" : "normal"}>
+          <Td isNumeric fontWeight={isBold ? "bold" : "normal"}>
             {formatNum(line.prev)}
           </Td>
         )}
       </Tr>
 
-      {/* sub-rows */}
+      {/* sub-rows: แสดงเฉพาะบัญชีที่มีตัวเลข */}
       {expanded &&
-        line.accounts.map((acc) => (
+        activeAccounts.map((acc) => (
           <AccountSubRow
             key={acc.accountId}
             account={acc}
@@ -247,28 +277,62 @@ const IncomeStatementPage = () => {
     return { current: unwrap(raw.current), previous: unwrap(raw.previous) };
   };
 
-  const { current, previous } = useMemo(() => normalizeIncomeData(data), [data]);
+  const { current, previous } = useMemo(() => normalizeIncomeData(data), [
+    data,
+  ]);
 
   /* ================= MERGE LINES ================= */
   const mergedLines = useMemo(() => {
     if (!current?.lines && !previous?.lines) return [];
     const map = {};
+
     current?.lines?.forEach((l) => {
       map[l.key] = {
         key: l.key,
         label: l.label,
         cur: l.amount || 0,
         prev: 0,
-        accounts: l.accounts || [],
+        // เก็บ accounts จาก current พร้อม source tag
+        accounts: (l.accounts || []).map((a) => ({ ...a, _src: "cur" })),
       };
     });
+
     previous?.lines?.forEach((l) => {
       if (!map[l.key]) {
-        map[l.key] = { key: l.key, label: l.label, cur: 0, prev: l.amount || 0, accounts: l.accounts || [] };
+        map[l.key] = {
+          key: l.key,
+          label: l.label,
+          cur: 0,
+          prev: l.amount || 0,
+          accounts: (l.accounts || []).map((a) => ({ ...a, _src: "prev" })),
+        };
       } else {
         map[l.key].prev = l.amount || 0;
+
+        // ✅ merge accounts จาก previous เข้าไป (ถ้า accountId ยังไม่มีใน cur)
+        const existingIds = new Set(
+          map[l.key].accounts.map((a) => a.accountId)
+        );
+        (l.accounts || []).forEach((a) => {
+          if (!existingIds.has(a.accountId)) {
+            map[l.key].accounts.push({ ...a, _src: "prev" });
+          } else {
+            // ถ้ามีอยู่แล้ว ให้อัปเดต prev ending balance
+            const idx = map[l.key].accounts.findIndex(
+              (x) => x.accountId === a.accountId
+            );
+            if (idx !== -1) {
+              map[l.key].accounts[idx] = {
+                ...map[l.key].accounts[idx],
+                prevEndingDr: a.endingDr,
+                prevEndingCr: a.endingCr,
+              };
+            }
+          }
+        });
       }
     });
+
     return Object.values(map);
   }, [current, previous]);
 
@@ -276,15 +340,24 @@ const IncomeStatementPage = () => {
   const getFilterLabel = (f) => {
     if (!f) return "";
     switch (f.mode) {
-      case FILTER_MODE.YEAR: return `ປີບັນຊີ: ${f.year}`;
-      case FILTER_MODE.MONTH: return `ເດືອນ: ${String(f.month).padStart(2, "0")}/${f.year}`;
-      case FILTER_MODE.RANGE: return `ຊ່ວງວັນທີ: ${formatDate(f.startDate)} – ${formatDate(f.endDate)}`;
-      case FILTER_MODE.PRESET: return `Preset: ${f.preset}`;
-      default: return "";
+      case FILTER_MODE.YEAR:
+        return `ປີບັນຊີ: ${f.year}`;
+      case FILTER_MODE.MONTH:
+        return `ເດືອນ: ${String(f.month).padStart(2, "0")}/${f.year}`;
+      case FILTER_MODE.RANGE:
+        return `ຊ່ວງວັນທີ: ${formatDate(f.startDate)} – ${formatDate(
+          f.endDate
+        )}`;
+      case FILTER_MODE.PRESET:
+        return `Preset: ${f.preset}`;
+      default:
+        return "";
     }
   };
 
-  const activeFilterLabel = useMemo(() => getFilterLabel(applyFilter), [applyFilter]);
+  const activeFilterLabel = useMemo(() => getFilterLabel(applyFilter), [
+    applyFilter,
+  ]);
 
   /* ================= EXPORT PDF ================= */
   const handleExportPDF = () => {
@@ -302,28 +375,54 @@ const IncomeStatementPage = () => {
 
   /* ================= STATES ================= */
   if (loader) return <LedgerLoading />;
-  if (error) return (
-    <Box p={6}>
-      <Alert status="error"><AlertIcon />{error}</Alert>
-    </Box>
-  );
+  if (error)
+    return (
+      <Box p={6}>
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Box>
+    );
 
   /* ================= UI ================= */
   return (
     <Box p={6}>
       {/* ---------- HEADER ---------- */}
       <Box mb={4}>
-        <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="2xl" fontWeight="bold">
+        <Text
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="2xl"
+          fontWeight="bold"
+        >
           ໃບລາຍງານຜົນດຳເນີນງານ
         </Text>
         {activeFilterLabel && (
-          <Box px={4} py={2} border="1px solid" borderColor="gray.200" borderRadius="md" bg="gray.50" mt={2}>
+          <Box
+            px={4}
+            py={2}
+            border="1px solid"
+            borderColor="gray.200"
+            borderRadius="md"
+            bg="gray.50"
+            mt={2}
+          >
             <HStack spacing={3}>
-              <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" color="gray.600">
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontSize="sm"
+                color="gray.600"
+              >
                 ກຳລັງສະແດງຂໍ້ມູນ
               </Text>
-              <Badge colorScheme="blue" px={3} py={1} borderRadius="full"
-                fontFamily="Noto Sans Lao, sans-serif" fontSize="0.9em">
+              <Badge
+                colorScheme="blue"
+                px={3}
+                py={1}
+                borderRadius="full"
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontSize="0.9em"
+              >
                 {activeFilterLabel}
               </Badge>
             </HStack>
@@ -334,7 +433,13 @@ const IncomeStatementPage = () => {
       <Divider mb={4} />
 
       {/* ---------- TOOLBAR ---------- */}
-      <Flex justify="space-between" align="center" mb={4} flexWrap="wrap" gap={3}>
+      <Flex
+        justify="space-between"
+        align="center"
+        mb={4}
+        flexWrap="wrap"
+        gap={3}
+      >
         {/* LEFT: detail toggle */}
         <HStack spacing={4}>
           <FormControl display="flex" alignItems="center">
@@ -357,7 +462,11 @@ const IncomeStatementPage = () => {
           </FormControl>
 
           {isDetailed && (
-            <Badge colorScheme="blue" variant="subtle" fontFamily="Noto Sans Lao, sans-serif">
+            <Badge
+              colorScheme="blue"
+              variant="subtle"
+              fontFamily="Noto Sans Lao, sans-serif"
+            >
               ກົດ row ເພື່ອ expand ບັນຊີລູກ
             </Badge>
           )}
@@ -365,12 +474,32 @@ const IncomeStatementPage = () => {
 
         {/* RIGHT: export buttons */}
         <HStack>
-          <Button fontFamily="Noto Sans Lao, sans-serif" colorScheme="red" onClick={handleExportPDF}>ສົ່ງອອກ  PDF</Button>
-          <Button fontFamily="Noto Sans Lao, sans-serif"  colorScheme="green" onClick={() => exportReport({
-            current, previous, currentYear, previousYear,
-            comparable, user, period, formatNum, mode,
-            activeFilterLabel, mergedLines,
-          })}>
+          <Button
+            fontFamily="Noto Sans Lao, sans-serif"
+            colorScheme="red"
+            onClick={handleExportPDF}
+          >
+            ສົ່ງອອກ PDF
+          </Button>
+          <Button
+            fontFamily="Noto Sans Lao, sans-serif"
+            colorScheme="green"
+            onClick={() =>
+              exportReport({
+                current,
+                previous,
+                currentYear,
+                previousYear,
+                comparable,
+                user,
+                period,
+                formatNum,
+                mode,
+                activeFilterLabel,
+                mergedLines,
+              })
+            }
+          >
             ສົ່ງອອກ Excel
           </Button>
         </HStack>
@@ -410,7 +539,7 @@ const IncomeStatementPage = () => {
         <Table size="sm">
           <Thead bg="gray.100">
             <Tr>
-              <Th  fontFamily="Noto Sans Lao, sans-serif">ລາຍການ</Th>
+              <Th fontFamily="Noto Sans Lao, sans-serif">ລາຍການ</Th>
               <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
                 {comparable ? currentYear : "Amount"}
               </Th>

@@ -1,12 +1,10 @@
-import { useMemo, useState, useEffect } from "react";
-import { blockedCodes } from "../accounting/Journal/Chart";
-
-
-
-
+import { useState } from "react";
+import { useMemo } from "react";
 
 export function useAccountTree(list = [], search = "") {
   const [expanded, setExpanded] = useState({});
+
+  // ─── helper: คำนวณ level จาก code ───────────────────
 
   // Build tree
   const tree = useMemo(() => {
@@ -29,31 +27,32 @@ export function useAccountTree(list = [], search = "") {
     return roots;
   }, [list]);
 
-  // Filter tree: ให้ลูกที่ไม่ blocked ขึ้น แม้ parent blocked
-const filteredTree = useMemo(() => {
-  const filterNode = (node) => {
-    // กรองลูกก่อน
-    const children = (node.children || [])
-      .map(filterNode)
-      .filter(Boolean)
-      .flat(); // แบน array เพื่อไม่ให้ซ้อน
+  // Filter tree: เฉพาะ level 4 และ 5 เท่านั้น
+  const filteredTree = useMemo(() => {
+    const collect = (node) => {
+      const level = node.level;
+      const results = [];
 
-    if (blockedCodes.includes(node.code)) {
-      // Node blocked → return children (ไม่เอา node ตัวเอง)
-      return children.length ? children : null;
-    }
+      // เก็บ node นี้ถ้า level 4 หรือ 5
+      if (level === 4 || level === 5) {
+        results.push({ ...node, children: [] }); // ไม่ต้องมี children แล้ว
+      }
 
-    // Node ปกติ → return node พร้อม children
-    return [{ ...node, children }];
-  };
+      // วนหา level 4-5 ใน children ต่อเสมอ
+      (node.children || []).forEach((child) => {
+        results.push(...collect(child));
+      });
 
-  return tree.map(filterNode).flat().filter(Boolean);
-}, [tree]);
+      return results;
+    };
+
+    return tree.flatMap(collect);
+  }, [tree]);
 
   const toggle = (code) => {
     setExpanded((p) => ({ ...p, [code]: !p[code] }));
   };
-
+  console.log(filteredTree)
   return {
     tree: filteredTree,
     expanded,

@@ -559,12 +559,11 @@ router.post(
         totalDebit,
         totalCredit,
       } = validateAndCalculateLines(lines);
-      const accountIds = validatedLines.map((l) => l.accountId);
+     const accountIds = [...new Set(validatedLines.map(l => l.accountId))];
       const count = await Account_document.countDocuments({
         _id: { $in: accountIds },
         companyId: req.user.companyId,
       });
-
       if (count !== accountIds.length)
         throw new Error("Invalid accountId (not in your company)");
       const newJournal = await JournalEntry.create({
@@ -743,7 +742,7 @@ router.patch(
       }
 
       /* ================= 6. Verify all accounts exist and belong to company ================= */
-      const accountIds = validatedLines.map((l) => l.accountId);
+      const accountIds = [...new Set(validatedLines.map(l => l.accountId))];
 
       // SECURITY: Verify accounts belong to company
       const validCount = await Account_document.countDocuments({

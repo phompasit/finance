@@ -517,6 +517,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "10",
@@ -526,6 +527,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "101",
@@ -534,6 +536,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1011",
@@ -542,6 +545,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1012",
@@ -550,6 +554,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1013",
@@ -558,6 +563,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1014",
@@ -566,6 +572,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1017",
@@ -574,6 +581,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "102",
@@ -582,6 +590,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1021",
@@ -590,6 +599,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1022",
@@ -598,6 +608,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1023",
@@ -606,6 +617,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1024",
@@ -614,6 +626,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1028",
@@ -622,6 +635,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "109",
@@ -630,6 +644,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1091",
@@ -638,6 +653,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1092",
@@ -646,6 +662,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -656,6 +673,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "111",
@@ -664,6 +682,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1111",
@@ -672,6 +691,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1112",
@@ -680,6 +700,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1113",
@@ -688,6 +709,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1114",
@@ -696,6 +718,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1116",
@@ -704,6 +727,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1118",
@@ -712,6 +736,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "112",
@@ -720,6 +745,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "113",
@@ -728,6 +754,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1131",
@@ -736,6 +763,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1132",
@@ -744,6 +772,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1133",
@@ -752,6 +781,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1134",
@@ -760,6 +790,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1135",
@@ -768,6 +799,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1136",
@@ -776,6 +808,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1139",
@@ -784,6 +817,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "114",
@@ -792,6 +826,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1141",
@@ -800,6 +835,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1142",
@@ -808,6 +844,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1143",
@@ -816,6 +853,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1144",
@@ -824,6 +862,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1145",
@@ -832,6 +871,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1146",
@@ -840,6 +880,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1147",
@@ -848,6 +889,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1148",
@@ -856,6 +898,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "119",
@@ -864,6 +907,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1191",
@@ -872,6 +916,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1192",
@@ -880,6 +925,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1193",
@@ -888,6 +934,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1194",
@@ -896,6 +943,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -905,6 +953,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "121",
@@ -913,6 +962,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1211",
@@ -921,6 +971,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1212",
@@ -929,6 +980,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1213",
@@ -937,6 +989,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "122",
@@ -945,6 +998,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1221",
@@ -953,6 +1007,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1222",
@@ -961,6 +1016,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1223",
@@ -969,6 +1025,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "124",
@@ -977,6 +1034,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "125",
@@ -986,6 +1044,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "126",
@@ -994,6 +1053,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "129",
@@ -1002,6 +1062,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1011,6 +1072,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "131",
@@ -1019,6 +1081,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1311",
@@ -1027,6 +1090,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1312",
@@ -1035,6 +1099,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "132",
@@ -1043,6 +1108,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1321",
@@ -1051,6 +1117,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1322",
@@ -1059,6 +1126,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1323",
@@ -1067,6 +1135,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1324",
@@ -1075,6 +1144,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "133",
@@ -1083,6 +1153,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1331",
@@ -1091,6 +1162,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1332",
@@ -1099,6 +1171,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "134",
@@ -1107,6 +1180,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1341",
@@ -1115,6 +1189,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1342",
@@ -1123,6 +1198,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "135",
@@ -1131,6 +1207,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1351",
@@ -1139,6 +1216,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1352",
@@ -1147,6 +1225,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1358",
@@ -1155,6 +1234,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "136",
@@ -1163,6 +1243,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1361",
@@ -1171,6 +1252,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1365",
@@ -1179,6 +1261,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1368",
@@ -1187,6 +1270,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "137",
@@ -1195,6 +1279,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "138",
@@ -1203,6 +1288,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "139",
@@ -1211,6 +1297,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1391",
@@ -1219,6 +1306,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1392",
@@ -1227,6 +1315,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1393",
@@ -1235,6 +1324,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1394",
@@ -1243,6 +1333,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1395",
@@ -1251,6 +1342,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1396",
@@ -1259,6 +1351,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1397",
@@ -1267,6 +1360,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1398",
@@ -1275,6 +1369,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1284,6 +1379,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "141",
@@ -1292,6 +1388,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "142",
@@ -1300,6 +1397,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "143",
@@ -1308,14 +1406,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
-  },
-  {
-    code: "145",
-    parentCode: "14",
-    name: "ໜີ້ຕ້ອງຮັບ ເຄື່ອງມືການເງິນ",
-    type: "asset",
-    normalSide: "Dr",
-    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "146",
@@ -1324,6 +1415,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "148",
@@ -1332,6 +1424,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "149",
@@ -1340,6 +1433,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1349,6 +1443,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "151",
@@ -1357,6 +1452,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "153",
@@ -1365,6 +1461,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "154",
@@ -1373,6 +1470,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "155",
@@ -1381,6 +1479,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "159",
@@ -1389,6 +1488,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1398,6 +1498,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "160",
@@ -1406,6 +1507,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1601",
@@ -1414,6 +1516,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1602",
@@ -1422,6 +1525,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1608",
@@ -1430,6 +1534,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "161",
@@ -1438,6 +1543,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1611",
@@ -1446,6 +1552,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1612",
@@ -1454,6 +1561,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1613",
@@ -1462,6 +1570,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1618",
@@ -1470,6 +1579,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "162",
@@ -1478,6 +1588,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "163",
@@ -1486,6 +1597,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "164",
@@ -1494,6 +1606,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "165",
@@ -1502,6 +1615,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "166",
@@ -1510,6 +1624,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "167",
@@ -1518,6 +1633,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "168",
@@ -1526,6 +1642,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "169",
@@ -1534,6 +1651,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "1690",
@@ -1542,6 +1660,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1691",
@@ -1550,6 +1669,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1692",
@@ -1558,6 +1678,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "1693",
@@ -1566,6 +1687,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   // ═══════════════════════════════════════════════
@@ -1578,6 +1700,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "20",
@@ -1586,6 +1709,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "201",
@@ -1594,6 +1718,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "202",
@@ -1602,6 +1727,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "203",
@@ -1610,6 +1736,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "204",
@@ -1618,6 +1745,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "205",
@@ -1626,6 +1754,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "206",
@@ -1634,6 +1763,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "207",
@@ -1642,6 +1772,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "208",
@@ -1650,6 +1781,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "209",
@@ -1658,6 +1790,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1667,6 +1800,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "210",
@@ -1675,6 +1809,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "211",
@@ -1683,6 +1818,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "212",
@@ -1691,6 +1827,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "213",
@@ -1699,6 +1836,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "214",
@@ -1707,6 +1845,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "216",
@@ -1715,6 +1854,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "217",
@@ -1723,6 +1863,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "218",
@@ -1732,6 +1873,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "219",
@@ -1740,6 +1882,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2190",
@@ -1749,6 +1892,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2191",
@@ -1758,6 +1902,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2192",
@@ -1767,6 +1912,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2194",
@@ -1776,6 +1922,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1785,6 +1932,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "221",
@@ -1793,6 +1941,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "222",
@@ -1801,6 +1950,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "223",
@@ -1809,6 +1959,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "224",
@@ -1817,6 +1968,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "225",
@@ -1825,6 +1977,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "226",
@@ -1833,6 +1986,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1842,6 +1996,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "231",
@@ -1850,6 +2005,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "232",
@@ -1858,6 +2014,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "237",
@@ -1866,6 +2023,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "238",
@@ -1875,6 +2033,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2381",
@@ -1883,6 +2042,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2382",
@@ -1891,6 +2051,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -1900,6 +2061,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "241",
@@ -1908,6 +2070,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2411",
@@ -1916,6 +2079,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2412",
@@ -1924,6 +2088,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2413",
@@ -1932,6 +2097,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2414",
@@ -1940,6 +2106,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2417",
@@ -1948,6 +2115,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2418",
@@ -1956,6 +2124,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "242",
@@ -1964,6 +2133,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2420",
@@ -1972,6 +2142,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2421",
@@ -1980,6 +2151,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2422",
@@ -1988,6 +2160,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2423",
@@ -1996,6 +2169,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2427",
@@ -2004,6 +2178,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2428",
@@ -2012,6 +2187,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "243",
@@ -2020,6 +2196,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2430",
@@ -2028,6 +2205,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2431",
@@ -2036,6 +2214,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2432",
@@ -2044,6 +2223,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2433",
@@ -2052,6 +2232,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2434",
@@ -2060,6 +2241,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2438",
@@ -2068,6 +2250,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2077,6 +2260,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "251",
@@ -2085,6 +2269,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "252",
@@ -2093,6 +2278,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "258",
@@ -2101,6 +2287,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2110,6 +2297,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "271",
@@ -2118,6 +2306,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2127,6 +2316,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "282",
@@ -2135,6 +2325,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "284",
@@ -2143,6 +2334,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2841",
@@ -2151,6 +2343,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2842",
@@ -2159,6 +2352,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2843",
@@ -2167,14 +2361,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "285",
     parentCode: "28",
-    name: "ຄ່າຫຼູ້ຍຫ້ຽນ ຊັບສິນຊີວະພາດ",
+    name: "ຄ່າຫຼູ້ຍຫ້ຽນ ຊັບສິນຊີວະພາບ",
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2184,6 +2380,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "290",
@@ -2192,6 +2389,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "291",
@@ -2200,6 +2398,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2910",
@@ -2208,6 +2407,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2911",
@@ -2216,6 +2416,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2912",
@@ -2224,6 +2425,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2914",
@@ -2232,6 +2434,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "292",
@@ -2240,6 +2443,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "294",
@@ -2248,6 +2452,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "2941",
@@ -2256,6 +2461,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2942",
@@ -2264,6 +2470,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "2943",
@@ -2272,6 +2479,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "295",
@@ -2280,6 +2488,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "asset",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   // ═══════════════════════════════════════════════
@@ -2292,6 +2501,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "30",
@@ -2300,6 +2510,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "301",
@@ -2308,6 +2519,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "302",
@@ -2316,6 +2528,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "303",
@@ -2324,6 +2537,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "304",
@@ -2332,6 +2546,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "308",
@@ -2340,6 +2555,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "309",
@@ -2348,6 +2564,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "31",
@@ -2356,6 +2573,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "311",
@@ -2364,6 +2582,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "312",
@@ -2372,6 +2591,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "32",
@@ -2380,6 +2600,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "321",
@@ -2388,6 +2609,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "329",
@@ -2396,22 +2618,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Dr",
     category: "ອື່ນໆ",
-  },
-  {
-    code: "329.2023",
-    parentCode: "329",
-    name: "ຂາດທຶນຍົກມາ 2023",
-    type: "equity",
-    normalSide: "Dr",
-    category: "ອື່ນໆ",
-  },
-  {
-    code: "329.2024",
-    parentCode: "329",
-    name: "ຂາດທຶນຍົກມາ 2024",
-    type: "equity",
-    normalSide: "Dr",
-    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "33",
@@ -2420,6 +2627,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "331",
@@ -2428,6 +2636,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "339",
@@ -2436,6 +2645,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "equity",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   // ═══════════════════════════════════════════════
@@ -2448,6 +2658,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "40",
@@ -2456,6 +2667,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "401",
@@ -2464,6 +2676,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "402",
@@ -2472,6 +2685,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "403",
@@ -2480,6 +2694,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4031",
@@ -2488,6 +2703,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4032",
@@ -2496,6 +2712,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "404",
@@ -2504,6 +2721,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4041",
@@ -2512,6 +2730,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4042",
@@ -2520,6 +2739,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4043",
@@ -2528,6 +2748,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "405",
@@ -2536,6 +2757,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "408",
@@ -2544,6 +2766,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2553,6 +2776,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "411",
@@ -2561,6 +2785,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "412",
@@ -2569,6 +2794,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "413",
@@ -2577,6 +2803,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "417",
@@ -2585,6 +2812,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "418",
@@ -2593,6 +2821,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2602,6 +2831,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "420",
@@ -2610,6 +2840,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4201",
@@ -2618,6 +2849,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4202",
@@ -2626,6 +2858,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4203",
@@ -2634,6 +2867,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4204",
@@ -2642,6 +2876,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4205",
@@ -2650,6 +2885,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4206",
@@ -2658,6 +2894,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4207",
@@ -2666,6 +2903,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4208",
@@ -2674,6 +2912,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "421",
@@ -2682,6 +2921,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4211",
@@ -2690,6 +2930,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4212",
@@ -2698,6 +2939,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4213",
@@ -2706,6 +2948,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4218",
@@ -2714,6 +2957,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "422",
@@ -2722,6 +2966,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4221",
@@ -2730,6 +2975,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4222",
@@ -2738,6 +2984,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4226",
@@ -2746,6 +2993,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4228",
@@ -2754,6 +3002,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2763,6 +3012,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "430",
@@ -2771,14 +3021,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
-  },
-  {
-    code: "430.1",
-    parentCode: "430",
-    name: "ອາກອນເງິນເດືອນຕ້ອງສົ່ງ",
-    type: "liability",
-    normalSide: "Cr",
-    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "431",
@@ -2787,6 +3030,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "432",
@@ -2795,6 +3039,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "433",
@@ -2803,6 +3048,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "434",
@@ -2811,6 +3057,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "435",
@@ -2819,6 +3066,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "436",
@@ -2827,6 +3075,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "437",
@@ -2835,6 +3084,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "438",
@@ -2843,6 +3093,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2852,6 +3103,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "441",
@@ -2860,6 +3112,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "442",
@@ -2868,6 +3121,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "443",
@@ -2876,6 +3130,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "447",
@@ -2884,6 +3139,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "448",
@@ -2892,6 +3148,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2901,6 +3158,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "451",
@@ -2909,6 +3167,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "452",
@@ -2917,6 +3176,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "453",
@@ -2925,6 +3185,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "454",
@@ -2933,6 +3194,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "455",
@@ -2941,6 +3203,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "456",
@@ -2949,6 +3212,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "457",
@@ -2957,6 +3221,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "458",
@@ -2965,6 +3230,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -2974,6 +3240,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "461",
@@ -2982,6 +3249,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "462",
@@ -2990,6 +3258,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "463",
@@ -2998,6 +3267,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "464",
@@ -3006,6 +3276,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "465",
@@ -3014,6 +3285,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "466",
@@ -3022,6 +3294,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "468",
@@ -3030,6 +3303,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3039,6 +3313,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "471",
@@ -3047,6 +3322,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "472",
@@ -3055,6 +3331,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "473",
@@ -3063,6 +3340,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "474",
@@ -3071,6 +3349,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "475",
@@ -3079,6 +3358,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "477",
@@ -3087,6 +3367,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "478",
@@ -3095,6 +3376,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3105,6 +3387,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "481",
@@ -3113,6 +3396,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4811",
@@ -3121,6 +3405,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4812",
@@ -3129,6 +3414,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4813",
@@ -3137,6 +3423,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4816",
@@ -3145,6 +3432,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4818",
@@ -3153,6 +3441,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "482",
@@ -3161,6 +3450,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4821",
@@ -3169,6 +3459,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4822",
@@ -3177,6 +3468,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4829",
@@ -3185,6 +3477,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "483",
@@ -3193,6 +3486,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3202,6 +3496,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "491",
@@ -3210,6 +3505,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "4911",
@@ -3218,6 +3514,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4912",
@@ -3226,6 +3523,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4913",
@@ -3234,6 +3532,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4914",
@@ -3242,6 +3541,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "4915",
@@ -3250,6 +3550,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "492",
@@ -3258,6 +3559,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "493",
@@ -3266,6 +3568,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "494",
@@ -3274,6 +3577,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "495",
@@ -3282,6 +3586,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "496",
@@ -3290,6 +3595,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "497",
@@ -3298,6 +3604,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "498",
@@ -3306,6 +3613,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "liability",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   // ═══════════════════════════════════════════════
@@ -3315,105 +3623,118 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     code: "5",
     parentCode: null,
     name: "ປະເພດ 5 - ບັນດາ ບັນຊີ ພົວພັນ, ລໍຖ້າສະສາງ ແລະ ບັນຊີ ໂອນພາຍໃນ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "50",
     parentCode: "5",
     name: "ບັນຊີ ພົວພັນ ລະຫວ່າງ ກົມກອງພາຍໃນ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "501",
     parentCode: "50",
     name: "ບັນຊີພົວພັນ ລະຫ່ວາງ ກົມກອງ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "506",
     parentCode: "50",
     name: "ສິນຄ້າ ແລະ ການບໍລິການ ແລກປ່ຽນລະຫວ່າງກົມກອງ (ລາຍຈ່າຍ)",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "507",
     parentCode: "50",
     name: "ສິນຄ້າ ແລະ ການບໍລິການ ແລກປ່ຽນລະຫວ່າງກົມກອງ (ລາຍຮັບ)",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "51",
     parentCode: "5",
     name: "ບັນຊີ ລໍຖ້າສະສາງ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "511",
     parentCode: "51",
     name: "ບັນຊີຕັດແບ່ງລາຍຈ່າຍໃນປີ ເປັນໄລຍະ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "512",
     parentCode: "51",
     name: "ບັນຊີຕັດແບ່ງລາຍຮັບໃນປີ ເປັນໄລຍະ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "518",
     parentCode: "51",
     name: "ບັນຊີ ຂ້າມຜ່ານ ຫຼື ລໍຖ້າ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "58",
     parentCode: "5",
     name: "ໂອນເງິນພາຍໃນ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "581",
     parentCode: "58",
     name: "ມອບເງິນສົດ ເຂົ້າທະນາຄານ ຫຼື ຄັງເງິນແຫ່ງຊາດ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "582",
     parentCode: "58",
     name: "ຖອນເງິນຝາກທະນາຄານ ຫຼື ຄັງເງິນແຫ່ງຊາດ ເຂົ້າຄັງເງິນສົດ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "583",
     parentCode: "58",
     name: "ໂອນເງິນຝາກທະນາຄານ ຫາ ເງິນຝາກທະນາຄານ ຫຼື ຄັງເງິນແຫ່ງຊາດ",
-    type: "liability",
+    type: "other",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   // ═══════════════════════════════════════════════
@@ -3426,6 +3747,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "60",
@@ -3433,7 +3755,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຊື້ທີ່ໄດ້ຊົມໃຊ້, ຕົ້ນທຶນທີ່ໄດ້ຂາຍອອກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "601",
@@ -3441,7 +3764,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ວັດຖຸດິບ, ວັດຖຸປະກອບ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "602",
@@ -3449,7 +3773,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ວັດຖຸຮັບໃຊ້ການຜະລິດ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "603",
@@ -3457,7 +3782,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຜະລິດຕະພັນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "604",
@@ -3465,7 +3791,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ການຄົ້ນຄວ້າ ແລະ ການບໍລິການ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "605",
@@ -3473,7 +3800,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຊັບສິນ ຊີວະພາບ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "606",
@@ -3481,7 +3809,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຊື້ວັດຖຸ ແລະ ເຄື່ອງໃຊ້ຫ້ອງການ ທີ່ບໍ່ເອົາເຂົ້າສາງ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "607",
@@ -3489,7 +3818,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ສິນຄ້າ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "609",
@@ -3497,7 +3827,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ສ່ວນຫຼຸດຕ່າງໆ ທີ່ໄດ້ຮັບຈາກການຊື້",
     type: "expense",
     normalSide: "Cr",
-    category: "ຕົ້ນທຸນຂາຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3506,7 +3837,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ບໍລິການຈາກທາງນອກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "611",
@@ -3514,7 +3846,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຈ້າງທາງນອກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "612",
@@ -3522,7 +3855,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າເຊົ່າ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "613",
@@ -3530,7 +3864,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າທຳນຽມ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "614",
@@ -3538,7 +3873,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າບົວລະບັດ, ບຳລຸງຮັກສາ ແລະ ສ້ອມແປງ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "615",
@@ -3546,7 +3882,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າທຳນຽມປະກັນໄພ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "616",
@@ -3554,7 +3891,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າໃຊ້ຈ່າຍໃນການເຊົ່າ ແລະ ການຮ່ວມກຳມະສິດ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "617",
@@ -3562,7 +3900,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າວິໄຈ ແລະ ຄົ້ນຄວ້າ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "618",
@@ -3570,7 +3909,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າປະກອບເອກະສານ ແລະ ອື່ນໆທີ່ຕິດພັນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "619",
@@ -3578,7 +3918,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ສ່ວນຫຼຸດຕ່າງໆ ທີ່ໄດ້ຮັບຈາກທາງນອກ",
     type: "expense",
     normalSide: "Cr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3587,7 +3928,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າບໍລິການອື່ນໆ ຈາກທາງນອກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "621",
@@ -3595,7 +3937,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າຂົນສົ່ງ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "622",
@@ -3603,7 +3946,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າໂຄສະນາ, ລົງຂ່າວ, ໜັງສືພີມ-ຈັດພິມ, ປະຊາສຳພັນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຈຳຫນ່າຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "623",
@@ -3611,7 +3955,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າໄປສະນີ ແລະ ໂທລະຄົມມະນາຄົມ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "624",
@@ -3619,7 +3964,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່ານາຍໜ້າ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນຈຳຫນ່າຍ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "625",
@@ -3627,7 +3973,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າເດີນທາງ, ກອງປະຊຸມ, ຮັບແຂກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "626",
@@ -3635,7 +3982,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ວຽກງານທາງການ, ທັດສະນະສຶກສາ, ຝຶກອົບຮົມ ແລະ ອື່ນໆ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "627",
@@ -3643,7 +3991,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າທຳນຽມທະນາຄານ ແລະ ຄ່າໃຊ້ຈ່າຍປະເພດດຽວກັນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "628",
@@ -3651,7 +4000,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າບໍລິການອື່ນໆ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "629",
@@ -3659,7 +4009,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ສ່ວນຫຼຸດຕ່າງໆ ທີ່ໄດ້ຮັບໃນການບໍລິການອື່ນໆ ຈາກທາງນອກ",
     type: "expense",
     normalSide: "Cr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3668,7 +4019,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ລາຍຈ່າຍໃຫ້ພະນັກງານ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "631",
@@ -3676,7 +4028,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າທົດແທນແຮງງານ ໃຫ້ພະນັກງານ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "632",
@@ -3684,7 +4037,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ເງິນບຳເນັດ ແລະ ຍ້ອງຍໍ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "633",
@@ -3692,7 +4046,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ເງິນນະໂຍບາຍການພັກຜ່ອນ ແລະ ສະຫວັດດີການ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "634",
@@ -3700,7 +4055,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຜົນປະໂຫຍດດ້ານວັດຖຸ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "635",
@@ -3708,7 +4064,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ເງິນບຳລຸງໃຫ້ອົງການປະກັນສັງຄົມ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "636",
@@ -3716,7 +4073,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ເງິນນະໂຍບາຍຕ່າງໆ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "637",
@@ -3724,7 +4082,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ລາຍຈ່າຍດ້ານສັງຄົມອື່ນໆ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "638",
@@ -3732,7 +4091,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ລາຍຈ່າຍອື່ນໆໃຫ້ພະນັກງານ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3741,7 +4101,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ອາກອນ, ຄ່າທຳນຽມ ແລະ ອື່ນໆ ປະເພດດຽວກັນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "641",
@@ -3749,7 +4110,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ພາສີຂາເຂົ້າ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "642",
@@ -3757,7 +4119,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ພາສີຂາອອກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "643",
@@ -3765,7 +4128,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ອມພ ຫັກອອກບໍ່ໄດ້",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "644",
@@ -3773,7 +4137,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ພາສີທີ່ດິນ ແລະ ປະເພດດຽວກັນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "647",
@@ -3781,7 +4146,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຄ່າທຳນຽມ ແລະ ອາກອນສະແຕມ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "648",
@@ -3789,7 +4155,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ອາກອນ ແລະ ຄ່າທຳນຽມອື່ນໆ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3799,6 +4166,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "651",
@@ -3807,6 +4175,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "652",
@@ -3815,6 +4184,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "653",
@@ -3822,7 +4192,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ເບ້ຍປະຊຸມ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "654",
@@ -3831,6 +4202,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "655",
@@ -3839,6 +4211,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "656",
@@ -3847,6 +4220,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "657",
@@ -3855,6 +4229,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "658",
@@ -3863,6 +4238,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3872,6 +4248,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "661",
@@ -3880,6 +4257,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "662",
@@ -3888,6 +4266,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "663",
@@ -3896,6 +4275,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "664",
@@ -3904,6 +4284,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "665",
@@ -3912,6 +4293,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "666",
@@ -3920,6 +4302,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "667",
@@ -3928,6 +4311,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "668",
@@ -3936,6 +4320,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -3945,6 +4330,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "671",
@@ -3953,6 +4339,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "672",
@@ -3961,6 +4348,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "673",
@@ -3969,6 +4357,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "674",
@@ -3977,6 +4366,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "675",
@@ -3985,6 +4375,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "678",
@@ -3993,6 +4384,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "6781",
@@ -4001,6 +4393,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "6782",
@@ -4009,6 +4402,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "6783",
@@ -4017,6 +4411,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "6788",
@@ -4025,6 +4420,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4033,7 +4429,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າຫຼຸ້ຍຫ້ຽນ, ຄ່າສູນເສຍມູນຄ່າ, ເງິນແຮ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "681",
@@ -4041,7 +4438,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າໃຊ້ຈ່າຍ ບ້ວງຊັບສົມບັດຄົງທີ່ ການເງິນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "682",
@@ -4049,7 +4447,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າຫຼຸ້ຍຫ້ຽນ ຊັບສົມບັດຄົງທີ່ ມີຕົວຕົນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "683",
@@ -4057,7 +4456,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າຫຼຸ້ຍຫ້ຽນ ຊັບສົມບັດຄົງທີ່ ບໍ່ມີຕົວຕົນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "684",
@@ -4065,7 +4465,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກເງິນແຮ ເພື່ອລາຍຈ່າຍ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "685",
@@ -4073,7 +4474,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າສູນເສຍມູນຄ່າ - ຊັບສົມບັດຄົງທີ່",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "686",
@@ -4081,7 +4483,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າສູນເສຍມູນຄ່າ - ເຄື່ອງໃນສາງ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "687",
@@ -4089,7 +4492,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າສູນເສຍມູນຄ່າ - ໜີ້ຕ້ອງຮັບທວງຍາກ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "688",
@@ -4097,7 +4501,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     name: "ຫັກຄ່າສູນເສຍມູນຄ່າ - ຊັບສິນການເງິນ",
     type: "expense",
     normalSide: "Dr",
-    category: "ຕົ້ນທຸນບໍລິຫານ",
+    category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4107,6 +4512,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "691",
@@ -4115,6 +4521,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "694",
@@ -4123,6 +4530,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "699",
@@ -4131,6 +4539,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "expense",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   // ═══════════════════════════════════════════════
@@ -4143,6 +4552,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 1,
   },
   {
     code: "70",
@@ -4151,6 +4561,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "701",
@@ -4159,6 +4570,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "702",
@@ -4167,6 +4579,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "704",
@@ -4175,6 +4588,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "705",
@@ -4183,6 +4597,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "707",
@@ -4191,6 +4606,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "708",
@@ -4199,6 +4615,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "709",
@@ -4207,6 +4624,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "7091",
@@ -4215,6 +4633,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "7092",
@@ -4223,6 +4642,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4232,6 +4652,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "711",
@@ -4240,6 +4661,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "712",
@@ -4248,6 +4670,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "714",
@@ -4256,6 +4679,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "715",
@@ -4264,6 +4688,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "717",
@@ -4272,6 +4697,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "718",
@@ -4280,6 +4706,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "719",
@@ -4288,6 +4715,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Dr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4297,6 +4725,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "741",
@@ -4305,6 +4734,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "748",
@@ -4313,6 +4743,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4322,6 +4753,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "751",
@@ -4330,6 +4762,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "752",
@@ -4338,6 +4771,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "752.001",
@@ -4346,6 +4780,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "753",
@@ -4354,6 +4789,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "754",
@@ -4362,6 +4798,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "755",
@@ -4370,6 +4807,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "756",
@@ -4378,6 +4816,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "757",
@@ -4386,6 +4825,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "758",
@@ -4394,6 +4834,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4403,6 +4844,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "761",
@@ -4411,6 +4853,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "7611",
@@ -4419,6 +4862,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "7612",
@@ -4427,6 +4871,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "762",
@@ -4435,6 +4880,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "763",
@@ -4443,6 +4889,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "764",
@@ -4451,6 +4898,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "765",
@@ -4459,6 +4907,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "766",
@@ -4467,6 +4916,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "767",
@@ -4475,6 +4925,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "768",
@@ -4483,6 +4934,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4500,6 +4952,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "774",
@@ -4508,6 +4961,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "775",
@@ -4516,6 +4970,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "778",
@@ -4524,6 +4979,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 3,
   },
   {
     code: "7781",
@@ -4532,6 +4988,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "7782",
@@ -4540,6 +4997,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "7783",
@@ -4548,6 +5006,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "7788",
@@ -4556,6 +5015,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 
   {
@@ -4565,6 +5025,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 2,
   },
   {
     code: "782",
@@ -4573,6 +5034,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "783",
@@ -4581,6 +5043,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "784",
@@ -4589,6 +5052,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "785",
@@ -4597,6 +5061,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "786",
@@ -4605,6 +5070,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "787",
@@ -4613,6 +5079,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
   {
     code: "788",
@@ -4621,12 +5088,14 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
     type: "income",
     normalSide: "Cr",
     category: "ອື່ນໆ",
+    level: 4,
   },
 ];
 // เพิ่มบรรทัดนี้ต่อท้าย file เดียวกัน
 export const DEFAULT_ACCOUNT_CODES = new Set(
   DEFAULT_CHART_OF_ACCOUNTS.map((a) => a.code)
 );
+
 /**
  * Seed chart of accounts for a new company on register
  */

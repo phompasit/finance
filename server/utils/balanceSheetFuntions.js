@@ -20,21 +20,25 @@ export function applyOpening(rows, accounts, openings) {
 /*                          APPLY JOURNAL MOVEMENTS                           */
 /* -------------------------------------------------------------------------- */
 export function applyMovements(rows, accounts, journals) {
-  for (const acc of accounts) {
-    const accMap = {};
+  // ✅ สร้าง accMap ครั้งเดียว
+  console.log(
+    journals.map((j) => j.lines.map((ln) => String(ln))).flat()
+  );
+  const accMap = {};
+  accounts.forEach((acc) => {
     accMap[String(acc._id)] = acc.code;
+  });
 
-    journals.forEach((j) => {
-      (j.lines || []).forEach((ln) => {
-        const code = accMap[String(ln.accountId)];
-        if (!code || !rows[code]) return;
+  journals.forEach((j) => {
+    (j.lines || []).forEach((ln) => {
+      const code = accMap[String(ln.accountId)];
+      if (!code || !rows[code]) return;
 
-        const amt = Number(ln.amountLAK || 0);
-        if (ln.side === "dr") rows[code].movementDr += amt;
-        else rows[code].movementCr += amt;
-      });
+      const amt = Number(ln.amountLAK || 0);
+      if (ln.side === "dr") rows[code].movementDr += amt;
+      else rows[code].movementCr += amt;
     });
-  }
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -80,6 +84,20 @@ export function rollUp(rows, childrenMap) {
 /*                        CALCULATE ENDING BALANCES                           */
 /* -------------------------------------------------------------------------- */
 export function computeEnding(rows) {
+  // หัก movement ของ level 5 ออกจาก parent level 4
+  Object.values(rows).forEach((r) => {
+    if (r.level === 5 && r.parentCode) {
+      const parent = rows[r.parentCode];
+      if (parent && parent.level === 4) {
+        parent.movementDr -= r.movementDr || 0;
+        parent.movementCr -= r.movementCr || 0;
+        parent.openingDr  -= r.openingDr  || 0;
+        parent.openingCr  -= r.openingCr  || 0;
+      }
+    }
+  });
+
+  // คำนวณ ending ปกติ
   Object.values(rows).forEach((r) => {
     const isDr = r.normalSide === "Dr";
 
@@ -102,6 +120,29 @@ export function computeEnding(rows) {
     }
   });
 }
+// export function computeEnding(rows) {
+//   Object.values(rows).forEach((r) => {
+//     const isDr = r.normalSide === "Dr";
+
+//     const openNet = isDr
+//       ? r.openingDr - r.openingCr
+//       : r.openingCr - r.openingDr;
+
+//     const movNet = isDr
+//       ? r.movementDr - r.movementCr
+//       : r.movementCr - r.movementDr;
+
+//     const end = openNet + movNet;
+
+//     if (end >= 0) {
+//       if (isDr) r.endingDr = end;
+//       else r.endingCr = end;
+//     } else {
+//       if (isDr) r.endingCr = -end;
+//       else r.endingDr = -end;
+//     }
+//   });
+// }
 export function buildLine({ accountId, side, amountLAK }) {
   return {
     accountId,
@@ -128,6 +169,7 @@ export function initRows(accounts) {
       name: acc.name,
       parentCode: acc.parentCode || null,
       normalSide: acc.normalSide || "Dr",
+      level: acc.level || 5,
       openingDr: 0,
       openingCr: 0,
       movementDr: 0,
@@ -170,37 +212,55 @@ function safeDate(value) {
   return isNaN(d.getTime()) ? null : d;
 }
 export function calculateTotals(rows) {
-  // สร้าง childrenMap เพื่อหา parent\
-  const childrenMap = {};
-  Object.values(rows).forEach((r) => {
-    if (r.parentCode) {
-      if (!childrenMap[r.parentCode]) childrenMap[r.parentCode] = [];
-      childrenMap[r.parentCode].push(r.code);
-    }
-  });
+  const allRows = Object.values(rows);
 
-  // parent คือ key ของ childrenMap
-  const parentCodes = new Set(Object.keys(childrenMap));
-  // leaf = account ที่ไม่อยู่ใน parentCodes
-  const isLeafAccount = (r) => parentCodes.has(String(r.code));
-  const leafRows = Object.values(rows).filter(isLeafAccount);
+  // หา parentCodes ที่มีลูกเป็น level 5 เท่านั้น
+  const level5ParentCodes = new Set(
+    allRows
+      .filter((r) => r.level === 5 && r.parentCode)
+      .map((r) => r.parentCode)
+  );
+
+  // เอา level 4 และ 5 โดย:
+  // - level 4 ที่มีลูก level 5 → หักลูกออกก่อน
+  // - level 4 ที่ไม่มีลูก level 5 → เอาเลยปกติ
+  // - level 5 → เอาเลย
+  const level5ByParent = {};
+  allRows
+    .filter((r) => r.level === 5)
+    .forEach((r) => {
+      if (!level5ByParent[r.parentCode]) level5ByParent[r.parentCode] = [];
+      level5ByParent[r.parentCode].push(r);
+    });
 
   const totals = {
-    openingDr: 0,
-    openingCr: 0,
-    movementDr: 0,
-    movementCr: 0,
-    endingDr: 0,
-    endingCr: 0,
+    openingDr: 0, openingCr: 0,
+    movementDr: 0, movementCr: 0,
+    endingDr: 0, endingCr: 0,
   };
-  leafRows.forEach((r) => {
-    totals.openingDr += r.openingDr;
-    totals.openingCr += r.openingCr;
-    totals.movementDr += r.movementDr;
-    totals.movementCr += r.movementCr;
-    totals.endingDr += r.endingDr;
-    totals.endingCr += r.endingCr;
-  });
+
+  allRows
+    .filter((r) => r.level === 4 || r.level === 5)
+    .forEach((r) => {
+      if (r.level === 4 && level5ParentCodes.has(r.code)) {
+        // หักลูก level 5 ออก
+        const children = level5ByParent[r.code] || [];
+        totals.openingDr  += r.openingDr  - children.reduce((s, c) => s + c.openingDr,  0);
+        totals.openingCr  += r.openingCr  - children.reduce((s, c) => s + c.openingCr,  0);
+        totals.movementDr += r.movementDr - children.reduce((s, c) => s + c.movementDr, 0);
+        totals.movementCr += r.movementCr - children.reduce((s, c) => s + c.movementCr, 0);
+        totals.endingDr   += r.endingDr   - children.reduce((s, c) => s + c.endingDr,   0);
+        totals.endingCr   += r.endingCr   - children.reduce((s, c) => s + c.endingCr,   0);
+      } else {
+        totals.openingDr  += r.openingDr;
+        totals.openingCr  += r.openingCr;
+        totals.movementDr += r.movementDr;
+        totals.movementCr += r.movementCr;
+        totals.endingDr   += r.endingDr;
+        totals.endingCr   += r.endingCr;
+      }
+    });
+
   return totals;
 } // utils/balanceSheetFuntions.js
 
@@ -315,4 +375,31 @@ export function resolveReportFilter({ query = {}, periods = [] }) {
     systemDefaultYear,
     mode: "year",
   };
+}
+
+
+//comp
+// ลบ logic หักลูกออกจาก computeEnding ออกทั้งหมด
+export function computeEndingIncomeExpense(rows) {
+  Object.values(rows).forEach((r) => {
+    const isDr = r.normalSide === "Dr";
+
+    const openNet = isDr
+      ? r.openingDr - r.openingCr
+      : r.openingCr - r.openingDr;
+
+    const movNet = isDr
+      ? r.movementDr - r.movementCr
+      : r.movementCr - r.movementDr;
+
+    const end = openNet + movNet;
+
+    if (end >= 0) {
+      if (isDr) r.endingDr = end;
+      else r.endingCr = end;
+    } else {
+      if (isDr) r.endingCr = -end;
+      else r.endingDr = -end;
+    }
+  });
 }

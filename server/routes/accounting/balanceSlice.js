@@ -6,13 +6,13 @@ import { authenticate } from "../../middleware/auth.js";
 import {
   applyMovements,
   applyOpening,
-  parseDateRange,
   buildTree,
   computeEnding,
   initRows,
   rollUp,
   calculateTotals,
   resolveReportFilter,
+  computeEndingIncomeExpense,
 } from "../../utils/balanceSheetFuntions.js";
 import accountingPeriod from "../../models/accouting_system_models/accountingPeriod.js";
 import { CHART_ORDER } from "../../utils/accountCode.js";
@@ -305,9 +305,6 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
           r.endingCr !== 0
       )
       .sort(sortByAccountCode);
-    const parentCodes = new Set(
-      list.filter((r) => r.parentCode).map((r) => r.parentCode)
-    );
     function calculateTotals(list) {
       return list.reduce(
         (sum, r) => {
@@ -334,11 +331,23 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
       );
     }
     // ✅ Leaf = code ที่ไม่ใช่ parent ของใคร
+    // ✅ ดึง parentCodes จาก rows ทั้งหมด (ก่อน filter)
+    console.log(list);
     const leafList = list
-      .filter((r) => !parentCodes.has(r.code))
+      .filter((r) => {
+        const isLevel4or5 = r.level === 4 || r.level === 5;
+        const net =
+          r.movementDr !== 0 ||
+          r.movementCr !== 0 ||
+          r.endingDr !== 0 ||
+          r.endingCr !== 0 ||
+          r.openingDr !== 0 ||
+          r.openingCr !== 0;
+        return isLevel4or5 && net;
+      })
       .sort(sortByAccountCode);
-    const totals = calculateTotals(leafList);
 
+    const totals = calculateTotals(leafList);
     /* ===============================
        7) RESPONSE
     =============================== */
@@ -661,7 +670,17 @@ router.get("/balance_after", authenticate, async (req, res) => {
 
     // ✅ Leaf = code ที่ไม่ใช่ parent ของใคร
     const leafList = list
-      .filter((r) => !parentCodes.has(r.code))
+      .filter((r) => {
+        const isLevel4or5 = r.level === 4 || r.level === 5;
+        const net =
+          r.movementDr !== 0 ||
+          r.movementCr !== 0 ||
+          r.endingDr !== 0 ||
+          r.endingCr !== 0 ||
+          r.openingDr !== 0 ||
+          r.openingCr !== 0;
+        return isLevel4or5 && net;
+      })
       .sort(sortByAccountCode);
 
     // ✅ Totals leaf only
@@ -872,23 +891,53 @@ router.get(
       const childrenMap = buildTree(rows);
       rollUp(rows, childrenMap);
 
-      computeEnding(rows);
+      computeEndingIncomeExpense(rows);
 
-      const totals = calculateTotals(rows);
+      const totals = calculateTotals(rows); // calculateTotals ใหม่จัดการ level 4-5 เอง
 
-      // ✔ filter accounts with all-zero balances
+      // build level5ByParent สำหรับ adjust list display
+      const level5ByParent = {};
+      Object.values(rows)
+        .filter((r) => r.level === 5)
+        .forEach((r) => {
+          if (!level5ByParent[r.parentCode]) level5ByParent[r.parentCode] = [];
+          level5ByParent[r.parentCode].push(r);
+        });
+
       const list = Object.values(rows)
-        .filter(
-          (r) =>
-            r.openingDr !== 0 ||
-            r.openingCr !== 0 ||
+        .filter((r) => {
+          const isLevel4or5 = r.level === 4 || r.level === 5;
+          const hasValue =
             r.movementDr !== 0 ||
             r.movementCr !== 0 ||
             r.endingDr !== 0 ||
-            r.endingCr !== 0
-        )
+            r.endingCr !== 0 ||
+            r.openingDr !== 0 ||
+            r.openingCr !== 0;
+          return isLevel4or5 && hasValue;
+        })
+        .map((r) => {
+          if (r.level === 4 && level5ByParent[r.code]) {
+            const children = level5ByParent[r.code];
+            return {
+              ...r,
+              movementDr:
+                r.movementDr - children.reduce((s, c) => s + c.movementDr, 0),
+              movementCr:
+                r.movementCr - children.reduce((s, c) => s + c.movementCr, 0),
+              openingDr:
+                r.openingDr - children.reduce((s, c) => s + c.openingDr, 0),
+              openingCr:
+                r.openingCr - children.reduce((s, c) => s + c.openingCr, 0),
+              endingDr:
+                r.endingDr - children.reduce((s, c) => s + c.endingDr, 0),
+              endingCr:
+                r.endingCr - children.reduce((s, c) => s + c.endingCr, 0),
+            };
+          }
+          return r;
+        })
         .sort(sortByAccountCode);
-
       let balance = 0;
       balance = totals.endingCr - totals.endingDr;
 

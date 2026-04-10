@@ -365,11 +365,14 @@ export default function JournalModal() {
   const accountOptions = useMemo(
     () =>
       accounts
-        ?.filter((a) => !blockedCodes.includes(a.code))
+        ?.filter((a) => {
+          const level = a.level;
+          return level === 4 || level === 5;
+        })
         .map((a) => ({
-          value: a._id, // Use the MongoDB ID here
+          value: a._id,
           label: `${a.code} - ${a.name}`,
-          code: a.code, // Keep code for filtering logic
+          code: a.code,
           parentCode: a.parentCode,
         })) || [],
     [accounts]

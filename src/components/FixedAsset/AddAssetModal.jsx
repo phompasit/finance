@@ -486,14 +486,21 @@ const AddAssetModal = () => {
   const canEditGeneralFixed = !isLockedAfterDepreciation;
   const canEditGeneral = canEditGeneralFixed;
   /* ✅ เอาเฉพาะบัญชีย่อย + parent พิเศษ */
-  const accountOptions = accounts
-    ?.filter((a) => !blockedCodes.includes(a.code))
-    .map((a) => ({
-      value: a._id,
-      code: a.code,
-      parentCode: a.parentCode,
-      label: `${a.code} - ${a.name}`,
-    }));
+  const accountOptions = useMemo(
+    () =>
+      accounts
+        ?.filter((a) => {
+          const level = a.level;
+          return level === 4 || level === 5;
+        })
+        .map((a) => ({
+          value: a._id,
+          label: `${a.code} - ${a.name}`,
+          code: a.code,
+          parentCode: a.parentCode,
+        })) || [],
+    [accounts]
+  );
 
   // Handlers
   const onChange = useCallback(
