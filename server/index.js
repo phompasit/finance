@@ -1,10 +1,10 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 🔒 Load environment variables FIRST
 dotenv.config({ path: path.join(__dirname, "./.env") });
 
 import express from "express";
@@ -12,6 +12,8 @@ import mongoose from "mongoose";
 import cors from "cors";
 import helmet from "helmet";
 import hpp from "hpp";
+import cookieParser from "cookie-parser";
+
 // Routes
 import authRoutes from "./routes/auth.js";
 import incomeExpenseRoutes from "./routes/incomeExpense.js";
@@ -32,73 +34,62 @@ import statementAssetsRoutes from "./routes/accounting/assets.js";
 import income_statementRoutes from "./routes/accounting/incomeStatement.js";
 import closingRoutes from "./routes/accounting/close_accounting.js";
 import BooksRoutes from "./routes/accounting/cashBook.js";
-import cashflowRoutes from "./routes/accounting/report_cashflow.js"
+import cashflowRoutes from "./routes/accounting/report_cashflow.js";
 import fixedAssetRoutes from "./routes/accounting/fixedAsset.js";
-// Security middleware
+
 import {
   corsOptions,
   securityHeaders,
   authLimiter,
 } from "./middleware/security.js";
-import cookieParser from "cookie-parser";
 import { sanitizeInput } from "./middleware/sanitize.js";
 import errorHandler from "./middleware/errorHandler.js";
+import compression from "compression";
 const app = express();
 
 // ============================================
-// 🔒 SECURITY MIDDLEWARE (Order matters!)
+// 🔒 SECURITY MIDDLEWARE
 // ============================================
-// 1. Helmet - Basic security headers
 app.use(helmet());
-
+app.use(compression({  // ✅ ตรงนี้
+  level: 6,
+  threshold: 1024,
+}))
 app.use(securityHeaders);
 app.use(cors(corsOptions));
 app.use(cookieParser());
-// 4. Body parsing with size limits
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(sanitizeInput); // ✅ ใส่หลัง body parser เสมอ — body ต้อง parse ก่อนถึง sanitize ได้
-app.use(express.static("dist"));
+app.use(sanitizeInput);
+app.use(hpp({ whitelist: ["sort", "fields", "page", "limit"] }));
 
-// 5. Prevent NoSQL injection
-
-// 6. Prevent HTTP Parameter Pollution
-app.use(
-  hpp({
-    whitelist: ["sort", "fields", "page", "limit"],
-  })
-);
-
-// 7. Trust proxy (if behind reverse proxy/load balancer)
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
-
-// 8. Disable X-Powered-By header
 app.disable("x-powered-by");
+
+// ✅ Service Worker header
+app.use((req, res, next) => {
+  res.setHeader("Service-Worker-Allowed", "/");
+  next();
+});
 
 // ============================================
 // 🔒 MONGODB CONNECTION
 // ============================================
-
-const MONGODB_URI = process.env.MONGODB_URI;
-
-// Validate MongoDB URI exists
-if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI is not defined in environment variables");
+if (!process.env.MONGODB_URI) {
+  console.error("❌ MONGODB_URI is not defined");
   process.exit(1);
 }
 
-// Mongoose connection options
-const mongooseOptions = {
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-};
 mongoose
-  .connect(MONGODB_URI, mongooseOptions)
+  .connect(process.env.MONGODB_URI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  })
   .then(() => {
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ MongoDB connected");
     console.log(`📊 Database: ${mongoose.connection.name}`);
   })
   .catch((err) => {
@@ -106,45 +97,29 @@ mongoose
     process.exit(1);
   });
 
-// Handle MongoDB connection events
-mongoose.connection.on("error", (err) => {
-  console.error("MongoDB error:", err);
-});
-
-mongoose.connection.on("disconnected", () => {
-  console.warn("⚠️ MongoDB disconnected. Attempting to reconnect...");
-});
+mongoose.connection.on("error", (err) => console.error("MongoDB error:", err));
+mongoose.connection.on("disconnected", () =>
+  console.warn("⚠️ MongoDB disconnected")
+);
 
 // ============================================
-// 🔒 HEALTH CHECK (Before rate limiting)
+// 🔒 HEALTH CHECK
 // ============================================
-app.get("/health", (req, res) => {
-  const healthCheck = {
+app.get("/api/health", (req, res) => {
+  // ✅ เปลี่ยนเป็น /api/health ให้ตรงกับ Dockerfile
+  res.status(200).json({
     status: "OK",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     mongodb:
       mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     environment: process.env.NODE_ENV || "development",
-  };
-  res.status(200).json(healthCheck);
+  });
 });
-app.use((req, res, next) => {
-  res.setHeader("Service-Worker-Allowed", "/");
-  next();
-});
-// ============================================
-// 🔒 RATE LIMITING
-// ============================================
-
-// Apply general rate limiting to all API routes
-
-// Apply strict rate limiting to auth routes
 
 // ============================================
-// 🔒 API ROUTES (Must come BEFORE static files)
+// 🔒 API ROUTES
 // ============================================
-
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/income-expense", incomeExpenseRoutes);
 app.use("/api/opo", opoRoutes);
@@ -165,41 +140,49 @@ app.use("/api/income-statement", income_statementRoutes);
 app.use("/api/accounting", closingRoutes);
 app.use("/api/book", BooksRoutes);
 app.use("/api/fixAsset", fixedAssetRoutes);
-app.use("/api/cashflow",cashflowRoutes)
+app.use("/api/cashflow", cashflowRoutes);
+
 // ============================================
-// 🔒 STATIC FILES & SPA (Last priority)
+// ✅ SERVE FRONTEND (Production only)
 // ============================================
-app.use(errorHandler);
-// Only serve static files in production
+if (process.env.NODE_ENV === "production") {
+  // ✅ ย้ายมาไว้หลัง API routes — สำคัญมาก
+  app.use(express.static(path.join(__dirname, "../public")));
+
+  // SPA fallback — ทุก route ที่ไม่ใช่ /api → ส่ง index.html
+  app.get("/api/health", (req, res) => {
+    const healthCheck = {
+      status: "OK",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      mongodb:
+        mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+      environment: process.env.NODE_ENV || "development",
+    };
+    res.status(200).json(healthCheck);
+  });
+}
+
 // ============================================
 // 🔒 ERROR HANDLING
 // ============================================
+app.use(errorHandler);
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error("❌ Error:", err.stack);
 
-  // Handle specific error types
   if (err.name === "ValidationError") {
-    return res.status(400).json({
-      message: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ",
-      errors: err.errors,
-    });
+    return res
+      .status(400)
+      .json({ message: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ", errors: err.errors });
   }
-
   if (err.name === "UnauthorizedError") {
-    return res.status(401).json({
-      message: "ບໍ່ໄດ້ຮັບອະນຸຍາດ",
-    });
+    return res.status(401).json({ message: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" });
   }
-
   if (err.code === 11000) {
-    return res.status(409).json({
-      message: "ຂໍ້ມູນຊ້ຳກັນ",
-    });
+    return res.status(409).json({ message: "ຂໍ້ມູນຊ້ຳກັນ" });
   }
 
-  // Generic error response
   res.status(err.status || 500).json({
     message: "ເກີດຂໍ້ຜິດພາດ",
     error:
@@ -212,10 +195,8 @@ app.use((err, req, res, next) => {
 // ============================================
 // 🔒 GRACEFUL SHUTDOWN
 // ============================================
-
 const gracefulShutdown = async (signal) => {
-  console.log(`\n${signal} received. Closing server gracefully...`);
-
+  console.log(`\n${signal} received. Closing server...`);
   try {
     await mongoose.connection.close();
     console.log("✅ MongoDB connection closed");
@@ -228,28 +209,23 @@ const gracefulShutdown = async (signal) => {
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-// Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
   gracefulShutdown("uncaughtException");
 });
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ Unhandled Rejection:", reason);
   gracefulShutdown("unhandledRejection");
 });
 
 // ============================================
 // 🚀 START SERVER
 // ============================================
-
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("=".repeat(50));
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`🌍 CORS enabled for configured origins`);
   console.log(`🔒 Security middleware active`);
   console.log("=".repeat(50));
 });

@@ -25,12 +25,12 @@ export default defineConfig({
         background_color: "#ffffff",
    icons: [
   {
-    src: "/Purple and Blue Modern Finance Logo.png",
+    src: "/public/Purple and Blue Modern Finance Logo.png",
     sizes: "192x192",
     type: "image/png",
   },
   {
-    src: "/Purple and Blue Modern Finance Logo.png",
+    src: "/public/Purple and Blue Modern Finance Logo.png",
     sizes: "512x512",
     type: "image/png",
   },
