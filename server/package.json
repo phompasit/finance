@@ -26,6 +26,7 @@
     "pdfkit": "^0.13.0",
     "qrcode": "^1.5.4",
     "redis": "^5.11.0",
+    "sanitize-html": "^2.17.2",
     "speakeasy": "^2.0.0",
     "validator": "^13.15.15"
   },

@@ -614,6 +614,7 @@ router.get("/income-statement", apiLimiter, authenticate, async (req, res) => {
         comparable: false,
         mode: "default-no-closed",
         currentYear: fallbackYear,
+        
         data: { current },
       });
     }

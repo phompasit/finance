@@ -168,8 +168,8 @@ export default function JournalModal() {
       if (!l.accountId) {
         Swal.fire({
           icon: "warning",
-          title: "Account Required",
-          text: `Line ${i + 1}: Please select an account`,
+          title: "ຈຳເປັນຕ້ອງມີເລກໝາຍບັນຊີ",
+          text: `ແຖວທີ  ${i + 1}: ກະລຸນາເລືອກບັນຊີ`,
           confirmButtonColor: "#3182ce",
           customClass: {
             popup: "swal-rounded",
@@ -183,8 +183,8 @@ export default function JournalModal() {
       ) {
         Swal.fire({
           icon: "warning",
-          title: "Invalid Entry",
-          text: `Line ${i + 1}: Must fill either Debit or Credit (not both)`,
+          title: "ຂໍ້ມູນບໍ່ຖືກຕ້ອງ",
+          text: `ແຖວທີ   ${i + 1}: ຕ້ອງປ້ອນຝັ່ງ Debit ຫຼື Credit ເທົ່ານັ້ນ (ຫ້າມປ້ອນທັງສອງ)`,
           confirmButtonColor: "#3182ce",
           customClass: {
             popup: "swal-rounded",
@@ -230,15 +230,15 @@ export default function JournalModal() {
     if (!validate()) return;
 
     const result = await Swal.fire({
-      title: editingId ? "Update Journal Entry?" : "Create Journal Entry?",
+      title: editingId ? "ອັບເດດບັນຊີ (Journal Entry)?" : "ສ້າງບັນທຶກບັນຊີ (Journal Entry) ຫຼືບໍ່?",
       html: `
-        <div style="text-align: left; padding: 10px;">
-          <p><strong>Date:</strong> ${header.date}</p>
-          <p><strong>Reference:</strong> ${header.reference || "N/A"}</p>
-          <p><strong>Description:</strong> ${header.description || "N/A"}</p>
+        <div style="text-align: left; padding: 10px; ">
+          <p><strong>ວັນທີ: </strong> ${header.date}</p>
+          <p><strong>ເລກອ້າງອີງ:</strong> ${header.reference || "N/A"}</p>
+          <p><strong>ຄຳອະທິບາຍ:</strong> ${header.description || "N/A"}</p>
           <div style="margin-top: 15px; padding: 10px; background: #f7fafc; border-radius: 8px;">
-            <p><strong>Total Lines:</strong> ${lines.length}</p>
-            <p><strong>Total Amount:</strong> ${Math.round(
+            <p><strong>ຈຳນວນລາຍການ:</strong> ${lines.length}</p>
+            <p><strong>ຈຳນວນເງິນລວມ:</strong> ${Math.round(
               totals.dr
             ).toLocaleString()} LAK</p>
           </div>

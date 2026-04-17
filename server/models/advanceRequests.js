@@ -262,7 +262,7 @@ advanceRequestsSchema.statics.findByEmployee = function (employeeId) {
 };
 
 // Pre-save hook: อัปเดต summary อัตโนมัติเมื่อมีการเปลี่ยนแปลง transactions
-advanceRequestsSchema.pre("save", function (next) {
+advanceRequestsSchema.pre("save", function () {
   if (this.isModified("transactions")) {
     const summaryMap = new Map();
 
@@ -299,7 +299,6 @@ advanceRequestsSchema.pre("save", function (next) {
     this.summary = summaryMap;
   }
 
-  next();
 });
 
 // Post-find hook: แปลง Map เป็น Object สำหรับ JSON response

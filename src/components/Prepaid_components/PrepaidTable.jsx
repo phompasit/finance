@@ -62,6 +62,7 @@ export default React.memo(function PrepaidTable({
   deleteAdvanceA,
   handleStatus,
   handleSendEdit,
+
 }) {
   const toggle = (item) => {
     const exists = selected.find((i) => i._id === item._id);
@@ -157,7 +158,7 @@ export default React.memo(function PrepaidTable({
                             >
                               <Checkbox
                                 isChecked={selected?.some((i) => i?._id === id)}
-                                onChange={() => handleToggle(advance)}
+                                onChange={() => toggle(advance)}
                               />
                             </Td>
                           )}

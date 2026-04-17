@@ -250,11 +250,12 @@ const AssetsPage = () => {
 
       <Divider mb={4} />
       <Box display={"flex"} justifyContent={"flex-end"}>
-        <Button m="3" colorScheme="red" onClick={handleExportPDF}>
-          Export PDF
+        <Button m="3"    fontFamily="Noto Sans Lao, sans-serif" colorScheme="red" onClick={handleExportPDF}>
+          ສົ່ງອອກ PDF
         </Button>
         <Button
           m="3"
+          fontFamily="Noto Sans Lao, sans-serif"
           colorScheme="green"
           onClick={() => {
             exportAsset({
@@ -271,7 +272,7 @@ const AssetsPage = () => {
             });
           }}
         >
-          Export Excel
+          ສົ່ງອອກ Excel
         </Button>
       </Box>
 

@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000", // ✅ ใส่ baseURL ให้ถูก
   withCredentials: true,
   timeout: 15000,
 });
@@ -10,20 +10,22 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue = [];
 
-const processQueue = (error) => {
+// ✅ แก้ processQueue ให้รับ response ด้วย
+const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve();
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
   });
   failedQueue = [];
 };
 
-// URLs ที่ไม่ควร retry (ป้องกัน loop)
 const SKIP_REFRESH_URLS = [
   "/api/auth/refresh",
   "/api/auth/login",
   "/api/auth/logout",
-  
 ];
 
 api.interceptors.response.use(
@@ -33,17 +35,17 @@ api.interceptors.response.use(
     const status = error?.response?.status;
     const requestUrl = originalRequest?.url || "";
 
-    // ✅ ถ้าเป็น URL ที่ไม่ควร refresh หรือเคย retry แล้ว → ออกเลย
     const shouldSkip = SKIP_REFRESH_URLS.some((url) =>
       requestUrl.includes(url)
     );
 
     if (status === 401 && !originalRequest._retry && !shouldSkip) {
+      // ✅ ถ้ากำลัง refresh อยู่ → เข้า queue รอ แล้ว retry เอง
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(() => api(originalRequest))
+          .then(() => api(originalRequest)) // retry หลัง refresh สำเร็จ
           .catch((err) => Promise.reject(err));
       }
 
@@ -51,12 +53,22 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        // ✅ เรียก refresh — cookie จะถูกส่งอัตโนมัติเพราะ withCredentials: true
         await api.post("/api/auth/refresh");
+
+        // ✅ บอก queue ว่า refresh สำเร็จแล้ว
         processQueue(null);
+
+        // ✅ retry request เดิมที่ทำให้เกิด 401
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        if (window.location.pathname !== "/login") {
+
+        // ✅ เคลียร์ state ก่อน redirect
+        isRefreshing = false;
+
+        if (typeof window !== "undefined" &&
+            window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
         return Promise.reject(refreshError);

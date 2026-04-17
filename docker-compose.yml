@@ -27,7 +27,6 @@ services:
     image: redis:alpine
     container_name: finance_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}  # ✅ ใส่ password
     volumes:
       - redis_data:/data
     healthcheck:                    # ✅ health check redis

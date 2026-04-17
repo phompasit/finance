@@ -818,7 +818,9 @@ const partnerSchema = Joi.object({
 const employeeSchema = Joi.object({
   name: Joi.string().trim().min(2).max(15).required(),
   phone: Joi.string().trim().min(11).max(11).required(),
-  email: Joi.string().email().allow("", null),
+  department: Joi.string().max(100).allow("", null),
+  emp_code: Joi.string().max(20).allow("", null),
+  
   position: Joi.string().max(100).allow("", null),
 });
 
@@ -960,7 +962,7 @@ router.post("/employees", authenticate, async (req, res) => {
     const { error, value } = employeeSchema.validate(req.body, {
       stripUnknown: true,
     });
-
+    console.log("Employee creation request body:", req.body);
     if (error) {
       return res.status(400).json({
         success: false,
@@ -968,15 +970,20 @@ router.post("/employees", authenticate, async (req, res) => {
         errors: error.details.map((d) => d.message),
       });
     }
-
-    const employee = await Employee.create({
-      ...value,
+    console.log("Creating employee with data:", value);
+    const employee = await employees.create({
+      emp_code: value.emp_code,
+      full_name: value.name,
+      phone: value.phone,
+      position: value.position,
+      department: value.department,
       userId: req.user._id,
       companyId: req.user.companyId,
     });
 
     res.status(201).json({ success: true, data: employee });
   } catch (err) {
+    console.log("Error creating employee:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
@@ -1000,7 +1007,7 @@ router.put(
         });
       }
 
-      const updated = await Employee.findOneAndUpdate(
+      const updated = await employees.findOneAndUpdate(
         { _id: req.params.id, companyId: req.user.companyId },
         value,
         { new: true, runValidators: true }
@@ -1026,7 +1033,7 @@ router.delete(
   validateObjectId,
   async (req, res) => {
     try {
-      const deleted = await Employee.findOneAndDelete({
+      const deleted = await employees.findOneAndDelete({
         _id: req.params.id,
         companyId: req.user.companyId,
       });
