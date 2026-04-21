@@ -45,16 +45,20 @@ import {
 import { sanitizeInput } from "./middleware/sanitize.js";
 import errorHandler from "./middleware/errorHandler.js";
 import compression from "compression";
+import { csrfProtection } from "./middleware/csrf.js";
 const app = express();
 
 // ============================================
 // 🔒 SECURITY MIDDLEWARE
 // ============================================
 app.use(helmet());
-app.use(compression({  // ✅ ตรงนี้
-  level: 6,
-  threshold: 1024,
-}))
+app.use(
+  compression({
+    // ✅ ตรงนี้
+    level: 6,
+    threshold: 1024,
+  })
+);
 app.use(securityHeaders);
 app.use(cors(corsOptions));
 app.use(cookieParser());
@@ -120,7 +124,7 @@ app.get("/api/health", (req, res) => {
 // ============================================
 // 🔒 API ROUTES
 // ============================================
-app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/auth", authLimiter, csrfProtection, authRoutes);
 app.use("/api/income-expense", incomeExpenseRoutes);
 app.use("/api/opo", opoRoutes);
 app.use("/api/debt", debtRoutes);

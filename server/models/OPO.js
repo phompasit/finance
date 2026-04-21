@@ -29,7 +29,7 @@ const OPOSchema = new mongoose.Schema(
     },
     requester: { type: String },
     manager: { type: String },
-    createdBy: { type: String, required: true },
+    createdBy: { type: String},
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

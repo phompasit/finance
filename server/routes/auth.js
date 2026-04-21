@@ -26,6 +26,7 @@ import { apiLimiter, authLimiter } from "../middleware/security.js";
 import RefreshToken from "../models/RefreshToken.js";
 import Account from "../models/accouting_system_models/Account_document.js";
 import { seedChartOfAccounts } from "../utils/accountCode.js";
+import { csrfProtection } from "../middleware/csrf.js";
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -426,7 +427,7 @@ router.post(
         res.cookie("2fa_temp_token", tempToken, {
           httpOnly: true,
           secure: true,
-          sameSite: "None",
+          sameSite: "Strict", //Strict
           maxAge: 10 * 60 * 1000, // 10 นาที
         });
         return res.status(200).json({
@@ -522,7 +523,7 @@ router.post(
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: true,
-        sameSite: "None",
+        sameSite: "Strict", //Strict
         maxAge: 30 * 24 * 60 * 60 * 1000,
         path: "/api/auth/refresh", // จำกัด path
       });
@@ -531,7 +532,7 @@ router.post(
       res.cookie("access_token", token, {
         httpOnly: true,
         secure: true,
-        sameSite: "None",
+        sameSite: "Strict", //Strict
         maxAge: 15 * 60 * 1000, // 15 นาที
       });
 
@@ -644,12 +645,12 @@ router.post("/logout", authenticate, async (req, res) => {
 
     res.clearCookie("access_token", {
       httpOnly: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
       secure: true,
     });
     res.clearCookie("refresh_token", {
       httpOnly: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
       secure: true,
       path: "/api/auth/refresh", // ✅ ต้องใส่ให้ตรงกับตอน set cookie
     });
@@ -672,11 +673,12 @@ router.get("/me", authenticate, async (req, res) => {
     // 2️⃣ Fetch user + whitelist fields เท่านั้น
     const user = await User.findById(req.user._id)
       .select(
-        "username email fullName role companyId twoFactorEnabled isSuperAdmin"
+        "username email fullName  role companyId twoFactorEnabled isSuperAdmin"
       )
       .populate({
         path: "companyId",
-        select: "name address taxId information phone bankAccounts cashAccounts", // เลือกเฉพาะ field ที่ใช้จริง
+        select:
+          "name address taxId logo information phone bankAccounts cashAccounts", // เลือกเฉพาะ field ที่ใช้จริง
       })
       .lean(); // 3️⃣ ป้องกัน mutation / performance ดีขึ้น
     // 4️⃣ User ไม่พบ / ถูกลบ
@@ -912,7 +914,21 @@ router.patch(
       if (companyId && typeof companyId === "string") {
         companyId = JSON.parse(companyId);
       }
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+        return res.status(400).json({
+          message:
+            "ຊື່ຜູ້ໃຊ້ຕ້ອງມີ 3-30 ຕົວອັກສອນ ແລະປະກອບດ້ວຍ a-z, 0-9, _ ເທົ່ານັ້ນ",
+        });
+      }
+      if (username) {
+        const existingUser = await User.findOne({ username });
 
+        if (existingUser && existingUser._id.toString() !== req.params.id) {
+          return res.status(400).json({
+            message: "ຊື່ຜູ້ໃຊ້ນີ້ຖືກໃຊ້ງານແລ້ວ",
+          });
+        }
+      }
       const updateData = { username, email };
 
       // ---------------------------------------------------
@@ -1003,6 +1019,11 @@ router.patch(
         user: updatedUser,
       });
     } catch (error) {
+      if (error.code === 11000) {
+        return res.status(400).json({
+          message: "ຊື່ຜູ້ໃຊ້ນີ້ຖືກໃຊ້ງານແລ້ວ",
+        });
+      }
       console.error(error);
       res.status(500).json({ message: "Server error" });
     }
@@ -1186,7 +1207,7 @@ router.post("/user/verify-2fa", async (req, res) => {
     res.cookie("refresh_token", newRefreshToken, {
       httpOnly: true,
       secure: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
       maxAge: 30 * 24 * 60 * 60 * 1000,
       path: "/api/auth/refresh",
     });
@@ -1194,13 +1215,13 @@ router.post("/user/verify-2fa", async (req, res) => {
     res.clearCookie("2fa_temp_token", {
       httpOnly: true,
       secure: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
     });
 
     res.cookie("access_token", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
       maxAge: 15 * 60 * 1000, // ✅ 15 นาที เหมือนกัน
     });
 
@@ -1307,14 +1328,14 @@ router.post("/refresh", async (req, res) => {
 
       res.clearCookie("refresh_token", {
         httpOnly: true,
-        sameSite: "None",
+        sameSite: "Strict", //Strict
         secure: true,
         path: "/api/auth/refresh", // ✅ ต้องใส่ให้ตรงกับตอน set cookie
       });
       res.clearCookie("access_token", {
         httpOnly: true,
         secure: true,
-        sameSite: "None",
+        sameSite: "Strict", //Strict
       });
 
       return res.status(401).json({
@@ -1392,7 +1413,7 @@ router.post("/refresh", async (req, res) => {
     res.cookie("refresh_token", newRefreshToken, {
       httpOnly: true,
       secure: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
       maxAge: 30 * 24 * 60 * 60 * 1000,
       path: "/api/auth/refresh",
     });
@@ -1400,7 +1421,7 @@ router.post("/refresh", async (req, res) => {
     res.cookie("access_token", newAccessToken, {
       httpOnly: true,
       secure: true,
-      sameSite: "None",
+      sameSite: "Strict", //Strict
       maxAge: 15 * 60 * 1000,
     });
 
@@ -1409,5 +1430,10 @@ router.post("/refresh", async (req, res) => {
     console.error("Refresh error:", error);
     res.status(500).json({ message: "Something went wrong" });
   }
+});
+
+// ໃນ auth.js routes
+router.get("/csrf-token", csrfProtection, (req, res) => {
+  res.json({ csrfToken: res.locals.csrfToken });
 });
 export default router;

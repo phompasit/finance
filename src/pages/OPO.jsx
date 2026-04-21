@@ -456,6 +456,7 @@ const OPOSystem = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+  console.log(user);
   const {
     isOpen: isPdfOpen,
     onOpen: onPdfOpen,
@@ -679,12 +680,12 @@ const OPOSystem = () => {
       flex: 1;
       display: flex;
       align-items: flex-start;
-      gap: 10px;
+      gap: 20px;
     }
 
    .company-logo {
-  width: 55px;
-  height: 55px;
+  width: 75px;
+  height: 75px;
   background-color: #1a202c;       /* เผื่อไม่มีรูป */
   background-size: cover;           /* ทำให้รูปไม่บี้ */
   background-position: center;      /* เอากลางภาพ */
@@ -1130,9 +1131,7 @@ const OPOSystem = () => {
           </div>
         </div>
            <div class="signature-cell">
-          <span class="signature-label">ປະທານ ບໍລິສັດ ${
-            user?.companyId?.name
-          }/ຮອງປະທານ<br>Approved By</span>
+          <span class="signature-label">ປະທານ ບໍລິສັດ/ປະທານ<br>Approved By</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name"></div>
@@ -1141,7 +1140,7 @@ const OPOSystem = () => {
           </div>
         </div>
         <div class="signature-cell">
-          <span class="signature-label">ປະທານບໍລິສັດ MY/ຮອງປະທານ<br>Approved By</span>
+          <span class="signature-label">ປະທານ ບໍລິສັດ/ຮອງປະທານ<br>Approved By</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name"></div>

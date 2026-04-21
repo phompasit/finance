@@ -6,8 +6,9 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
-import api from "../api/api"; // axios instance (withCredentials: true)
+import api from "../api/api";
 
 const AuthContext = createContext(null);
 
@@ -22,10 +23,15 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  // =========================
-  // Fetch current user
-  // =========================
+  
+  // ✅ ย้าย useRef ขึ้นมาก่อน fetchUser
+  const lastFetch = useRef(0);
+
   const fetchUser = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastFetch.current < 30_000) return;
+    lastFetch.current = now;
+
     try {
       const { data } = await api.get("/api/auth/me");
       setUser(data);
@@ -36,47 +42,39 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Run once on app start
+  // ✅ useEffect เดียว ครอบคลุม mount + window focus
   useEffect(() => {
     fetchUser();
+    const handleFocus = () => fetchUser();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [fetchUser]);
 
-  // =========================
-  // Login
-  // =========================
   const login = async (email, password) => {
     const { data } = await api.post("/api/auth/login", { email, password });
-
-    // ถ้าต้องกรอก 2FA
-    // แก้เป็น ✅
     if (data.requiresTwoFactor) {
       return { requiresTwoFactor: true };
-      // tempToken อยู่ใน httpOnly cookie อัตโนมัติ
     }
-
-    // ถ้า login สำเร็จปกติ
+    // ✅ reset lastFetch ก่อน fetchUser เพื่อให้ดึงได้ทันที
+    lastFetch.current = 0;
     await fetchUser();
     return { success: true };
   };
 
-  ////-==========
   const verifyTwoFactor = async (code) => {
     await api.post("/api/auth/user/verify-2fa", { code });
-    // cookie จัดการ tempToken เองอัตโนมัติ
+    lastFetch.current = 0; // ✅ reset ก่อนดึงใหม่
     await fetchUser();
   };
 
-  //===============
-  // =========================
-  // Logout
-  // =========================
   const logout = async () => {
     try {
       await api.post("/api/auth/logout");
     } catch {}
     setUser(null);
-    window.location.href = "/login"; // ✅ เพิ่มบรรทัดนี้
+    window.location.href = "/login";
   };
+
   return (
     <AuthContext.Provider
       value={{

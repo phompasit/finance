@@ -1,21 +1,25 @@
 // middleware/sanitize.js
+import { JSDOM } from "jsdom";
+import createDOMPurify from "dompurify";
 
-/**
- * Global Input Sanitization Middleware
- * - Trim strings + collapse whitespace
- * - Enforce max string length (1000 chars)
- * - Block Mongo operator injection ($where, $ne, etc.)
- * - Deep sanitize nested objects and arrays
- */
+const { window } = new JSDOM("");
+const DOMPurify = createDOMPurify(window);
 
 const MAX_STRING_LENGTH = 1000;
+const MAX_DEPTH = 10;
+const MONGO_OP = /^\$/; // block $where, $ne, $gt ...
+
+const sanitizeString = (str) => {
+  const trimmed = str.trim().replace(/\s+/g, " ").slice(0, MAX_STRING_LENGTH);
+  // ລຶບ HTML tags ທັງໝົດ — ປ້ອງກັນ XSS
+  return DOMPurify.sanitize(trimmed, { ALLOWED_TAGS: [] });
+};
 
 const sanitizeValue = (value, depth = 0) => {
-  // ป้องกัน deep recursion (DoS via deeply nested object)
-  if (depth > 10) return value;
+  if (depth > MAX_DEPTH) return value;
 
   if (typeof value === "string") {
-    return value.trim().replace(/\s+/g, " ").slice(0, MAX_STRING_LENGTH);
+    return sanitizeString(value);
   }
 
   if (Array.isArray(value)) {
@@ -23,34 +27,44 @@ const sanitizeValue = (value, depth = 0) => {
   }
 
   if (value !== null && typeof value === "object") {
-    for (const key of Object.keys(value)) {
-      // Block Mongo operator injection
-      if (key.startsWith("$")) {
-        throw new Error(`Invalid input: Mongo operator "${key}" not allowed`);
-      }
-      value[key] = sanitizeValue(value[key], depth + 1);
-    }
-    return value;
+    // ✅ return object ໃໝ່ ແທນ mutate ຂອງເກົ່າ
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => {
+        if (MONGO_OP.test(key)) {
+          throw new Error(`Invalid key: "${key}"`);
+        }
+        return [key, sanitizeValue(val, depth + 1)];
+      })
+    );
   }
 
-  return value;
+  return value; // number, boolean, null → ປ່ອຍຜ່ານ
 };
 
 export const sanitizeInput = (req, res, next) => {
-  // Skip ถ้าไม่มี body หรือ body ว่าง
-  if (!req.body || Object.keys(req.body).length === 0) return next();
-
-  // Skip multipart/form-data (multer จัดการเอง)
   const contentType = req.headers["content-type"] || "";
   if (contentType.includes("multipart/form-data")) return next();
 
   try {
-    req.body = sanitizeValue(req.body);
+    if (req.body && Object.keys(req.body).length > 0) {
+      req.body = sanitizeValue(req.body);
+    }
+    // ✅ sanitize query และ params ດ້ວຍ
+    if (req.query) {
+      const sanitized = sanitizeValue(req.query);
+      Object.keys(sanitized).forEach((key) => {
+        req.query[key] = sanitized[key];
+      });
+    }
+    if (req.params) req.params = sanitizeValue(req.params);
+
     next();
   } catch (err) {
+    console.log(err);
     return res.status(400).json({
       success: false,
-      error: err.message,
+      message: "Invalid input detected",
+      // ❌ ບໍ່ສົ່ງ err.message ໃຫ້ client — ເປີດເຜີຍຂໍ້ມູນ internal
     });
   }
 };

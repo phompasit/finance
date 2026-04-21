@@ -1,6 +1,5 @@
 export default function pdfJournal({ data, user }) {
   /* ===== Helpers ===== */
-  console.log("data", data);
   const formatNumber = (n) =>
     n !== undefined && n !== null
       ? Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })

@@ -229,6 +229,7 @@ const CompanyAdminDashboard = memo(
     deleteCashAccount,
     navigate,
     fetchUsers, // ✅ เพิ่มตรงนี้
+    fetchUser
   }) => {
     // ✅ Hooks called at top level of component, not inside a function
     const cardBg = useColorModeValue("white", "gray.800");
@@ -238,7 +239,6 @@ const CompanyAdminDashboard = memo(
     const pageBg = useColorModeValue("gray.50", "gray.900");
 
     if (!company || !admin) return null;
-    console.log("authUser",authUser)
     return (
       <Box minH="100vh" bg={pageBg} py={8}>
         <Container maxW="container.xl">
@@ -482,7 +482,7 @@ const CompanyAdminDashboard = memo(
                                       { token: result.value }
                                     );
                                     showSuccess("ປິດ 2FA ສຳເລັດ");
-                                    await fetchUsers(); // ✅ ตอนนี้ทำงานได้แล้วหลังเพิ่ม prop
+                                    await fetchUser(); // ✅ ตอนนี้ทำงานได้แล้วหลังเพิ่ม prop
                                   } catch (err) {
                                     showError("ປິດ 2FA ບໍ່ສຳເລັດ", err);
                                   }
@@ -718,7 +718,7 @@ const CompanyAdminDashboard = memo(
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Users() {
-  const { user: authUser } = useAuth();
+  const { user: authUser ,fetchUser} = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -911,6 +911,7 @@ export default function Users() {
 
       await api.patch(`/api/auth/user/${editUser._id}`, formData);
       await fetchUsers();
+      await fetchUser()
       showSuccess("ອັບເດດສຳເລັດ", "ຂໍ້ມູນຜູ້ໃຊ້ຖືກອັບເດດແລ້ວ");
       onEditClose();
     } catch (error) {
@@ -1284,6 +1285,7 @@ export default function Users() {
           deleteCashAccount={deleteCashAccount}
           navigate={navigate}
           fetchUsers={fetchUsers}
+          fetchUser={fetchUser}
         />
       </Box>
 
