@@ -8,6 +8,8 @@ import employees from "../models/employees.js";
 import IncomeExpense from "../models/IncomeExpense.js";
 import Company from "../models/company.js";
 import Joi from "joi";
+import  pick  from "lodash";
+
 // Helper function to calculate debt status
 const calculateDebtStatus = (debt) => {
   if (!debt.installments || debt.installments.length === 0) {
@@ -844,7 +846,14 @@ router.post("/partners", authenticate, async (req, res) => {
       });
     }
 
-    const data = pick(value, ["name", "phone", "email", "address", "type"]);
+    const data = value;
+
+    if (!data.name) {
+      return res.status(400).json({
+        success: false,
+        message: "name is required",
+      });
+    }
 
     const partner = await Partner.create({
       ...data,

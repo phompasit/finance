@@ -165,7 +165,7 @@ const GeneralGL = forwardRef(
                     fontFamily: "Noto Sans Lao, sans-serif",
                   }}
                 >
-                  <strong>Reporting Period:</strong> {dateRange}
+                  <strong></strong> {dateRange}
                 </div>
               </div>
 

@@ -40,7 +40,11 @@ const formatDate = (d) => {
   return date.toLocaleDateString("en-GB");
 };
 /* ================= HELPERS ================= */
-const formatNum = (n) => Number(n || 0).toLocaleString();
+const formatNum = (n) =>
+  Number(n || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const DiffBadge = ({ value }) => {
   if (value === 0) return <Badge>0</Badge>;

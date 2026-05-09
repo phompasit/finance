@@ -323,7 +323,7 @@ export default function exportPDF({
 
     .signature-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
     }
 
@@ -461,7 +461,7 @@ export default function exportPDF({
           <div class="info-value">${formatDate(selectedOpo.date)}</div>
         </div>
         <div class="info-row">
-          <div class="info-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ:</div>
+          <div class="info-label">ພະແນກບັນຊີ-ການເງິນ:</div>
           <div class="info-value">${selectedOpo.manager || "-"}</div>
         </div>
         <div class="info-row">
@@ -536,7 +536,7 @@ export default function exportPDF({
           </div>
         </div>
         <div class="signature-cell">
-          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ<br>A&F Dept.</span>
+          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນ<br>A&F Dept.</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name">${selectedOpo.manager || ""}</div>
@@ -553,18 +553,7 @@ export default function exportPDF({
           </div>
         </div>
            <div class="signature-cell">
-          <span class="signature-label">ປະທານ ບໍລິສັດ ${
-            user?.companyId?.name
-          }/ຮອງປະທານ<br>Approved By</span>
-          <div class="signature-area">
-            <div class="signature-line">
-              <div class="signature-name"></div>
-
-            </div>
-          </div>
-        </div>
-        <div class="signature-cell">
-          <span class="signature-label">ປະທານບໍລິສັດ MY/ຮອງປະທານ<br>Approved By</span>
+          <span class="signature-label">ປະທານ/ຮອງປະທານ<br>Approved By</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name"></div>

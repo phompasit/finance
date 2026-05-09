@@ -26,6 +26,7 @@ import StatementOfFinancialPrint from "./PDF/StatementOfFinancialPrint";
 import { useAuth } from "../context/AuthContext";
 import LedgerLoading from "../components/Loading";
 import { exportBalanceSheetExcel } from "./PDF/excel";
+import { formatNum } from "../ีีutils/useAccountTree";
 
 /* ================= FILTER MODE (เหมือน AssetsPage) ================= */
 const FILTER_MODE = {
@@ -41,14 +42,13 @@ const formatDate = (d) => {
   return date.toLocaleDateString("en-GB");
 };
 /* ================= HELPERS ================= */
-const num = (n) => Number(n || 0).toLocaleString();
 
 const DiffBadge = ({ value }) => {
   if (value === 0) return <Badge>0</Badge>;
   return (
     <Badge colorScheme={value > 0 ? "green" : "red"}>
       {value > 0 ? "+" : ""}
-      {num(value)}
+      {formatNum(value)}
     </Badge>
   );
 };
@@ -416,7 +416,7 @@ const StatementOfFinancialPosition = () => {
                           {r.pattern}
                         </Td>
                         <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
-                          {num(r.ending)}
+                          {formatNum(r.ending)}
                         </Td>
 
                         {comparable && (
@@ -425,7 +425,7 @@ const StatementOfFinancialPosition = () => {
                               fontFamily="Noto Sans Lao, sans-serif"
                               isNumeric
                             >
-                              {num(r.prevEnding)}
+                              {formatNum(r.prevEnding)}
                             </Td>
                             {/* <Td
                               fontFamily="Noto Sans Lao, sans-serif"
@@ -449,12 +449,12 @@ const StatementOfFinancialPosition = () => {
                           : "ໜີ້ສິນບໍ່ໝູນວຽນ II"}
                       </Td>
                       <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
-                        {num(sectionTotals[section].cur)}
+                        {formatNum(sectionTotals[section].cur)}
                       </Td>
                       {comparable && (
                         <>
                           <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
-                            {num(sectionTotals[section].prev)}
+                            {formatNum(sectionTotals[section].prev)}
                           </Td>
                           {/* <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
                             <DiffBadge
@@ -485,7 +485,7 @@ const StatementOfFinancialPosition = () => {
           </Text>
           <HStack spacing={8}>
             <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold">
-              {comparable ? currentYear : "Total"}: {num(grandTotal.cur)}
+              {comparable ? currentYear : "Total"}: {formatNum(grandTotal.cur)}
             </Text>
 
             {comparable && (
@@ -494,7 +494,7 @@ const StatementOfFinancialPosition = () => {
                 fontWeight="bold"
                 color="gray.600"
               >
-                {previousYear}: {num(grandTotal.prev)}
+                {previousYear}: {formatNum(grandTotal.prev)}
               </Text>
             )}
           </HStack>

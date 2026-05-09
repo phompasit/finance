@@ -154,6 +154,7 @@ const OpeningModal = ({ isOpen, onClose, editing, year }) => {
     } catch (err) {
       // ❗ Error มาจาก backend โดยตรง เช่น
       // "Account does not belong to your company"
+      console.log(err)
       toast({
         title: err || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์",
         status: "error",

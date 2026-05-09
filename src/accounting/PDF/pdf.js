@@ -48,8 +48,8 @@ export default function pdfJournal({ data, user }) {
 
 <style>
 @page { 
-  size: A4; 
-  margin: 20mm 15mm;
+  size: A4 landscape; 
+  margin: 15mm 20mm;
 }
 
 * {
@@ -224,6 +224,8 @@ td:nth-child(8) {
   margin-top: 8mm;
   margin-bottom: 12mm;
   display: flex;
+  justify-content: flex-end;
+  gap: 20mm;
   font-size: 11pt;
 }
 
@@ -383,22 +385,16 @@ ${rows}
   <div class="signature-box">
     <div class="title">ຜູ້ອໍານວຍການ</div>
     <div class="subtitle">(CEO)</div>
-    <div class="line"></div>
-    <div class="name">(...............................)</div>
   </div>
   
   <div class="signature-box">
-    <div class="title">ຫົວໜ້າການເງິນ</div>
+    <div class="title">ຫົວໜ້າການເງິນ-ບັນຊີ</div>
     <div class="subtitle">(CFO)</div>
-    <div class="line"></div>
-    <div class="name">(...............................)</div>
   </div>
   
   <div class="signature-box">
-    <div class="title">ພະນັກງານບັນຊີ</div>
+    <div class="title">ຜູ້ສະຫູຸບ</div>
     <div class="subtitle">(Accountant)</div>
-    <div class="line"></div>
-    <div class="name">(...............................)</div>
   </div>
 </div>
 
@@ -419,11 +415,11 @@ html2pdf().set({
     letterRendering: true,
     scrollY: 0
   },
-  jsPDF: {
-    unit: "mm",
-    format: "a4",
-    orientation: "portrait"
-  },
+jsPDF: {
+  unit: "mm",
+  format: "a4",
+  orientation: "landscape"  // เปลี่ยนจาก "portrait" เป็น "landscape"
+},
   pagebreak: {
     mode: ["css", "legacy"]
   }

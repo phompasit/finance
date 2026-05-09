@@ -59,50 +59,36 @@ async function blockClosedJournal(req, res, next) {
 /**
  * Helper: validate amounts and account relation
  */
+// ✅ Helper — throw ขึ้นมาเลย ไม่ต้อง try/catch
 async function validateOpeningInput({ companyId, accountId, debit, credit }) {
   if (!accountId) throw new Error("accountId is required");
 
   if (!mongoose.Types.ObjectId.isValid(accountId)) {
     throw new Error("accountId is not a valid ObjectId");
   }
-
   const account = await Account_document.findById(accountId).lean();
   if (!account) throw new Error("Account not found");
-
+  
+  console.log(account)
   if (!account.companyId || String(account.companyId) !== String(companyId)) {
     throw new Error("Account does not belong to your company");
   }
 
-  // normalize numbers
   const d = Number(debit || 0);
   const c = Number(credit || 0);
 
   if (isNaN(d) || isNaN(c)) throw new Error("debit and credit must be numbers");
-
   if (d < 0 || c < 0) throw new Error("debit and credit must be >= 0");
+  if (d > 0 && c > 0)
+    throw new Error("ທັງໝົດກະລຸນາໃສ່ເງິນໃນ debit ຫຼື credit ເທົ່ານັ້ນ");
+  if (d === 0 && c === 0)
+    throw new Error("ກະລຸນາໃສ່ເງິນໃນ debit ຫຼື credit ຢ່າງໜ້ອຍ 1 ຊ່ອງ");
 
-  // both > 0 is not allowed
-  if (d > 0 && c > 0) {
-    throw new Error(
-      "Both debit and credit cannot be greater than zero at the same time"
-    );
-  }
-
-  // at least one > 0 (change this rule if you want to allow zero-zero)
-  if (d === 0 && c === 0) {
-    throw new Error("Please provide an amount on either debit or credit");
-  }
-
-  // enforce normal side
   if (account.normalSide === "Dr" && c > 0) {
-    throw new Error(
-      `Account normal side is Dr — please put amount in debit (not credit)`
-    );
+    throw new Error("ເລກບັນຊີຢູ່ຜິດທາງ — ກະລຸນາໃສ່ເງິນໃນ debit");
   }
   if (account.normalSide === "Cr" && d > 0) {
-    throw new Error(
-      `Account normal side is Cr — please put amount in credit (not debit)`
-    );
+    throw new Error("ເລກບັນຊີຢູ່ຜິດທາງ — ກະລຸນາໃສ່ເງິນໃນ credit");
   }
 
   return { account, debit: d, credit: c };
@@ -195,11 +181,17 @@ router.get("/", authenticate, async (req, res) => {
 router.post("/", authenticate, async (req, res) => {
   try {
     const { accountId, debit, credit, year, note } = req.body;
-
+    console.log("Received POST /opening-balance with data:", {
+      accountId,
+      debit,
+      credit,
+      year,
+      note,
+    });
     // ✅ Validate year
     const y = Number(year);
     if (!Number.isInteger(y) || y < 2000 || y > 2100) {
-      return res.status(400).json({ error: "Invalid year" });
+      return res.status(400).json({ error: "ກະລຸນາໃສ່ປີທີ່ຖືກຕ້ອງ" });
     }
 
     // ✅ Get closed years
@@ -211,17 +203,24 @@ router.post("/", authenticate, async (req, res) => {
 
     if (closedYears.includes(y)) {
       return res.status(400).json({
-        error: `Year ${y} is closed`,
+        error: `ປີ ${y} ຖືກປິດແລ້ວ`,
       });
     }
 
     // ✅ Validate amounts and account ownership
-    const { debit: d, credit: c } = await validateOpeningInput({
-      companyId: req.user.companyId,
-      accountId,
-      debit,
-      credit,
-    });
+    let validated;
+    try {
+      validated = await validateOpeningInput({
+        companyId: req.user.companyId,
+        accountId,
+        debit,
+        credit,
+      });
+    } catch (validationErr) {
+      return res
+        .status(400)
+        .json({ success: false, error: validationErr.message });
+    }
 
     // ✅ Safe note
     const safeNote = String(note || "").slice(0, 500);
@@ -232,8 +231,8 @@ router.post("/", authenticate, async (req, res) => {
       userId: req.user._id,
       accountId,
       year: y,
-      debit: d,
-      credit: c,
+      debit: validated.debit,
+      credit: validated.credit,
       note: safeNote,
     });
 

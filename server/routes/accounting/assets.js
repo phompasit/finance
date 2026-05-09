@@ -209,7 +209,8 @@ async function buildAssets({ companyId, start, end, year }) {
     });
 
     /* ✅ FIX: Assets must not be negative */
-    let amount = Math.round(sum);
+    // let amount = Math.round(sum);
+   let amount = Math.round(sum * 100) / 100; // เก็บ 2 ตำแหน่ง
 
     if (amount < 0) amount = Math.abs(amount);
     // if (amount < 0) amount = amount

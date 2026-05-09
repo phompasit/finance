@@ -43,7 +43,7 @@ const sanitize = (v = "") => v.trim();
 
 const handleApiError = (error, fallback = "Something went wrong") => {
   const message =
-    error?.response?.data?.errors[0] ||
+    error?.response?.data?.message ||
     fallback;
 
   Swal.fire({

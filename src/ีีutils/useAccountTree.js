@@ -59,3 +59,8 @@ export function useAccountTree(list = [], search = "") {
     toggle,
   };
 }
+export const formatNum = (n) =>
+  Number(n || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });

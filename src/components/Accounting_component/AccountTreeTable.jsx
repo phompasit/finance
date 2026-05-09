@@ -15,8 +15,9 @@ import {
   Badge,
 } from "@chakra-ui/react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { formatNum } from "../../ีีutils/useAccountTree";
 
-const formatNum = (n) => Number(n || 0).toLocaleString();
+
 
 const AccountTreeTable = ({ tree, expanded, toggle, totals }) => {
   const renderNode = (node, level = 0) => {

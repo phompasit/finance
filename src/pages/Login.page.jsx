@@ -39,8 +39,10 @@ export default function Login() {
 
     try {
       Swal.fire({
+        icon: "info",
         title: "ກຳລັງເຂົ້າສູ່ລະບົບ...",
         allowOutsideClick: false,
+         timer: 1500,
         didOpen: () => {
           Swal.showLoading();
         },

@@ -22,11 +22,36 @@ const router = express.Router();
    🔒 SECURITY: Input Validation & Sanitization
 ============================================================================ */
 function sortByAccountCode(a, b) {
-  const idxA = CHART_ORDER.indexOf(String(a.code).trim());
-  const idxB = CHART_ORDER.indexOf(String(b.code).trim());
-  if (idxA === -1) return 1;
-  if (idxB === -1) return -1;
-  return idxA - idxB;
+  const getIndex = (code) => {
+    const codeStr = String(code).trim();
+    
+    // ลองหา exact match ก่อน
+    let idx = CHART_ORDER.indexOf(codeStr);
+    if (idx !== -1) return { idx, sub: "" };
+    
+    // ถ้าไม่เจอ หา parent ที่ใกล้ที่สุด (ตัดจาก . หรือตัวสุดท้าย)
+    // เช่น "1012.01" → ลอง "1012" ก่อน
+    const dotIdx = codeStr.lastIndexOf(".");
+    if (dotIdx !== -1) {
+      const parent = codeStr.substring(0, dotIdx);
+      const parentIdx = CHART_ORDER.indexOf(parent);
+      if (parentIdx !== -1) {
+        // ใช้ sub เป็น suffix เพื่อ sort ลำดับลูก
+        return { idx: parentIdx, sub: codeStr.substring(dotIdx) };
+      }
+    }
+    
+    // fallback: ไม่เจอเลย → ดัน ไปท้ายสุด
+    return { idx: Number.MAX_SAFE_INTEGER, sub: codeStr };
+  };
+
+  const a_ = getIndex(a.code);
+  const b_ = getIndex(b.code);
+
+  if (a_.idx !== b_.idx) return a_.idx - b_.idx;
+  
+  // ถ้า parent เดียวกัน sort ตาม sub string
+  return a_.sub.localeCompare(b_.sub, undefined, { numeric: true });
 }
 /**
  * Validate and sanitize year parameter

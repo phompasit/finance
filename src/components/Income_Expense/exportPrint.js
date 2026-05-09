@@ -556,7 +556,7 @@ td:nth-child(8) {
           </div>
         </div>
         <div class="signature-cell">
-          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນສ່ວນກາງ</span>
+          <span class="signature-label">ພະແນກບັນຊີ-ການເງິນ</span>
           <div class="signature-area">
             <div class="signature-line">
 
@@ -573,7 +573,7 @@ td:nth-child(8) {
           </div>
         </div>
         <div class="signature-cell">
-          <span class="signature-label">CEO & CFO</span>
+          <span class="signature-label">ປະທານ & ຮອງປະທານ</span>
           <div class="signature-area">
             <div class="signature-line">
               <div class="signature-name"></div>

@@ -25,7 +25,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchDetailedBalance_Income_expense } from "../store/accountingReducer/balanceSlice";
 import { Download, ChevronDown, ChevronRight } from "lucide-react";
 import ReportFilter from "../components/Accounting_component/ReportFilter";
-import { useAccountTree } from "../ีีutils/useAccountTree";
+import { formatNum, useAccountTree } from "../ีีutils/useAccountTree";
 import AccountTreeTable from "../components/Accounting_component/AccountTreeTable";
 import html2pdf from "html2pdf.js";
 import { useAuth } from "../context/AuthContext";
@@ -208,7 +208,8 @@ const BalanceSheetIncomeAndExpense = () => {
       .from(printRef.current)
       .save();
   };
-  const formatNum = (n) => Number(n || 0).toLocaleString();
+
+
   return (
     <Box p={6} bg="gray.50" minH="100vh">
       {/* ================= HEADER ================= */}

@@ -31,6 +31,7 @@ import { useAuth } from "../context/AuthContext";
 import IncomePrint from "./PDF/IncomePrint";
 import LedgerLoading from "../components/Loading";
 import { exportReport } from "./PDF/excel";
+import { formatNum } from "../ีีutils/useAccountTree";
 
 /* ================= FILTER MODE ================= */
 const FILTER_MODE = {
@@ -48,7 +49,7 @@ const formatDate = (d) => {
 };
 
 /* ================= HELPERS ================= */
-const formatNum = (n) => Number(n || 0).toLocaleString();
+
 
 const BOLD_LABELS = [
   "ຜົນໄດ້ຮັບເບື້ອງຕົ້ນ",
