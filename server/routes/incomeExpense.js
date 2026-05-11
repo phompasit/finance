@@ -365,7 +365,11 @@ router.put("/:id", authenticate, async (req, res) => {
     if (!existing) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-
+    if (existing.disbursementId) {
+      return res.status(400).json({
+        message: "ບໍ່ສາມາດແກ້ໄຂໄດ້ ກະລຸນາແກ້ໄຂຜ່ານໃບເບີກຈ່າຍ",
+      });
+    }
     // 2️⃣ ป้องกันแก้ไขหนี้ (ดูจาก existing ไม่ใช่ req.body)
     if (existing.referance || existing.installmentId) {
       return res.status(400).json({
@@ -608,9 +612,9 @@ router.put("/:id", authenticate, async (req, res) => {
       data: updated,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error in PATCH /income-expense/:id:", error);
     return res.status(500).json({
-      message: "เกิดข้อผิดพลาด",
+      message: "server error",
       error: error.message,
     });
   }
@@ -630,7 +634,11 @@ router.delete("/:id", authenticate, async (req, res) => {
     if (!existing) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-
+    if (existing.disbursementId) {
+      return res.status(400).json({
+        message: "ບໍ່ສາມາດແກ້ໄຂໄດ້ ກະລຸນາແກ້ໄຂຜ່ານໃບເບີກຈ່າຍ",
+      });
+    }
     // 2️⃣ ป้องกันลบรายการที่ approve (admin เท่านั้น)
     if (req.user.role !== "admin" && existing.status_Ap === "approve") {
       return res.status(403).json({
@@ -659,10 +667,10 @@ router.delete("/:id", authenticate, async (req, res) => {
 
       // lookup maps
       const cashMap = new Map(
-        company.cashAccounts.map(a => [a._id.toString(), a])
+        company.cashAccounts.map((a) => [a._id.toString(), a])
       );
       const bankMap = new Map(
-        company.bankAccounts.map(a => [a._id.toString(), a])
+        company.bankAccounts.map((a) => [a._id.toString(), a])
       );
 
       const findAccount = (id) => {
@@ -721,22 +729,20 @@ router.delete("/:id", authenticate, async (req, res) => {
     }
 
     return res.json({ message: "ລຶບສຳເລັດ" });
-
   } catch (error) {
-    console.error(error);
+    console.error("Error in DELETE /income-expense:", error);
     return res.status(500).json({
-      message: "ເກີດຂໍ້ຜິດພາດ",
+      message: "server error",
       error: error.message,
     });
   }
 });
 
-
 // deleteAmount
 router.delete("/item/:id/:index", authenticate, async (req, res) => {
   try {
-    const amountIndex = req.params.id;  // index ของ amounts
-    const docId = req.params.index                // _id ของ IncomeExpense
+    const amountIndex = req.params.id; // index ของ amounts
+    const docId = req.params.index; // _id ของ IncomeExpense
 
     // 1️⃣ Validate index
     if (isNaN(amountIndex) || amountIndex < 0) {
@@ -790,10 +796,10 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
 
       // lookup account
       const cashMap = new Map(
-        company.cashAccounts.map(a => [a._id.toString(), a])
+        company.cashAccounts.map((a) => [a._id.toString(), a])
       );
       const bankMap = new Map(
-        company.bankAccounts.map(a => [a._id.toString(), a])
+        company.bankAccounts.map((a) => [a._id.toString(), a])
       );
 
       const findAccount = (id) => {
@@ -815,7 +821,7 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
     doc.amounts.splice(amountIndex, 1);
 
     // 6️⃣ validate currency ซ้ำ
-    const currencies = doc.amounts.map(a => a.currency);
+    const currencies = doc.amounts.map((a) => a.currency);
     const dup = currencies.find((c, i) => currencies.indexOf(c) !== i);
     if (dup) {
       return res.status(400).json({
@@ -830,11 +836,10 @@ router.delete("/item/:id/:index", authenticate, async (req, res) => {
       message: "ລົບສຳເລັດ",
       data: doc,
     });
-
   } catch (error) {
-    console.error(error);
+    console.error("Error in DELETE /income-expense/item/:id/:index:", error);
     return res.status(500).json({
-      message: "เกิดข้อผิดพลาด",
+      message: "server error",
       error: error.message,
     });
   }
@@ -853,7 +858,11 @@ router.patch("/status/:id", authenticate, async (req, res) => {
     if (!record) {
       return res.status(404).json({ message: "ไม่พบข้อมูล" });
     }
-
+    if (record.disbursementId) {
+      return res.status(400).json({
+        message: "ບໍ່ສາມາດແກ້ໄຂໄດ້ ກະລຸນາແກ້ໄຂຜ່ານໃບເບີກຈ່າຍ",
+      });
+    }
     // 2️⃣ ป้องกัน user ธรรมดาแก้ status approve
     if (req.user.role !== "admin") {
       if ("status_Ap" in req.body) {
@@ -906,13 +915,13 @@ router.patch("/status/:id", authenticate, async (req, res) => {
     });
 
     return res.json({
-      message: "อัปเดตสถานะสำเร็จ",
+      message: "ອັບເດດສຳເລັດ",
       data: updated,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error in PATCH /income-expense/status/:id:", error);
     return res.status(500).json({
-      message: "เกิดข้อผิดพลาด",
+      message: "server error",
       error: error.message,
     });
   }

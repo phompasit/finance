@@ -77,8 +77,14 @@ const incomeExpenseSchema = new mongoose.Schema(
       enum: ["advance", "other"],
       default: "other",
     },
+
     referance: {
       type: mongoose.Schema.Types.ObjectId,
+    },
+    disbursementId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Disbursement",
+      default: null,
     },
     installmentId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -322,20 +322,6 @@ const IncomePrint = forwardRef(
     },
     ref
   ) => {
-    console.log("Rendering IncomePrint with props:", {
-      companyName,
-      slogan,
-      user,
-      currentYear,
-      previousYear,
-      comparable,
-      period,
-      start,
-      end,
-      mode,
-      activeFilterLabel,
-      mergedLines,
-    });
     // ── Company info ─────────────────────────────────────
     const companyAddress = useMemo(
       () =>
@@ -347,7 +333,6 @@ const IncomePrint = forwardRef(
       [user?.companyId?.name, user?.companyId?.address]
     );
     const phone = ` ${user?.companyId?.phone}`;
-    console.log("speriod ", user);
     // ── Period subtitle ──────────────────────────────────
     const periodText = useMemo(() => {
       // ✅ รองรับทั้ง "startDate" และ "statDate" (typo จาก API)

@@ -59,8 +59,9 @@ router.get("/", authenticate, async (req, res) => {
     // 6️⃣ query
     const [data, total] = await Promise.all([
       OPO.find(query)
-        .select("serial number date status_Ap items staff createdBy")
+        .select("serial number date status_Ap items staff createdBy status")
         .populate("staff", "username")
+        .populate("partnerId", "name phone")
         .sort({ date: -1 })
         .skip(skip)
         .limit(safeLimit)
@@ -129,16 +130,18 @@ router.post("/", authenticate, async (req, res) => {
     // 1) Validate payload shape with Joi (whitelist)
     const itemSchema = Joi.object({
       description: Joi.string().max(1000).required(),
-      paymentMethod: Joi.string().valid("cash", "bank_transfer").required(),
+      paymentMethod: Joi.string().valid("cash", "transfer").required(),
       reason: Joi.string().max(1000).required(),
       currency: Joi.string().max(10).required(),
       amount: Joi.number().min(0).required(),
+      notes: Joi.string().max(2000).allow("", null), // ✅ เพิ่ม
       accountId: Joi.string().optional().allow("", null),
       // ... any other allowed item fields
     });
 
     const schema = Joi.object({
       serial: Joi.string().trim().required(),
+      partnerId: Joi.string().required(), // ✅ เพิ่ม
       status: Joi.string().valid("paid", "unpaid").required(),
       items: Joi.array().items(itemSchema).min(1).required(),
       note: Joi.string().max(2000).allow("", null),
@@ -199,6 +202,7 @@ router.post("/", authenticate, async (req, res) => {
       items: sanitizedItems,
       note: sanitizedNote,
       totalAmount,
+      partnerId: value.partnerId, // ✅ เพิ่ม
       userId: req.user._id,
       companyId: req.user.companyId,
       manager: req.body.manager,
@@ -268,7 +272,11 @@ router.put("/:id", authenticate, async (req, res) => {
         message: "OPO ນີ້ຖືກ lock ແລ້ວ",
       });
     }
-
+    if (opo.status === "paid") {
+      return res.status(403).json({
+        message: "OPO ນີ້ຖືກເບີກຈ່າຍແລ້ວ ບໍ່ສາມາດແກ້ໄຂໄດ້",
+      });
+    }
     // 5️⃣ Validate input
     if (!req.body.serial?.trim()) {
       return res.status(400).json({ message: "Serial ບໍ່ຖືກຕ້ອງ" });
@@ -279,15 +287,21 @@ router.put("/:id", authenticate, async (req, res) => {
         message: "ຕ້ອງມີ item ຢ່າງໜ້ອຍ 1 ລາຍການ",
       });
     }
-
+    if (
+      req.body.partnerId &&
+      !mongoose.Types.ObjectId.isValid(req.body.partnerId)
+    ) {
+      return res.status(400).json({ message: "partner ບໍ່ຖືກຕ້ອງ" });
+    }
     // 6️⃣ Sanitize & whitelist items
     const safeItems = req.body.items.map((i) => ({
       description: i.description,
       paymentMethod: i.paymentMethod,
       reason: i.reason,
+      currency: i.currency || "LAK", // ✅ เพิ่ม
+      notes: i.notes || "", // ✅ เพิ่ม
       amount: Number(i.amount || 0),
     }));
-
     // 7️⃣ Build update (NO status / createdBy)
     const updateData = {
       serial: req.body.serial,
@@ -295,6 +309,7 @@ router.put("/:id", authenticate, async (req, res) => {
       note: req.body.note || "",
       manager: req.body.manager || "",
       requester: req.body.requester || "",
+      partnerId: req.body.partnerId || null, // ✅ เพิ่ม
       updatedBy: req.user._id,
       updatedAt: new Date(),
       totalAmount: safeItems.reduce((s, i) => s + i.amount, 0),
@@ -366,6 +381,11 @@ router.patch("/:id/status", authenticate, async (req, res) => {
       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
 
+    if (existing.status === "paid") {
+      return res.status(403).json({
+        message: "OPO ນີ້ຖືກເບີກຈ່າຍແລ້ວ ບໍ່ສາມາດແກ້ໄຂໄດ້",
+      });
+    }
     // 5️⃣ State transition rules
     const TRANSITIONS = {
       PENDING: ["APPROVED", "CANCELLED"],
@@ -409,7 +429,7 @@ router.patch("/:id/status", authenticate, async (req, res) => {
 
     if (!updated) {
       return res.status(409).json({
-        message: "สถานะถูกเปลี่ยนโดยผู้อื่น กรุณาลองใหม่",
+        message: "ຂໍ້ມູນຖືກປ່ຽນລະຫວ່າງດຳເນີນງານ ",
       });
     }
 
@@ -468,6 +488,11 @@ router.delete("/:id", authenticate, async (req, res) => {
     if (["APPROVED", "CANCELLED"].includes(opo.status_Ap)) {
       return res.status(403).json({
         message: "OPO ທີ່ອະນຸມັດ ຫຼື ຍົກເລີກ ບໍ່ສາມາດລຶບໄດ້",
+      });
+    }
+    if (opo.status === "paid") {
+      return res.status(403).json({
+        message: "OPO ນີ້ຖືກເບີກຈ່າຍແລ້ວ ບໍ່ສາມາດລົບໄດ້",
       });
     }
     // 5️⃣ ลบเอกสาร
@@ -530,7 +555,11 @@ router.delete("/opoId/:id/item/:itemId", authenticate, async (req, res) => {
         message: "OPO ທີ່ອະນຸມັດ/ຍົກເລີກ ບໍ່ສາມາດແກ້ໄຂໄດ້",
       });
     }
-
+    if (opo.status === "paid") {
+      return res.status(403).json({
+        message: "OPO ນີ້ຖືກເບີກຈ່າຍແລ້ວ ບໍ່ສາມາດລົບໄດ້",
+      });
+    }
     // 4️⃣ ตรวจว่ามี itemId ใน OPO จริงไหม
     const exists = opo.items.some((item) => item._id.toString() === itemId);
 
@@ -590,7 +619,11 @@ router.patch("/status/:id", authenticate, async (req, res) => {
     if (!existing) {
       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນ" });
     }
-
+    if (existing.status === "paid") {
+      return res.status(403).json({
+        message: "OPO ນີ້ຖືກເບີກຈ່າຍແລ້ວ ບໍ່ສາມາດແກ້ໄຂໄດ້",
+      });
+    }
     // 2️⃣ ป้องกัน user แก้ไขรายการที่ approve แล้ว
     if (req.user.role !== "admin" && existing.status_Ap === "approve") {
       return res.status(403).json({
@@ -610,11 +643,11 @@ router.patch("/status/:id", authenticate, async (req, res) => {
     const allowedApproval = ["PENDING", "APPROVED", "PAID", "CANCELLED"];
 
     if (req.body.status && !allowedStatus.includes(req.body.status)) {
-      return res.status(400).json({ message: "สถานะไม่ถูกต้อง" });
+      return res.status(400).json({ message: "ສະຖານະບໍ່ຖືກຕ້ອງ" });
     }
 
     if (req.body.status_Ap && !allowedApproval.includes(req.body.status_Ap)) {
-      return res.status(400).json({ message: "สถานะอนุมัติไม่ถูกต้อง" });
+      return res.status(400).json({ message: "ສະຖານະອະນຸມັດບໍ່ຖືກຕ້ອງ" });
     }
 
     // 5️⃣ Whitelist fields ที่แก้ได้เท่านั้น

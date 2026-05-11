@@ -1,6 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap");
 
-/* ================= BASE ================= */
 * {
   box-sizing: border-box;
 }
@@ -42,22 +41,24 @@ body {
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 2px solid #000;
+  align-items: start;
 }
 
-.header > div {
+.header-left {
+  text-align: left;
   font-size: 10.5px;
 }
 
-.header > div:nth-child(1) {
-  text-align: left;
-}
-
-.header > div:nth-child(2) {
+.header-center {
   text-align: center;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.header > div:nth-child(3) {
+.header-right {
   text-align: right;
+  font-size: 9px;
+  color: #333;
 }
 
 .company-name {
@@ -72,11 +73,6 @@ body {
   margin-bottom: 2px;
 }
 
-.report-period {
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .currency-info {
   font-size: 9px;
   color: #333;
@@ -88,17 +84,27 @@ body {
   border-collapse: collapse;
   margin-top: 8px;
   border: 2px solid #000;
+  table-layout: fixed; /* ← key: columns won't shift when font changes */
 }
 
-/* ---- CELL ---- */
+/* Column width definitions — adjust percentages to taste */
+.dtable colgroup col:nth-child(1) { width: 22%; }  /* ຊື່ບັນຊີ */
+.dtable colgroup col:nth-child(2) { width: 9%;  }  /* ເລກໝາຍ */
+.dtable colgroup col:nth-child(3) { width: 11.5%; } /* openingDr */
+.dtable colgroup col:nth-child(4) { width: 11.5%; } /* openingCr */
+.dtable colgroup col:nth-child(5) { width: 11.5%; } /* movementDr */
+.dtable colgroup col:nth-child(6) { width: 11.5%; } /* movementCr */
+.dtable colgroup col:nth-child(7) { width: 11.5%; } /* endingDr */
+.dtable colgroup col:nth-child(8) { width: 11.5%; } /* endingCr */
+
 th,
 td {
   border: 1px solid #000;
   padding: 5px 6px;
   vertical-align: middle;
+  overflow: hidden;
 }
 
-/* ---- HEADER ---- */
 thead th {
   background: #fff;
   font-weight: 700;
@@ -116,15 +122,7 @@ thead tr:last-child th {
   padding: 5px;
 }
 
-/* ---- COLUMN ---- */
-.row-number {
-  width: 30px;
-  text-align: center;
-  font-weight: 500;
-}
-
 .account-code {
-  width: 85px;
   text-align: center;
   font-family: "Courier New", monospace;
   font-size: 9.5px;
@@ -132,110 +130,31 @@ thead tr:last-child th {
 
 .account-name {
   font-size: 10.5px;
-}
-
-.note-col {
-  width: 70px;
-  text-align: center;
-  font-size: 9.5px;
+  word-break: break-word;
 }
 
 .number {
   text-align: right;
   font-family: "Courier New", monospace;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding-right: 8px;
 }
 
-/* ================= BALANCE SHEET SPECIFIC ================= */
+/* ================= ROW TYPES ================= */
+.parent-row {
+  background: #f5f5f5;
+}
 
-/* ---- SECTION HEADER (ASSETS / LIABILITIES) ---- */
-.section-row {
-  background: #fff;
+.parent-row .parent-name {
   font-weight: 700;
-}
-
-.section-row td {
-  border-top: 2px solid #000;
-  border-bottom: 2px solid #000;
-  padding: 7px 6px;
-  font-size: 11.5px;
-  text-transform: uppercase;
-}
-
-/* ---- CATEGORY (Current Assets, Fixed Assets, etc.) ---- */
-.category-row {
-  background: #fff;
-  font-weight: 700;
-}
-
-.category-row td {
-  border-top: 1.5px solid #000;
-  padding: 6px;
   font-size: 11px;
 }
 
-.category-number {
-  font-weight: 700;
-  text-align: center;
-}
-
-.category-name {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-/* ---- ITEM ROW ---- */
-.item-row {
+.child-row {
   background: #fff;
-  font-weight: 400;
-  color: #000;
-}
-
-.item-row td {
-  padding: 4px 6px;
-}
-
-.item-row .account-name {
-  font-size: 10px;
-  padding-left: 30px;
-}
-
-/* ---- SUB-ITEM ROW ---- */
-.sub-item-row {
-  background: #fff;
-  font-weight: 400;
-  color: #333;
-}
-
-.sub-item-row td {
-  padding: 4px 6px;
-}
-
-.sub-item-row .account-name {
-  font-size: 9.5px;
-  padding-left: 50px;
-}
-
-/* ---- SUBTOTAL ROW ---- */
-.subtotal-row {
-  background: #fff;
-  font-weight: 700;
-}
-
-.subtotal-row td {
-  border-top: 1.5px solid #000;
-  padding: 6px;
-  font-size: 10.5px;
-}
-
-.subtotal-row .account-name {
-  padding-left: 20px;
-}
-
-.subtotal-row .number {
-  font-weight: 700;
 }
 
 /* ================= TOTAL ================= */
@@ -258,32 +177,27 @@ thead tr:last-child th {
   margin-top: 14px;
   display: flex;
   justify-content: flex-end;
+  gap: 30px;
   font-size: 10px;
 }
 
 .footer {
   display: flex;
   justify-content: space-around;
+  margin-top: 30px;
   margin-bottom: 30px;
 }
 
 .footer-item {
   width: 30%;
   text-align: center;
-    margin-bottom: 30px;
 }
 
 .footer-label {
   font-size: 10.5px;
   font-weight: 700;
   text-decoration: underline;
-    margin-bottom: 30px;
-}
-
-.signature-line {
-  width: 180px;
-  border-top: 1px solid #000;
-  margin: 0 auto;
+  margin-bottom: 50px;
 }
 
 /* ================= PRINT ================= */
@@ -295,28 +209,16 @@ thead tr:last-child th {
   .print-report {
     page-break-after: avoid;
   }
-  
+
   table {
     border: 2px solid #000;
   }
-  
-  th, td {
+
+  th,
+  td {
     border: 1px solid #000;
   }
-  
-  .section-row td {
-    border-top: 2px solid #000;
-    border-bottom: 2px solid #000;
-  }
-  
-  .category-row td {
-    border-top: 1.5px solid #000;
-  }
-  
-  .subtotal-row td {
-    border-top: 1.5px solid #000;
-  }
-  
+
   .total-row td {
     border-top: 2px solid #000;
     border-bottom: 2px solid #000;

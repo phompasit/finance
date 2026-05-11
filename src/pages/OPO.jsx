@@ -456,7 +456,6 @@ const OPOSystem = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  console.log(user);
   const {
     isOpen: isPdfOpen,
     onOpen: onPdfOpen,
@@ -468,6 +467,7 @@ const OPOSystem = () => {
   const [totalPages, setTotalPages] = useState();
   const navigate = useNavigate();
   // API Functions with improved error handling
+
   const fetchOPOs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -607,7 +607,7 @@ const OPOSystem = () => {
       totals[currency] = (totals[currency] || 0) + amount;
     });
 
-    // Create formatted content for PDF
+    // Create formatted content for PDF  landscape
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
 <!DOCTYPE html>
@@ -618,7 +618,7 @@ const OPOSystem = () => {
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
    @page {
-      size: A4 landscape;
+      size: A4 horizontal;
       margin: 8mm 10mm;
     }
   .note-section {
@@ -1030,6 +1030,13 @@ const OPOSystem = () => {
             selectedOpo.serial || selectedOpo.number
           }</strong></div>
         </div>
+
+          <div class="info-row">
+      <div class="info-label">ຜູ້ສະໜອງ / Supplier:</div>
+      <div class="info-value"><strong>${
+        selectedOpo?.partnerId?.name || "-"
+      }</strong></div>
+    </div>
         <div class="info-row">
           <div class="info-label">ຜູ້ຮ້ອງຂໍ:</div>
           <div class="info-value">${selectedOpo.requester || "-"}</div>

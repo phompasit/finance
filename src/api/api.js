@@ -8,22 +8,37 @@ const api = axios.create({
 });
 
 // ─── CSRF ───────────────────────────────────────────
-let csrfToken = null;
+// Cache promise (ไม่ใช่ value) → กัน race condition
+// ถ้า 2 requests ยิงพร้อมกัน จะรอ promise เดียวกัน ไม่ยิงซ้ำ
+let csrfTokenPromise = null;
 
-const getCsrfToken = async () => {
-  if (!csrfToken) {
-    const res = await api.get("/api/auth/csrf-token");
-    csrfToken = res.data.csrfToken;
+const getCsrfToken = () => {
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = api
+      .get("/api/auth/csrf-token")
+      .then((res) => res.data.csrfToken)
+      .catch((err) => {
+        csrfTokenPromise = null; // reset ให้ retry ได้รอบหน้า
+        throw err;
+      });
   }
-  return csrfToken;
+  return csrfTokenPromise;
+};
+
+const clearCsrfToken = () => {
+  csrfTokenPromise = null;
 };
 
 // ─── Refresh queue ───────────────────────────────────
 let isRefreshing = false;
 let failedQueue = [];
 
+const QUEUE_TIMEOUT_MS = 10_000; // 10s max รอ refresh
+
 const processQueue = (error) => {
-  failedQueue.forEach((prom) => (error ? prom.reject(error) : prom.resolve()));
+  failedQueue.forEach(({ resolve, reject }) =>
+    error ? reject(error) : resolve()
+  );
   failedQueue = [];
 };
 
@@ -31,8 +46,11 @@ const SKIP_REFRESH_URLS = [
   "/api/auth/refresh",
   "/api/auth/login",
   "/api/auth/logout",
-  "/api/auth/csrf-token", // ← ເພີ່ມ
+  "/api/auth/csrf-token",
 ];
+
+// paths ที่ไม่ควร redirect ไป /login
+const SKIP_REDIRECT_PATHS = ["/login", "/register", "/forgot-password"];
 
 const MUTATION_METHODS = ["post", "put", "patch", "delete"];
 
@@ -43,7 +61,7 @@ api.interceptors.request.use(async (config) => {
       const token = await getCsrfToken();
       config.headers["X-CSRF-Token"] = token;
     } catch {
-      // ຖ້າດຶງ CSRF ບໍ່ໄດ້ ປ່ອຍໄປກ່ອນ (server ຈະ reject ເອງ)
+      // ถ้าดึง CSRF ไม่ได้ ปล่อยผ่าน → server จะ reject เอง
     }
   }
   return config;
@@ -56,15 +74,21 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const status = error?.response?.status;
     const requestUrl = originalRequest?.url || "";
+    const responseCode = error.response?.data?.code; // เช็ค code จาก server
 
-    const shouldSkip = SKIP_REFRESH_URLS.some((url) =>
+    const shouldSkipRefresh = SKIP_REFRESH_URLS.some((url) =>
       requestUrl.includes(url)
     );
 
-    // ── 403 = CSRF token ໝົດ → refresh ແລ້ວ retry ──
-    if (status === 403 && !originalRequest._csrfRetry) {
+    // ── 403 = CSRF token หมด → refresh แล้ว retry ──
+    // เช็ค code: "INVALID_CSRF_TOKEN" เพื่อแยกจาก 403 "ไม่มีสิทธิ์"
+    if (
+      status === 403 &&
+      !originalRequest._csrfRetry &&
+      responseCode === "INVALID_CSRF_TOKEN"
+    ) {
       originalRequest._csrfRetry = true;
-      csrfToken = null; // clear cache
+      clearCsrfToken();
       try {
         const token = await getCsrfToken();
         originalRequest.headers["X-CSRF-Token"] = token;
@@ -74,14 +98,28 @@ api.interceptors.response.use(
       }
     }
 
-    // ── 401 = access token ໝົດ → refresh ──
-    if (status === 401 && !originalRequest._retry && !shouldSkip) {
+    // ── 401 = access token หมด → refresh ──
+    if (status === 401 && !originalRequest._retry && !shouldSkipRefresh) {
+      // มี refresh อยู่แล้ว → เข้า queue รอ แทนการยิงซ้ำ
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(() => api(originalRequest))
-          .catch((err) => Promise.reject(err));
+          let timer = setTimeout(() => {
+            // ถอด prom ออกจาก queue แล้ว reject
+            failedQueue = failedQueue.filter((p) => p.resolve !== resolve);
+            reject(new Error("Token refresh timeout"));
+          }, QUEUE_TIMEOUT_MS);
+
+          failedQueue.push({
+            resolve: () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            reject: (err) => {
+              clearTimeout(timer);
+              reject(err);
+            },
+          });
+        }).then(() => api(originalRequest));
       }
 
       originalRequest._retry = true;
@@ -93,21 +131,24 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        csrfToken = null; // clear CSRF ດ້ວຍ ເພາະ session ໝົດ
+        clearCsrfToken(); // clear CSRF ด้วย เพราะ session หมดแล้ว
 
+        // redirect ไป login — ใช้ event แทน hard redirect
+        // ให้ Router จัดการ เพื่อกัน redirect loop
         if (
           typeof window !== "undefined" &&
-          window.location.pathname !== "/login"
+          !SKIP_REDIRECT_PATHS.includes(window.location.pathname)
         ) {
-          window.location.href = "/login";
+          window.dispatchEvent(new CustomEvent("auth:logout"));
         }
+
         return Promise.reject(refreshError);
       } finally {
-        isRefreshing = false; // ← ຢູ່ທີ່ finally ທີ່ດຽວ ພໍ
+        isRefreshing = false;
       }
     }
 
-    // ── Global error (optional) ──────────────────────
+    // ── 500+ Global error ─────────────────────────────
     if (status >= 500) {
       console.error("Server error:", error.response?.data?.message);
     }

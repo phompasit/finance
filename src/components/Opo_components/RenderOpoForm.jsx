@@ -25,6 +25,7 @@ import { useAuth } from "../../context/AuthContext";
 import PropTypes from "prop-types";
 import { useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import PartnerSelect from "./PartnerSelect";
 // Constants
 const STATUS_COLORS = {
   PENDING: "yellow",
@@ -72,6 +73,8 @@ const RenderOpoForm = () => {
   const opo = state?.opo;
   const selectedOpo = state?.selectedOpo;
   const mode = state?.mode;
+  const [selectedPartner, setSelectedPartner] = useState(null);
+  const [suppliers, setSuppliers] = useState([]);
   const [formData, setFormData] = useState({
     id: null,
     serial: "",
@@ -99,7 +102,43 @@ const RenderOpoForm = () => {
       role: opo?.userId?.role || "",
       status: opo?.status || "",
     });
+    // ✅ ซิงค์ partner ตอน edit
+    if (opo.partnerId) {
+      setSelectedPartner(
+        typeof opo.partnerId === "object"
+          ? opo.partnerId // populated object
+          : { _id: opo.partnerId } // fallback ถ้าเป็น id เปล่า
+      );
+    }
   }, [opo]);
+  useEffect(() => {
+    if (!opo?.partnerId || suppliers.length === 0) return;
+
+    const partnerId =
+      typeof opo.partnerId === "object" ? opo.partnerId._id : opo.partnerId;
+
+    const match = suppliers.find((s) => s._id === partnerId);
+    if (match) setSelectedPartner(match);
+  }, [suppliers, opo]);
+  useEffect(() => {
+    const fetchPartners = async () => {
+      try {
+        const { data } = await api.get("/api/debt/partners");
+        const suppliersData = data?.data?.filter((p) => p.type === "supplier");
+        setSuppliers(suppliersData || []);
+      } catch (error) {
+        toast({
+          title: "ມີບາງຢ່າງຜິດພາດ",
+          description:
+            error?.response?.data?.message || "ບໍ່ສາມາດໂຫລດຂໍ້ມູນໄດ້",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    };
+    fetchPartners();
+  }, []);
   const { user } = useAuth();
   const [itemForm, setItemForm] = useState({
     description: "",
@@ -142,7 +181,14 @@ const RenderOpoForm = () => {
       });
       return;
     }
-
+    if (!selectedPartner) {
+      await Swal.fire({
+        icon: "error",
+        title: "ຂໍ້ມູນບໍ່ຄົບ",
+        text: "ກະລຸນາເລືອກຜູ້ສະໜອງ",
+      });
+      return;
+    }
     const invalidItem = formData.items.find(
       (item) => !item.description || !item.amount || !item.reason
     );
@@ -176,17 +222,18 @@ const RenderOpoForm = () => {
       createdBy: sanitizeInput(formData.createdBy),
       requester: sanitizeInput(formData.requester),
       manager: sanitizeInput(formData.manager),
+      partnerId: selectedPartner?._id || null, // ✅ เพิ่ม
       items: formData.items.map((item) => ({
         ...item,
         description: sanitizeInput(item.description),
         reason: sanitizeInput(item.reason),
         notes: sanitizeInput(item.notes),
         amount: Number(item.amount) || 0,
+        currency: sanitizeInput(item.currency),
       })),
       id: selectedOpo?._id,
       createdAt: selectedOpo?.createdAt || new Date().toISOString(),
     };
-
     const url = mode === "update" ? `/api/opo/${sanitizedData.id}` : `/api/opo`;
 
     try {
@@ -222,10 +269,15 @@ const RenderOpoForm = () => {
         text: error?.response?.data?.message || "ບໍ່ສາມາດບັນທຶກຂໍ້ມູນໄດ້",
       });
     }
-  }, [formData, selectedOpo, mode, navigate]);
+  }, [formData, selectedOpo, mode, navigate ,selectedPartner]);
 
   const addItem = () => {
-    if (!itemForm.description || !itemForm.amount || !itemForm.reason) {
+    if (
+      !itemForm.description ||
+      !itemForm.amount ||
+      !itemForm.reason ||
+      !itemForm.currency
+    ) {
       Swal.fire({
         icon: "warning",
         title: "ຂໍ້ມູນບໍ່ຄົບ",
@@ -331,6 +383,7 @@ const RenderOpoForm = () => {
       });
     }
   };
+
   // Components
   const OPOItem = ({ item, onRemove, formData }) => (
     <Box
@@ -436,7 +489,8 @@ const RenderOpoForm = () => {
           bgGradient="linear(to-r, teal.400, blue.500)"
           bgClip="text"
         >
-          {mode === "create" ? "ເພີ່ມລາຍການ" : "ແກ້ໄຂລາຍການ"}-{opo?.serial || ""}
+          {mode === "create" ? "ເພີ່ມລາຍການ" : "ແກ້ໄຂລາຍການ"}-
+          {opo?.serial || ""}
         </Heading>
       </HStack>
       {/* ================= PO INFORMATION ================= */}
@@ -489,6 +543,29 @@ const RenderOpoForm = () => {
                 ))}
               </Select>
             </FormControl>
+
+            <FormControl isRequired gridColumn={{ md: "span 3" }}>
+              <FormLabel fontFamily="Noto Sans Lao">
+                ຜູ້ສະໜອງ / Supplier
+              </FormLabel>
+              <PartnerSelect
+                suppliers={suppliers}
+                value={selectedPartner}
+                onChange={(p) => setSelectedPartner(p)}
+                isDisabled={formData.status_Ap === "APPROVED"}
+              />
+              {/* แสดงชื่อที่เลือกใต้ input (สำรอง) */}
+              {selectedPartner && (
+                <Text
+                  fontFamily="Noto Sans Lao"
+                  fontSize="xs"
+                  color="gray.500"
+                  mt={1}
+                >
+                  ເລືອກແລ້ວ: {selectedPartner.name}
+                </Text>
+              )}
+            </FormControl>
           </SimpleGrid>
         </CardBody>
       </Card>
@@ -510,7 +587,6 @@ const RenderOpoForm = () => {
                 }
               >
                 <option value="unpaid">ຍັງບໍ່ຊຳລະ</option>
-                <option value="paid">ຊຳລະແລ້ວ</option>
               </Select>
             </FormControl>
 

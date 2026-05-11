@@ -428,7 +428,6 @@ const StatementOfFinancialPrint = forwardRef(
       end,
       activeFilterLabel,
     ]);
-    console.log("periodText", periodText, previousYear);
     // Column header label helpers
     const currentColLabel = useMemo(() => {
       let curText;

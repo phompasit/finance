@@ -188,7 +188,6 @@ const RenderFields = React.memo(
     const { categoriesRedu: categories } = useSelector(
       (state) => state.partner
     );
-    console.log("user",user)
     const dispatch = useDispatch();
     const bankOptions = useMemo(
       () =>
@@ -199,7 +198,6 @@ const RenderFields = React.memo(
         })),
       [user?.companyId?.bankAccounts]
     );
-    console.log(bankOptions)
     const cashOptions = useMemo(
       () =>
         (user?.companyId?.cashAccounts || []).map((b) => ({
@@ -251,7 +249,6 @@ const RenderFields = React.memo(
     const accountOptionsMap = useMemo(() => {
       const options = paymentMethod === "cash" ? cashOptions : bankOptions;
       // สร้าง Map เพื่อ O(1) lookup
-      console.log("options", paymentMethod )
       const map = new Map();
       currencyOptions?.forEach((curr) => {
         const filtered =

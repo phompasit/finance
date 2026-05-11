@@ -73,7 +73,7 @@ const RenderForm_Debt = () => {
       console.error("Fetch failed:", error);
     }
   };
-  const fetchPartners = async () => {
+ export const fetchPartners = async () => {
     try {
       const { data } = await api.get("/api/debt/partners");
 

@@ -333,7 +333,6 @@ const AssetsPage = () => {
             prevAmount: Number(prevItem.amount || 0),
           };
         });
-        console.log("mergedItems:",mergedItems)
         return (
           <Box key={groupName} mb={8}>
             <Text

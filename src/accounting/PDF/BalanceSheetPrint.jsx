@@ -6,11 +6,9 @@ const formatNum = (n) =>
 
 const TrialBalancePrint = forwardRef(
   ({ tree = [], totals = {}, filter, user, name }, ref) => {
-    let index = 1;
     const renderRows = (nodes, level = 0) =>
       nodes.map((acc) => {
         const isParent = level === 0;
-        const hasChildren = acc.children && acc.children.length > 0;
 
         return (
           <React.Fragment key={acc.code}>
@@ -22,53 +20,32 @@ const TrialBalancePrint = forwardRef(
                   paddingLeft: `${level * 18 + 6}px`,
                 }}
               >
-                {isParent && hasChildren ? "▸ " : ""}
                 {acc.name}
               </td>
 
               <td
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                }}
+                style={{ fontSize:"12px", fontFamily: "Noto Sans Lao, sans-serif" }}
                 className="account-code"
               >
                 {acc.code}
               </td>
 
-              <td
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                className="number"
-              >
+              <td style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                 {formatNum(acc.openingDr)}
               </td>
-              <td
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                className="number"
-              >
+              <td style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                 {formatNum(acc.openingCr)}
               </td>
-              <td
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                className="number"
-              >
+              <td style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                 {formatNum(acc.movementDr)}
               </td>
-              <td
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                className="number"
-              >
+              <td style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                 {formatNum(acc.movementCr)}
               </td>
-              <td
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                className="number"
-              >
+              <td style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                 {formatNum(acc.endingDr)}
               </td>
-              <td
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                className="number"
-              >
+              <td style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                 {formatNum(acc.endingCr)}
               </td>
             </tr>
@@ -82,101 +59,70 @@ const TrialBalancePrint = forwardRef(
       if (!d) return "";
       const date = new Date(d);
       if (isNaN(date)) return "";
-
       const dd = String(date.getDate()).padStart(2, "0");
       const mm = String(date.getMonth() + 1).padStart(2, "0");
       const yyyy = date.getFullYear();
-
       return `${dd}/${mm}/${yyyy}`;
     };
 
     const renderPeriodText = () => {
-      // 1️⃣ ช่วงวันที่
-      if (filter.startDate && filter.endDate) {
-        return `ຊ່ວງວັນທີ ${formatDate(filter.startDate)} ຫາ ${formatDate(
-          filter.endDate
-        )}`;
+      if (filter?.startDate && filter?.endDate) {
+        return `ຊ່ວງວັນທີ ${formatDate(filter.startDate)} ຫາ ${formatDate(filter.endDate)}`;
       }
-
-      // 2️⃣ ประจำเดือน
-      if (filter.month) {
+      if (filter?.month) {
         return `ປະຈຳເດືອນ ${filter.month} ປີ ${filter.year}`;
       }
-
-      // 3️⃣ ประจำปี
-      return `ປະຈຳປີ ${filter.year}`;
+      return `ປະຈຳປີ ${filter?.year || ""}`;
     };
 
     return (
       <div ref={ref} className="print-report">
-        <div>
-          <div
-            style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-            class="report-title"
-          >
-            ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
-          </div>
-          <div
-            style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-            class="report-title"
-          >
-            ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ
-          </div>
+        {/* ===== TOP TITLE ===== */}
+        <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="report-title">
+          ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
+        </div>
+        <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="report-title">
+          ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນະຖາວອນ
         </div>
 
-        <div class="report-container">
-          <div class="header">
-            <div>
-              <div
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                class="company-name"
-              >
+        <div className="report-container">
+          {/* ===== HEADER ===== */}
+          <div className="header">
+            {/* Left: Company Info */}
+            <div className="header-left">
+              <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="company-name">
                 {user?.companyId?.name || ""}
               </div>
-              <div
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                class="company-name-en"
-              >
+              <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="company-name-en">
                 ທີ່ຢູ່: {user?.companyId?.address || ""}
               </div>
-              <div
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                class="company-name-en"
-              >
+              <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="company-name-en">
                 ເລກປະຈຳຕົວຜູ້ເສຍອາກອນ: {user?.companyId?.taxId || ""}
               </div>
-              <div
-                style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                class="company-name-en"
-              >
-                ເບີໂທ:{user?.companyId?.phone || ""}
+              <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="company-name-en">
+                ເບີໂທ: {user?.companyId?.phone || ""}
               </div>
             </div>
-            <div class="report-period">
+
+            {/* Center: Report Title & Period */}
+            <div className="header-center">
               <div
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                  fontSize: "20px",
-                  paddingTop: "10px",
-                }}
+                style={{ fontFamily: "Noto Sans Lao, sans-serif", fontSize: "20px", paddingTop: "10px" }}
               >
                 {name}
               </div>
               <div
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                  paddingTop: "10px",
-                  fontSize: "14px",
-                }}
+                style={{ fontFamily: "Noto Sans Lao, sans-serif", paddingTop: "10px", fontSize: "14px" }}
               >
                 {renderPeriodText()}
               </div>
             </div>
-            <div
-              style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-              class="currency-info"
-            >
-              ເລກທີ ......./.......
+
+            {/* Right: Doc Number */}
+            <div className="header-right">
+              <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="currency-info">
+                ເລກທີ ......./.......
+              </div>
             </div>
           </div>
 
@@ -184,44 +130,29 @@ const TrialBalancePrint = forwardRef(
           <table className="dtable">
             <thead>
               <tr>
-                <th
-                  style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                  rowSpan="2"
-                >
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }} rowSpan="2">
                   ຊື່ບັນຊີ
                 </th>
-                <th
-                  style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                  rowSpan="2"
-                >
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }} rowSpan="2">
                   ເລກໝາຍບັນຊີ
                 </th>
-                <th
-                  style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                  colSpan="2"
-                >
+                <th style={{ fontSize: "10px  ", fontFamily: "Noto Sans Lao, sans-serif" }} colSpan="2">
                   ຍອດຍົກມາເບື້ອງຕົ້ນ
                 </th>
-                <th
-                  style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                  colSpan="2"
-                >
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }} colSpan="2">
                   ເຄື່ອນໄຫວໃນເດືອນ
                 </th>
-                <th
-                  style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-                  colSpan="2"
-                >
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }} colSpan="2">
                   ຍອດເຫຼືອ
                 </th>
               </tr>
               <tr>
-                <th style={{ fontFamily: "Noto Sans Lao, sans-serif" }}>ໜີ້</th>
-                <th style={{ fontFamily: "Noto Sans Lao, sans-serif" }}>ມີ</th>
-                <th style={{ fontFamily: "Noto Sans Lao, sans-serif" }}>ໜີ້</th>
-                <th style={{ fontFamily: "Noto Sans Lao, sans-serif" }}>ມີ</th>
-                <th style={{ fontFamily: "Noto Sans Lao, sans-serif" }}>ໜີ້</th>
-                <th style={{ fontFamily: "Noto Sans Lao, sans-serif" }}>ມີ</th>
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }}>ໜີ້</th>
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }}>ມີ</th>
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }}>ໜີ້</th>
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }}>ມີ</th>
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }}>ໜີ້</th>
+                <th style={{ fontSize: "10px", fontFamily: "Noto Sans Lao, sans-serif" }}>ມີ</th>
               </tr>
             </thead>
 
@@ -230,35 +161,48 @@ const TrialBalancePrint = forwardRef(
 
               <tr className="total-row">
                 <td
-                  style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
+                  style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }}
                   colSpan="2"
                 >
                   ລວມທັງໝົດ
                 </td>
-                <td className="number">{formatNum(totals.openingDr)}</td>
-                <td className="number">{formatNum(totals.openingCr)}</td>
-                <td className="number">{formatNum(totals.movementDr)}</td>
-                <td className="number">{formatNum(totals.movementCr)}</td>
-                <td className="number">{formatNum(totals.endingDr)}</td>
-                <td className="number">{formatNum(totals.endingCr)}</td>
+                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                  {formatNum(totals.openingDr)}
+                </td>
+                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                  {formatNum(totals.openingCr)}
+                </td>
+                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                  {formatNum(totals.movementDr)}
+                </td>
+                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                  {formatNum(totals.movementCr)}
+                </td>
+                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                  {formatNum(totals.endingDr)}
+                </td>
+                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                  {formatNum(totals.endingCr)}
+                </td>
               </tr>
             </tbody>
           </table>
-          <div
-            style={{ fontFamily: "Noto Sans Lao, sans-serif" }}
-            className="texts"
-          >
-            {" "}
-            {user?.companyId?.information}
+
+          {/* ===== DATE ===== */}
+          <div style={{ fontFamily: "Noto Sans Lao, sans-serif" }} className="texts">
+            <div style={{ fontSize: "12px", fontFamily: "Noto Sans Lao, sans-serif" }}>
+              ສະຖານທີ່: .....................................
+            </div>
+            <div style={{ fontSize: "12px", fontFamily: "Noto Sans Lao, sans-serif" }}>
+              ວັນທີ: {formatDate(new Date())}
+            </div>
           </div>
+
           {/* ===== FOOTER ===== */}
           <div className="footer">
             <div className="footer-item">
               <div
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                  fontSize: "14px",
-                }}
+                style={{ fontFamily: "Noto Sans Lao, sans-serif", fontSize: "14px" }}
                 className="footer-label"
               >
                 ຜູ້ອຳນວຍການ
@@ -266,10 +210,7 @@ const TrialBalancePrint = forwardRef(
             </div>
             <div className="footer-item">
               <div
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                  fontSize: "14px",
-                }}
+                style={{ fontFamily: "Noto Sans Lao, sans-serif", fontSize: "14px" }}
                 className="footer-label"
               >
                 ຫົວໜ້າບັນຊີ
@@ -277,29 +218,13 @@ const TrialBalancePrint = forwardRef(
             </div>
             <div className="footer-item">
               <div
-                style={{
-                  fontFamily: "Noto Sans Lao, sans-serif",
-                  fontSize: "14px",
-                }}
+                style={{ fontFamily: "Noto Sans Lao, sans-serif", fontSize: "14px" }}
                 className="footer-label"
               >
                 ຜູ້ສະຫຼຸບ
               </div>
             </div>
           </div>
-        </div>
-        <div
-          style={{
-            marginTop: "28px",
-            fontSize: "7pt",
-            color: "#888",
-            textAlign: "center",
-            paddingTop: "50px",
-            fontFamily: "'Noto Sans Lao', sans-serif",
-          }}
-        >
-          ພັດທະນາໂດຍ | ບໍລິສັດ: SmartAcc Co., Ltd |{" "}
-          {new Date().toLocaleString("en-GB")}
         </div>
       </div>
     );

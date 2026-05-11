@@ -36,7 +36,7 @@ import closingRoutes from "./routes/accounting/close_accounting.js";
 import BooksRoutes from "./routes/accounting/cashBook.js";
 import cashflowRoutes from "./routes/accounting/report_cashflow.js";
 import fixedAssetRoutes from "./routes/accounting/fixedAsset.js";
-
+import disbursementRouter from "./routes/disbursementRoute.js";
 import {
   corsOptions,
   securityHeaders,
@@ -145,7 +145,7 @@ app.use("/api/accounting", closingRoutes);
 app.use("/api/book", BooksRoutes);
 app.use("/api/fixAsset", fixedAssetRoutes);
 app.use("/api/cashflow", cashflowRoutes);
-
+app.use("/api/disbursement", disbursementRouter);
 // ============================================
 // ✅ SERVE FRONTEND (Production only)
 // ============================================

@@ -13,6 +13,8 @@ import PrivateRoute from "./components/PrivateRoute";
 import RoleRoute from "./context/RoleRoute";
 import Layout from "./components/Layout";
 import "./index.css";
+import DisbursementList from "./pages/DisbursementList";
+import DisbursementForm from "./components/Opo_components/DistForms";
 
 const preload = (importFn) => {
   const Component = lazy(importFn);
@@ -100,6 +102,8 @@ function App() {
           <Route path="fixed-add/:id"                element={<AddAssetModal />} />
           <Route path="fixed-add-Depreciation"       element={<DepreciationPreviewModal />} />
           <Route path="closing_account"              element={<ClosePeriodPage />} />
+          <Route path="disbursement"                 element={<DisbursementList/>} />
+          <Route path="disbursement_form/:mode"            element={<DisbursementForm />} />
         </Route>
 
         <Route path="/2fa-setup" element={<PrivateRoute><TwoFactorAuth /></PrivateRoute>} />

@@ -21,6 +21,11 @@ const OPOSchema = new mongoose.Schema(
       type: String,
       enum: ["paid", "unpaid"],
     },
+    partnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Partner",
+      required: true,
+    },
     status_Ap: {
       type: String,
       required: true,
@@ -29,7 +34,7 @@ const OPOSchema = new mongoose.Schema(
     },
     requester: { type: String },
     manager: { type: String },
-    createdBy: { type: String},
+    createdBy: { type: String },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

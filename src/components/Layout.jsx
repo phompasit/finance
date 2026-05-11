@@ -67,6 +67,12 @@ const MAIN_MENU = [
     icon: FiShoppingCart,
     roles: ["admin", "master"],
   },
+   {
+    label: "ອອກໃບຈ່າຍ",
+    path: "/disbursement",
+    icon: FiShoppingCart,
+    roles: ["admin", "master"],
+  },
   {
     label: "ຈັດການໜີ້ສິນ",
     path: "/debt",

@@ -24,7 +24,7 @@ const GeneralGL = forwardRef(
       () => (Array.isArray(data) ? data : data ? [data] : []),
       [data]
     );
-    console.log("dateRange",dateRange)
+   
     /* ================= Process transactions ================= */
     const getTransactionRows = useMemo(() => {
       return (accData) => {
