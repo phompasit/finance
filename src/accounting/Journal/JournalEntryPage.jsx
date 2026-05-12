@@ -130,6 +130,16 @@ const JournalEntryPage = () => {
     }
   }, [success, error]);
   // pagination
+  useEffect(() => {
+    dispatch(
+      getJournals({
+        ...filters,
+        page,
+        limit: pageSize,
+      })
+    );
+  }, [page, pageSize]); // dispatch เมื่อ page หรือ pageSize เปลี่ยน
+
   const handleDelete = async (id) => {
     try {
       await dispatch(deleteJournal(id)).unwrap();
@@ -265,7 +275,7 @@ const JournalEntryPage = () => {
         border="1px solid"
         borderColor="gray.200"
       >
-        <Flex  bg={bg} align="center" gap={4} wrap="wrap">
+        <Flex bg={bg} align="center" gap={4} wrap="wrap">
           <Text
             fontFamily="Noto Sans Lao, sans-serif"
             fontSize="sm"
@@ -302,7 +312,7 @@ const JournalEntryPage = () => {
             ))}
           </Select>
 
-          <HStack  bg={bg} mb={2}>
+          <HStack bg={bg} mb={2}>
             <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
               ໃຊ້ງານໃນປີ: {displayYear}
             </Badge>
@@ -329,7 +339,7 @@ const JournalEntryPage = () => {
 
       {/* ================= MONTH SELECT ================= */}
       <Box
-       bg={bg}
+        bg={bg}
         p={4}
         borderRadius="md"
         border="1px solid"
@@ -363,17 +373,31 @@ const JournalEntryPage = () => {
       </Box>
 
       <Table variant="simple" bg={bg} borderRadius="md" overflow="hidden">
-        <Thead  bg={bg}>
-          <Tr >
-            <Th  bg={bg} />
-            <Th   bg={bg} fontFamily="Noto Sans Lao, sans-serif">ລຳດັບ</Th>
-            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ວັນທີ/ເດືອນ/ປີ</Th>
-            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ຄຳອະທິບາຍ</Th>
-            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງໜີ້ (LAK)</Th>
-            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ເບື້ອງມີ (LAK)</Th>
+        <Thead bg={bg}>
+          <Tr>
+            <Th bg={bg} />
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ລຳດັບ
+            </Th>
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ວັນທີ/ເດືອນ/ປີ
+            </Th>
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ຄຳອະທິບາຍ
+            </Th>
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ເບື້ອງໜີ້ (LAK)
+            </Th>
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ເບື້ອງມີ (LAK)
+            </Th>
 
-            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ສະຖານະ</Th>
-            <Th  bg={bg} fontFamily="Noto Sans Lao, sans-serif">ກະທຳ</Th>
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ສະຖານະ
+            </Th>
+            <Th bg={bg} fontFamily="Noto Sans Lao, sans-serif">
+              ກະທຳ
+            </Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -555,18 +579,21 @@ const JournalEntryPage = () => {
 
       {/* Pagination controls */}
       <Flex justify="space-between" align="center" mt={4}>
-        <Box>
-          <Text>
-            Page {page} / {pagination?.totalPages}
-          </Text>
-        </Box>
+        <Text fontSize="sm" color="gray.600">
+          Page {page} / {pagination?.totalPages || 1} &nbsp;|&nbsp; ທັງໝົດ{" "}
+          {pagination?.total || 0} ລາຍການ
+        </Text>
 
         <HStack>
           <Select
+            size="sm"
+            w="110px"
             value={pageSize}
             onChange={(e) => {
-              setPageSize(Number(e.target.value));
+              const newSize = Number(e.target.value);
+              setPageSize(newSize);
               setPage(1);
+              dispatch(getJournals({ ...filters, page: 1, limit: newSize }));
             }}
           >
             {PAGE_SIZES.map((s) => (
@@ -575,22 +602,27 @@ const JournalEntryPage = () => {
               </option>
             ))}
           </Select>
+
           <Button
+            size="sm"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
+            isDisabled={page === 1}
           >
             Prev
           </Button>
+
           <Button
+            size="sm"
             onClick={() =>
-              setPage((p) => Math.min(pagination.totalPages, p + 1))
+              setPage((p) => Math.min(pagination?.totalPages || 1, p + 1))
             }
-            disabled={page === pagination.totalPages}
+            isDisabled={page >= (pagination?.totalPages || 1)}
           >
             Next
           </Button>
         </HStack>
       </Flex>
+
       <JournalPrintModal
         isOpen={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
