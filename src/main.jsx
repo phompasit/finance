@@ -11,16 +11,22 @@ import Swal from "sweetalert2";
 Swal.mixin({
   customClass: {
     popup: "swal-font",
+    fontFamily: "swal-font",
   },
 });
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
-      <HashRouter>
+      <ChakraProvider>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </ChakraProvider>
+      {/* <HashRouter>
         <ChakraProvider>
           <App />
         </ChakraProvider>
-      </HashRouter>
+      </HashRouter> */}
     </Provider>
   </React.StrictMode>
 );

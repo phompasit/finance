@@ -381,6 +381,7 @@ router.get(
         reference,
         sortBy = "createdAt",
         sortOrder = "desc",
+        search,
       } = req.query;
 
       // จำกัด limit สูงสุด
@@ -391,7 +392,8 @@ router.get(
         return res.status(400).json({ error: "Invalid startDate" });
       const maxDays = 400;
       if ((endDate - startDate) / 86400000 > maxDays) return res.status(400);
-
+      if (search && search.length > 100)
+        return res.status(400).json({ error: "Search query too long" });
       const query = { companyId: req.user.companyId };
 
       const closedPeriods = await accountingPeriod
@@ -424,7 +426,13 @@ router.get(
         const safeReference = reference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         query.reference = { $regex: safeReference, $options: "i" };
       }
-
+      if (search) {
+        const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        query.$or = [
+          { description: { $regex: safeSearch, $options: "i" } },
+          { reference: { $regex: safeSearch, $options: "i" } },
+        ];
+      }
       const [journals, total] = await Promise.all([
         JournalEntry.find(query)
           .populate("lines.accountId", "code name")
@@ -559,7 +567,7 @@ router.post(
         totalDebit,
         totalCredit,
       } = validateAndCalculateLines(lines);
-     const accountIds = [...new Set(validatedLines.map(l => l.accountId))];
+      const accountIds = [...new Set(validatedLines.map((l) => l.accountId))];
       const count = await Account_document.countDocuments({
         _id: { $in: accountIds },
         companyId: req.user.companyId,
@@ -742,7 +750,7 @@ router.patch(
       }
 
       /* ================= 6. Verify all accounts exist and belong to company ================= */
-      const accountIds = [...new Set(validatedLines.map(l => l.accountId))];
+      const accountIds = [...new Set(validatedLines.map((l) => l.accountId))];
 
       // SECURITY: Verify accounts belong to company
       const validCount = await Account_document.countDocuments({

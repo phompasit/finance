@@ -87,15 +87,14 @@ body {
   table-layout: fixed; /* ← key: columns won't shift when font changes */
 }
 
-/* Column width definitions — adjust percentages to taste */
-.dtable colgroup col:nth-child(1) { width: 22%; }  /* ຊື່ບັນຊີ */
-.dtable colgroup col:nth-child(2) { width: 9%;  }  /* ເລກໝາຍ */
-.dtable colgroup col:nth-child(3) { width: 11.5%; } /* openingDr */
-.dtable colgroup col:nth-child(4) { width: 11.5%; } /* openingCr */
-.dtable colgroup col:nth-child(5) { width: 11.5%; } /* movementDr */
-.dtable colgroup col:nth-child(6) { width: 11.5%; } /* movementCr */
-.dtable colgroup col:nth-child(7) { width: 11.5%; } /* endingDr */
-.dtable colgroup col:nth-child(8) { width: 11.5%; } /* endingCr */
+.dtable colgroup col:nth-child(1) { width: 20%; }  /* ຊື່ບັນຊີ */
+.dtable colgroup col:nth-child(2) { width: 8%; }   /* ເລກໝາຍ */
+.dtable colgroup col:nth-child(3) { width: 12%; }  /* openingDr */
+.dtable colgroup col:nth-child(4) { width: 12%; }  /* openingCr */
+.dtable colgroup col:nth-child(5) { width: 12%; }  /* movementDr */
+.dtable colgroup col:nth-child(6) { width: 12%; }  /* movementCr */
+.dtable colgroup col:nth-child(7) { width: 12%; }  /* endingDr */
+.dtable colgroup col:nth-child(8) { width: 12%; }  /* endingCr */
 
 th,
 td {
@@ -135,14 +134,12 @@ thead tr:last-child th {
 
 .number {
   text-align: right;
-  font-family: "Courier New", monospace;
-  font-size: 12px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+  overflow: visible;
+  text-overflow: clip;
+  padding-right: 10px;
 }
-
 /* ================= ROW TYPES ================= */
 .parent-row {
   background: #f5f5f5;

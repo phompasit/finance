@@ -1,5 +1,11 @@
 // src/pages/reports/StatementOfFinancialPosition.jsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Box,
   Flex,
@@ -39,7 +45,7 @@ const FILTER_MODE = {
 // แก้: เคยซ้ำ 2 จุด (header + subtotal) → ใช้ map แทน
 const SECTION_LABELS = {
   Current_Liabilities: "ໜີ້ສິນໝູນວຽນ I",
-  Non_Current_Liabilities: "ໜີ້ສິນບໍ່ໝູນວຽນ II",
+  Non_current_Liabilities: "ໜີ້ສິນບໍ່ໝູນວຽນ II",
   Equity: "ທຶນ III",
 };
 
@@ -59,7 +65,9 @@ const getFilterLabel = (filter) => {
     case FILTER_MODE.MONTH:
       return `ເດືອນ: ${String(filter.month).padStart(2, "0")}/${filter.year}`;
     case FILTER_MODE.RANGE:
-      return `ຊ່ວງວັນທີ: ${formatDate(filter.startDate)} – ${formatDate(filter.endDate)}`;
+      return `ຊ່ວງວັນທີ: ${formatDate(filter.startDate)} – ${formatDate(
+        filter.endDate
+      )}`;
     case FILTER_MODE.PRESET:
       return `Preset: ${filter.preset}`;
     default:
@@ -81,7 +89,11 @@ const ActiveFilterBar = ({ label }) => {
       bg="gray.50"
     >
       <HStack spacing={3}>
-        <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="sm" color="gray.600">
+        <Text
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="sm"
+          color="gray.600"
+        >
           ກຳລັງສະແດງຂໍ້ມູນ
         </Text>
         <Badge
@@ -190,7 +202,11 @@ const StatementOfFinancialPosition = () => {
         totals[item.section] = { cur: 0, prev: 0 };
       }
       const prevEnding = prevMap[item.key] || 0;
-      groups[item.section].push({ ...item, prevEnding, diff: item.ending - prevEnding });
+      groups[item.section].push({
+        ...item,
+        prevEnding,
+        diff: item.ending - prevEnding,
+      });
       totals[item.section].cur += item.ending || 0;
       totals[item.section].prev += prevEnding;
     });
@@ -204,13 +220,16 @@ const StatementOfFinancialPosition = () => {
   }, [current, previous]);
 
   // ─── Filter label ──────────────────────────────────
-  const activeFilterLabel = useMemo(() => getFilterLabel(applyFilter), [applyFilter]);
+  const activeFilterLabel = useMemo(() => getFilterLabel(applyFilter), [
+    applyFilter,
+  ]);
 
   // ─── dateText derive จาก filter จริง ──────────────
   // แก้: เคย hardcode "31/12/2025" ทั้ง 2 จุด
   const dateText = useMemo(() => {
     if (!applyFilter) return formatDate(new Date());
-    if (applyFilter.mode === FILTER_MODE.YEAR) return `31/12/${applyFilter.year}`;
+    if (applyFilter.mode === FILTER_MODE.YEAR)
+      return `31/12/${applyFilter.year}`;
     if (applyFilter.mode === FILTER_MODE.RANGE && applyFilter.endDate)
       return formatDate(applyFilter.endDate);
     return formatDate(new Date());
@@ -245,7 +264,19 @@ const StatementOfFinancialPosition = () => {
       mode,
       dateText,
     });
-  }, [current, previous, currentYear, previousYear, comparable, user, period, activeFilterLabel, sectionTotals, mode, dateText]);
+  }, [
+    current,
+    previous,
+    currentYear,
+    previousYear,
+    comparable,
+    user,
+    period,
+    activeFilterLabel,
+    sectionTotals,
+    mode,
+    dateText,
+  ]);
 
   // ─── States ────────────────────────────────────────
   if (loading) return <LedgerLoading />;
@@ -266,7 +297,11 @@ const StatementOfFinancialPosition = () => {
     <Box p={6}>
       {/* HEADER */}
       <Box mb={4}>
-        <Text fontFamily="Noto Sans Lao, sans-serif" fontSize="2xl" fontWeight="bold">
+        <Text
+          fontFamily="Noto Sans Lao, sans-serif"
+          fontSize="2xl"
+          fontWeight="bold"
+        >
           ໃບລາຍງານຖານະ ໜີ້ສິນ
         </Text>
         <Text fontFamily="Noto Sans Lao, sans-serif" color="gray.600">
@@ -344,7 +379,14 @@ const StatementOfFinancialPosition = () => {
                   >
                     {label}
                   </Text>
-                  <Badge fontFamily="Noto Sans Lao, sans-serif" colorScheme="blue">
+                  <Badge
+                    fontFamily="Noto Sans Lao, sans-serif"
+                    colorScheme="blue"
+                    px={3}
+                    py={1}
+                    borderRadius="full"
+                    fontSize="0.9em"
+                  >
                     ສະກຸນເງິນ LAK
                   </Badge>
                 </Flex>
@@ -355,7 +397,9 @@ const StatementOfFinancialPosition = () => {
                   <Thead bg="gray.100">
                     <Tr>
                       <Th fontFamily="Noto Sans Lao, sans-serif">ລາຍການ</Th>
-                      <Th fontFamily="Noto Sans Lao, sans-serif">ເລກໝາຍບັນຊີ</Th>
+                      <Th fontFamily="Noto Sans Lao, sans-serif">
+                        ເລກໝາຍບັນຊີ
+                      </Th>
                       <Th fontFamily="Noto Sans Lao, sans-serif" isNumeric>
                         {comparable ? currentYear : "Amount"}
                       </Th>
@@ -370,9 +414,14 @@ const StatementOfFinancialPosition = () => {
                   <Tbody>
                     {grouped[section].map((r) => (
                       <Tr key={r.key}>
-                        <Td fontFamily="Noto Sans Lao, sans-serif">{r.label}</Td>
-                        <Td fontFamily="Noto Sans Lao, sans-serif" color="gray.500">
-                          {r.pattern}
+                        <Td fontFamily="Noto Sans Lao, sans-serif">
+                          {r.label}
+                        </Td>
+                        <Td
+                          fontFamily="Noto Sans Lao, sans-serif"
+                          color="gray.500"
+                        >
+                          -
                         </Td>
                         <Td fontFamily="Noto Sans Lao, sans-serif" isNumeric>
                           {formatNum(r.ending)}
@@ -408,7 +457,11 @@ const StatementOfFinancialPosition = () => {
         {/* GRAND TOTAL */}
         <Divider my={6} />
         <Flex justify="space-between" bg="blue.50" p={4} borderRadius="md">
-          <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold" fontSize="lg">
+          <Text
+            fontFamily="Noto Sans Lao, sans-serif"
+            fontWeight="bold"
+            fontSize="lg"
+          >
             ລວມຍອດ ໜີ້ສິນ + ທຶນ (I + II + III)
           </Text>
           <HStack spacing={8}>
@@ -416,7 +469,11 @@ const StatementOfFinancialPosition = () => {
               {comparable ? currentYear : "Total"}: {formatNum(grandTotal.cur)}
             </Text>
             {comparable && (
-              <Text fontFamily="Noto Sans Lao, sans-serif" fontWeight="bold" color="gray.600">
+              <Text
+                fontFamily="Noto Sans Lao, sans-serif"
+                fontWeight="bold"
+                color="gray.600"
+              >
                 {previousYear}: {formatNum(grandTotal.prev)}
               </Text>
             )}

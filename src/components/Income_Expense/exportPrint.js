@@ -542,7 +542,7 @@ td:nth-child(8) {
       
       <!-- Signature Section -->
       <div class="signature-date">
-        ນະຄອນຫຼວງວຽງຈັນ, ວັນທີ ${formatDate(new Date())}
+        ສະຖານທີ່........................, ວັນທີ ${formatDate(new Date())}
       </div>
     <div class="signatures">
       <div class="signature-title">ລາຍເຊັນຜູ້ກ່ຽວຂ້ອງ / Authorized Signatures</div>

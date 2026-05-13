@@ -1,9 +1,5 @@
-import { lazy } from "react";  // ✅ เอา Suspense ออก
-import { Routes, Route, Navigate } from "react-router-dom";  // ✅ เอา useLocation ออก
-
-// ลบบรรทัดนี้ออก
-// import { PageLoader } from "./components/PageLoader";
-// import { PageTransition } from "./components/PageTransition";
+import { lazy, Suspense } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/Login.page";
 import NotFound from "./components/NotFound";
@@ -13,15 +9,16 @@ import PrivateRoute from "./components/PrivateRoute";
 import RoleRoute from "./context/RoleRoute";
 import Layout from "./components/Layout";
 import "./index.css";
-import DisbursementList from "./pages/DisbursementList";
-import DisbursementForm from "./components/Opo_components/DistForms";
 
+// ─── Preload helper ───────────────────────────────────────────────────────────
+// ใช้ Component.preload() ใน onMouseEnter ของ NavLink เพื่อ prefetch ก่อนคลิก
 const preload = (importFn) => {
   const Component = lazy(importFn);
   Component.preload = importFn;
   return Component;
 };
 
+// ─── Lazy components ──────────────────────────────────────────────────────────
 const Dashboard                    = preload(() => import("./pages/Dashboard"));
 const IncomeExpense                 = preload(() => import("./pages/IncomeExpense"));
 const OPO                          = preload(() => import("./pages/OPO"));
@@ -31,11 +28,18 @@ const Users                        = preload(() => import("./pages/Users"));
 const PrepaidExpenseDashboard      = preload(() => import("./pages/PrepaidExpenseDashboard"));
 const FormIncomeExpense            = preload(() => import("./pages/FormIncomeExpense"));
 const TwoFactorAuth                = preload(() => import("./pages/TwoFactorAuth"));
+const RegisterForSuperAdmin        = preload(() => import("./pages/RegisterForSuperAdmin"));
+
 const RenderFields                 = preload(() => import("./components/Income_Expense/FormFieldsAdd"));
 const RenderFieldPrepaid           = preload(() => import("./components/Prepaid_components/RenderFieldPrepaid"));
 const EditForm                     = preload(() => import("./components/Prepaid_components/EditForm"));
 const RenderOpoForm                = preload(() => import("./components/Opo_components/RenderOpoForm"));
 const RenderForm_Debt              = preload(() => import("./components/Debt/RenderForm_Debt"));
+
+// ✅ ย้ายจาก static import มาเป็น lazy (ลด initial bundle)
+const DisbursementList             = preload(() => import("./pages/DisbursementList"));
+const DisbursementForm             = preload(() => import("./components/Opo_components/DistForms"));
+
 const ChartOfAccounts              = preload(() => import("./accounting/ChartOfAccounts"));
 const OpeningBalancePage           = preload(() => import("./accounting/OpeningBalancePage"));
 const JournalEntryPage             = preload(() => import("./accounting/Journal/JournalEntryPage"));
@@ -53,62 +57,129 @@ const FixedAssetApp                = preload(() => import("./accounting/FixedAss
 const ClosePeriodPage              = preload(() => import("./accounting/ClosePeriodPage"));
 const AddAssetModal                = preload(() => import("./components/FixedAsset/AddAssetModal"));
 const DepreciationPreviewModal     = preload(() => import("./components/FixedAsset/DepreciationPreviewModal"));
-const RegisterForSuperAdmin        = preload(() => import("./pages/RegisterForSuperAdmin"));
 
+// ─── Loading fallback ─────────────────────────────────────────────────────────
+const PageSpinner = () => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "100vh",
+      width: "100%",
+    }}
+  >
+    {/* ถ้าใช้ Chakra UI: เปลี่ยนเป็น <Spinner size="xl" color="blue.500" /> */}
+    <div
+      style={{
+        width: 48,
+        height: 48,
+        border: "4px solid #e2e8f0",
+        borderTop: "4px solid #3182ce",
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+      }}
+    />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
+
+// ─── App ──────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <AuthProvider>
-      {/* ✅ ไม่มี Suspense ที่นี่แล้ว — ย้ายไปอยู่ใน Layout.jsx */}
-      <Routes>
-        <Route path="/login"     element={<Login />} />
-        <Route path="/register"  element={<RegisterForSuperAdmin />} />
-        <Route path="/2faVerify" element={<Verify2FA />} />
+      {/*
+        ✅ Suspense ครอบ Routes ทั้งหมดในที่เดียว
+           — ทุก lazy component ด้านในจะใช้ fallback นี้ร่วมกัน
+           — ไม่ต้องใส่ Suspense ซ้ำในแต่ละ Route
+      */}
+      <Suspense fallback={<PageSpinner />}>
+        <Routes>
+          {/* ── Public routes ── */}
+          <Route path="/login"     element={<Login />} />
+          <Route path="/register"  element={<RegisterForSuperAdmin />} />
+          <Route path="/2faVerify" element={<Verify2FA />} />
 
-        <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard"            element={<Dashboard />} />
-          <Route path="income-expense"       element={<IncomeExpense />} />
-          <Route path="form_income_expense"  element={<FormIncomeExpense />} />
-          <Route path="fields"               element={<RenderFields />} />
-          <Route path="opo"                  element={<OPO />} />
-          <Route path="opo_form"             element={<RenderOpoForm />} />
-          <Route path="debt"                 element={<Debt />} />
-          <Route path="debt_form"            element={<RenderForm_Debt />} />
-          <Route path="prepaid"              element={<PrepaidExpenseDashboard />} />
-          <Route path="form_prepaid_add"     element={<RenderFieldPrepaid />} />
-          <Route path="prepaid_form_edit"    element={<EditForm />} />
-          <Route path="partner"              element={<Partner />} />
-          <Route path="users"
-            element={
-              <RoleRoute allow={["admin", "master", "staff"]}>
-                <Users />
-              </RoleRoute>
-            }
+          {/* ── Protected routes ── */}
+          <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+
+            {/* Dashboard */}
+            <Route path="dashboard" element={<Dashboard />} />
+
+            {/* Income / Expense */}
+            <Route path="income-expense"      element={<IncomeExpense />} />
+            <Route path="form_income_expense" element={<FormIncomeExpense />} />
+            <Route path="fields"              element={<RenderFields />} />
+
+            {/* OPO */}
+            <Route path="opo"      element={<OPO />} />
+            <Route path="opo_form" element={<RenderOpoForm />} />
+
+            {/* Debt */}
+            <Route path="debt"      element={<Debt />} />
+            <Route path="debt_form" element={<RenderForm_Debt />} />
+
+            {/* Prepaid */}
+            <Route path="prepaid"          element={<PrepaidExpenseDashboard />} />
+            <Route path="form_prepaid_add" element={<RenderFieldPrepaid />} />
+            <Route path="prepaid_form_edit" element={<EditForm />} />
+
+            {/* Disbursement */}
+            <Route path="disbursement"              element={<DisbursementList />} />
+            <Route path="disbursement_form/:mode"   element={<DisbursementForm />} />
+
+            {/* Partner */}
+            <Route path="partner" element={<Partner />} />
+
+            {/* Users — role protected */}
+            <Route
+              path="users"
+              element={
+                <RoleRoute allow={["admin", "master", "staff"]}>
+                  <Users />
+                </RoleRoute>
+              }
+            />
+
+            {/* Accounting */}
+            <Route path="chart-account"   element={<ChartOfAccounts />} />
+            <Route path="opening-balance" element={<OpeningBalancePage />} />
+
+            {/* Journal */}
+            <Route path="journal"          element={<JournalEntryPage />} />
+            <Route path="journal/:id"      element={<JournalDetailPage />} />
+            <Route path="journal/print"    element={<PrintJournalPage />} />
+            <Route path="journal_add&edit" element={<JournalModal />} />
+
+            {/* Reports */}
+            <Route path="income-statement"             element={<IncomeStatementPage />} />
+            <Route path="balance-sheet"                element={<BalanceSheetPage />} />
+            <Route path="balance-sheet-before"         element={<Balanc_sheet_before />} />
+            <Route path="income-expense-balance-sheet" element={<BalanceSheetIncomeAndExpense />} />
+            <Route path="ledger"                       element={<GeneralLedgerPage />} />
+            <Route path="statement"                    element={<StatementOfFinancialPosition />} />
+
+            {/* Assets */}
+            <Route path="assets"                  element={<AssetsPage />} />
+            <Route path="fixed-assets"            element={<FixedAssetApp />} />
+            <Route path="fixed-add/:id"           element={<AddAssetModal />} />
+            <Route path="fixed-add-Depreciation"  element={<DepreciationPreviewModal />} />
+
+            {/* Period */}
+            <Route path="closing_account" element={<ClosePeriodPage />} />
+          </Route>
+
+          {/* ── 2FA Setup ── */}
+          <Route
+            path="/2fa-setup"
+            element={<PrivateRoute><TwoFactorAuth /></PrivateRoute>}
           />
-          <Route path="chart-account"                element={<ChartOfAccounts />} />
-          <Route path="opening-balance"              element={<OpeningBalancePage />} />
-          <Route path="journal"                      element={<JournalEntryPage />} />
-          <Route path="journal/:id"                  element={<JournalDetailPage />} />
-          <Route path="journal/print"                element={<PrintJournalPage />} />
-          <Route path="journal_add&edit"             element={<JournalModal />} />
-          <Route path="income-statement"             element={<IncomeStatementPage />} />
-          <Route path="balance-sheet"                element={<BalanceSheetPage />} />
-          <Route path="balance-sheet-before"         element={<Balanc_sheet_before />} />
-          <Route path="income-expense-balance-sheet" element={<BalanceSheetIncomeAndExpense />} />
-          <Route path="ledger"                       element={<GeneralLedgerPage />} />
-          <Route path="statement"                    element={<StatementOfFinancialPosition />} />
-          <Route path="assets"                       element={<AssetsPage />} />
-          <Route path="fixed-assets"                 element={<FixedAssetApp />} />
-          <Route path="fixed-add/:id"                element={<AddAssetModal />} />
-          <Route path="fixed-add-Depreciation"       element={<DepreciationPreviewModal />} />
-          <Route path="closing_account"              element={<ClosePeriodPage />} />
-          <Route path="disbursement"                 element={<DisbursementList/>} />
-          <Route path="disbursement_form/:mode"            element={<DisbursementForm />} />
-        </Route>
 
-        <Route path="/2fa-setup" element={<PrivateRoute><TwoFactorAuth /></PrivateRoute>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          {/* ── 404 ── */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   );
 }

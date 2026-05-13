@@ -8,7 +8,7 @@ const sessionSchema = new mongoose.Schema(
       required: true,
     },
     sessionId: { type: String, required: true },
-    token: { type: String, required: true },
+    token: { type: String },
     refreshToken: { type: String },
     ipAddress: { type: String },
     userAgent: { type: String },
@@ -26,7 +26,7 @@ sessionSchema.add({
     default: () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 10 วัน
     index: { expires: 0 }, // TTL ลบเมื่อครบเวลา
   },
-})
+});
 // ✅ สร้างโมเดล
 const Session = mongoose.model("Session", sessionSchema);
 

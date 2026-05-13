@@ -166,22 +166,22 @@ const TrialBalancePrint = forwardRef(
                 >
                   ລວມທັງໝົດ
                 </td>
-                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                <td style={{ fontSize: "11px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                   {formatNum(totals.openingDr)}
                 </td>
-                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                <td style={{ fontSize: "11px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                   {formatNum(totals.openingCr)}
                 </td>
-                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                <td style={{ fontSize: "11px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                   {formatNum(totals.movementDr)}
                 </td>
-                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                <td style={{ fontSize: "11px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                   {formatNum(totals.movementCr)}
                 </td>
-                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                <td style={{ fontSize: "11px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                   {formatNum(totals.endingDr)}
                 </td>
-                <td style={{ fontSize: "13px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
+                <td style={{ fontSize: "11px", fontFamily: "Noto Sans Lao, sans-serif" }} className="number">
                   {formatNum(totals.endingCr)}
                 </td>
               </tr>

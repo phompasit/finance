@@ -60,7 +60,7 @@ export default function Login() {
         });
 
         // ไปหน้าใส่ OTP
-        navigate(`/2faVerify?token=${res.tempToken}`);
+        navigate(`/2faVerify`);
         return;
       }
 

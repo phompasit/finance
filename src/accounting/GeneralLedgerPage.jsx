@@ -194,11 +194,20 @@ const GeneralLedgerPage = () => {
 
     await html2pdf()
       .set({
-        margin: 2,
+        margin: [5, 5, 5, 5], // top, right, bottom, left (mm)
         filename: "general-ledger.pdf",
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        html2canvas: {
+          scale: 1.5, // ลด scale ลง ถ้า 2 แล้วล้น
+          useCORS: true,
+          scrollX: 0,
+          scrollY: 0,
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "landscape", // ✅ ถูกต้องแล้ว
+        },
       })
       .from(printRef.current)
       .save();

@@ -131,6 +131,10 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
           "ຊື່ຜູ້ໃຊ້ຕ້ອງມີ 3-30 ຕົວອັກສອນ ແລະປະກອບດ້ວຍ a-z, 0-9, _ ເທົ່ານັ້ນ",
       });
     }
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ message: "ລະຫັດຜ່ານອ່ອນແອເກີນ" });
+    }
     if (!validator.isEmail(email)) {
       return res.status(400).json({
         message: "ຮູບແບບອິເມວບໍ່ຖືກຕ້ອງ",
@@ -177,6 +181,19 @@ router.post("/register-superadmin", registerLimiter, async (req, res) => {
 
 // Account lockout tracking (ใช้ Redis หรือ Memory) ປ້ອງກັນການໂຈມຕີແບບ  Ddos
 const loginAttempts = new Map();
+// เพิ่มหลัง const loginAttempts = new Map()
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of loginAttempts.entries()) {
+    if (val.lockedUntil && val.lockedUntil < now) {
+      loginAttempts.delete(key);
+    }
+    // ล้าง entry เก่าที่ไม่มี activity > 1 ชั่วโมง
+    if (val.lastAttempt && now - val.lastAttempt > 60 * 60 * 1000) {
+      loginAttempts.delete(key);
+    }
+  }
+}, 15 * 60 * 1000);
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_TIME = 10 * 60 * 1000; // 1 นาที
 
@@ -501,7 +518,7 @@ router.post(
         sessionId,
         ipAddress,
         userAgent,
-        token: token,
+        // token: token,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isActive: true,
       });
@@ -604,8 +621,13 @@ async function checkSuspiciousLogin(userId, ipAddress, userAgent) {
 
 // Helper function: ส่ง security alert
 async function sendSecurityAlert(email, details) {
-  // ใช้ email service หรือ notification service
-  // TODO: Implement actual email/notification service
+  console.warn(`[SECURITY ALERT] ${email}`, details);
+  await AuditLog.create({
+    action: "SUSPICIOUS_LOGIN_ALERT",
+    email,
+    details: JSON.stringify(details),
+    timestamp: new Date(),
+  });
 }
 
 // Helper function: Get location from IP
@@ -783,11 +805,6 @@ router.patch("/users/:id/role", authenticate, async (req, res) => {
 // Delete user (admin only)
 router.delete("/users/:id", authenticate, async (req, res) => {
   try {
-    if (req.user.role !== "admin" && req.user.isSuperAdmin === true) {
-      return res
-        .status(403)
-        .json({ success: false, message: "ບໍ່ມີສິດເຂົ້າເຖິງ" });
-    }
     if (!req.user.isSuperAdmin) {
       return res
         .status(403)

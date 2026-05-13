@@ -131,7 +131,7 @@ const LedgerTable = ({ accounts }) => {
           <Tbody>
             {acc.rows.map((r, i) => (
               <Tr key={i}>
-                <Td style={td}>1</Td>
+                <Td style={td}> {i + 1} </Td>
                 <Td style={td}>{formatDate(r.date)}</Td>
                 <Td style={td}>{r.reference}</Td>
 

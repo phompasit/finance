@@ -39,7 +39,10 @@ export default function journalPdfTemplate({ data, user }) {
   const getMonthSortKey = (d) => {
     if (!d) return "";
     const date = new Date(d);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
   };
 
   const getDateSortKey = (dateStr) => {
@@ -54,9 +57,9 @@ export default function journalPdfTemplate({ data, user }) {
   const groupedData = {};
 
   data.forEach((entry) => {
-    const sortKey  = getMonthSortKey(entry.date);
+    const sortKey = getMonthSortKey(entry.date);
     const monthYear = formatMonthYear(entry.date);
-    const dateKey  = formatDate(entry.date);
+    const dateKey = formatDate(entry.date);
 
     if (!groupedData[sortKey]) {
       groupedData[sortKey] = { display: monthYear, dates: {} };
@@ -74,85 +77,112 @@ export default function journalPdfTemplate({ data, user }) {
   const buildTableRows = () => {
     let rows = "";
     let rowNumber = 1;
-    let grandTotalDebitLAK  = 0;
+    let grandTotalDebitLAK = 0;
     let grandTotalCreditLAK = 0;
 
-    Object.keys(groupedData).sort().forEach((sortKey) => {
-      const monthData = groupedData[sortKey];
-      const monthYear = monthData.display;
-      let monthTotalDebitLAK  = 0;
-      let monthTotalCreditLAK = 0;
+    Object.keys(groupedData)
+      .sort()
+      .forEach((sortKey) => {
+        const monthData = groupedData[sortKey];
+        const monthYear = monthData.display;
+        let monthTotalDebitLAK = 0;
+        let monthTotalCreditLAK = 0;
 
-      rows += `
+        rows += `
       <tr class="month-header">
         <td colspan="13">ເດືອນ: ${monthYear}</td>
       </tr>`;
 
-      const sortedDates = Object.keys(monthData.dates).sort((a, b) =>
-        getDateSortKey(a).localeCompare(getDateSortKey(b))
-      );
+        const sortedDates = Object.keys(monthData.dates).sort((a, b) =>
+          getDateSortKey(a).localeCompare(getDateSortKey(b))
+        );
 
-      sortedDates.forEach((dateKey) => {
-        let dateTotalDebitLAK  = 0;
-        let dateTotalCreditLAK = 0;
+        sortedDates.forEach((dateKey) => {
+          let dateTotalDebitLAK = 0;
+          let dateTotalCreditLAK = 0;
 
-        monthData.dates[dateKey].forEach((entry) => {
-          const entryLines = entry.lines || [];
+          monthData.dates[dateKey].forEach((entry) => {
+            const entryLines = entry.lines || [];
 
-          entryLines.forEach((line, lineIndex) => {
-            const account   = line.accountId || {};
-            const debitLAK  = Number(line.debitLAK  || 0);
-            const creditLAK = Number(line.creditLAK || 0);
+            entryLines.forEach((line, lineIndex) => {
+              const account = line.accountId || {};
+              const debitLAK = Number(line.debitLAK || 0);
+              const creditLAK = Number(line.creditLAK || 0);
 
-            dateTotalDebitLAK  += debitLAK;
-            dateTotalCreditLAK += creditLAK;
-            monthTotalDebitLAK  += debitLAK;
-            monthTotalCreditLAK += creditLAK;
-            grandTotalDebitLAK  += debitLAK;
-            grandTotalCreditLAK += creditLAK;
+              dateTotalDebitLAK += debitLAK;
+              dateTotalCreditLAK += creditLAK;
+              monthTotalDebitLAK += debitLAK;
+              monthTotalCreditLAK += creditLAK;
+              grandTotalDebitLAK += debitLAK;
+              grandTotalCreditLAK += creditLAK;
 
-            const isFirst    = lineIndex === 0;
-            const totalLines = entryLines.length;
-            const rs         = isFirst && totalLines > 1 ? ` rowspan="${totalLines}"` : "";
+              const isFirst = lineIndex === 0;
+              const totalLines = entryLines.length;
+              const rs =
+                isFirst && totalLines > 1 ? ` rowspan="${totalLines}"` : "";
 
-            const dateCell  = isFirst ? `<td class="center td-date"${rs}>${dateKey}</td>` : "";
-            const refCell   = isFirst ? `<td class="center td-ref"${rs}>${entry.reference || ""}</td>` : "";
-            const descCell  = isFirst ? `<td class="left td-desc"${rs}>${entry.description || ""}</td>` : "";
+              const dateCell = isFirst
+                ? `<td class="center td-date"${rs}>${dateKey}</td>`
+                : "";
+              const refCell = isFirst
+                ? `<td class="center td-ref"${rs}>${entry.reference || ""}</td>`
+                : "";
+              const descCell = isFirst
+                ? `<td class="left td-desc"${rs}>${
+                    entry.description || ""
+                  }</td>`
+                : "";
 
-            rows += `
+              rows += `
             <tr class="data-row">
               <td class="center td-no">${rowNumber++}</td>
               ${dateCell}
               ${refCell}
               ${descCell}
-              <td class="center td-code">${line.side === "dr" ? account.code || "" : ""}</td>
-              <td class="center td-code">${line.side === "cr" ? account.code || "" : ""}</td>
+              <td class="center td-code">${
+                line.side === "dr" ? account.code || "" : ""
+              }</td>
+              <td class="center td-code">${
+                line.side === "cr" ? account.code || "" : ""
+              }</td>
               <td class="left td-name">${account.name || ""}</td>
-              <td class="right td-amt">${line.side === "dr" ? formatNumber(line.debitOriginal)  : ""}</td>
-              <td class="right td-amt">${line.side === "cr" ? formatNumber(line.creditOriginal) : ""}</td>
+              <td class="right td-amt">${
+                line.side === "dr" ? formatNumber(line.debitOriginal) : ""
+              }</td>
+              <td class="right td-amt">${
+                line.side === "cr" ? formatNumber(line.creditOriginal) : ""
+              }</td>
               <td class="center td-ccy">${line.currency || ""}</td>
-              <td class="right td-rate">${line.exchangeRate && line.exchangeRate !== 1 ? formatNumber(line.exchangeRate) : "1.00"}</td>
-              <td class="right td-lak dr-col">${debitLAK  ? formatNumber(debitLAK)  : ""}</td>
-              <td class="right td-lak cr-col">${creditLAK ? formatNumber(creditLAK) : ""}</td>
+              <td class="right td-rate">${
+                line.exchangeRate && line.exchangeRate !== 1
+                  ? formatNumber(line.exchangeRate)
+                  : "1.00"
+              }</td>
+              <td class="right td-lak dr-col">${
+                debitLAK ? formatNumber(debitLAK) : ""
+              }</td>
+              <td class="right td-lak cr-col">${
+                creditLAK ? formatNumber(creditLAK) : ""
+              }</td>
             </tr>`;
+            });
           });
-        });
 
-        rows += `
+          rows += `
         <tr class="date-subtotal">
           <td colspan="11" class="right">ຍອດລວມວັນທີ ${dateKey}</td>
           <td class="right">${formatNumberTotal(dateTotalDebitLAK)}</td>
           <td class="right">${formatNumberTotal(dateTotalCreditLAK)}</td>
         </tr>`;
-      });
+        });
 
-      rows += `
+        rows += `
       <tr class="month-subtotal">
         <td colspan="11" class="right">ຍອດລວມເດືອນ ${monthYear}</td>
         <td class="right">${formatNumberTotal(monthTotalDebitLAK)}</td>
         <td class="right">${formatNumberTotal(monthTotalCreditLAK)}</td>
       </tr>`;
-    });
+      });
 
     return { rows, grandTotalDebitLAK, grandTotalCreditLAK };
   };
@@ -162,14 +192,17 @@ export default function journalPdfTemplate({ data, user }) {
   // ============================================================================
   // CONFIG
   // ============================================================================
+  const TOTAL_COLS = 13;
+  const LAK_COLS = 2;
+  const subtotalColspan = TOTAL_COLS - LAK_COLS; // = 11
+  const filename =
+    data.length === 1
+      ? data[0].reference || "journal-voucher"
+      : "journal-voucher-list";
 
-  const filename = data.length === 1
-    ? data[0].reference || "journal-voucher"
-    : "journal-voucher-list";
-
-  const companyName  = user?.companyId?.name  || "";
+  const companyName = user?.companyId?.name || "";
   const companyPhone = user?.companyId?.phone || "";
-  const currentDate  = formatDate(new Date());
+  const currentDate = formatDate(new Date());
 
   // ============================================================================
   // HTML TEMPLATE
@@ -251,24 +284,11 @@ body {
 table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: fixed;          /* ← กลับมาใช้ fixed */
   border: 1.5pt solid #111;
   font-size: 8pt;
 }
 
-col.c-no      { width:  4mm; }
-col.c-date    { width: 17mm; }
-col.c-ref     { width: 25mm; }
-col.c-desc    { width: 36mm; }
-col.c-drcode  { width: 13mm; }
-col.c-crcode  { width: 13mm; }
-col.c-name    { width: 38mm; }
-col.c-odr     { width: 19mm; }
-col.c-ocr     { width: 19mm; }
-col.c-ccy     { width:  8mm; }
-col.c-rate    { width: 16mm; }
-col.c-ldr     { width: 25mm; }
-col.c-lcr     { width: 24mm; }
 
 /* ─── TH ─────────────────────────────────────────────────── */
 th, td {
@@ -363,7 +383,10 @@ thead tr:nth-child(2) th {
 .td-lak {
   font-size: 8pt;
   font-weight: 600;
+  white-space: nowrap;   /* เก็บไว้ป้องกัน wrap */
+  /* ลบ min-width ออก */
 }
+
 .dr-col { color: #0c2d6b; }
 .cr-col { color: #0d4d1e; }
 
@@ -406,14 +429,24 @@ tbody tr.data-row:nth-child(even) td { background: #f6f7f8; }
 
 /* grand total */
 .grand-total-row td {
-  color:#1e1e1e;
+  color: #1e1e1e;
   font-size: 9pt;
   font-weight: 700;
   padding: 6px 4px;
   border-top: 2.5pt solid #000;
   border-bottom: 2.5pt double #000;
+  white-space: nowrap;    /* เพิ่มบรรทัดนี้ */
+  min-width: 32mm;        /* เพิ่มบรรทัดนี้ — แต่ใช้กับทุก td ใน row นี้ */
 }
-
+.grand-total-row td:last-child,
+.grand-total-row td:nth-last-child(2),
+.date-subtotal td:last-child,
+.date-subtotal td:nth-last-child(2),
+.month-subtotal td:last-child,
+.month-subtotal td:nth-last-child(2) {
+  min-width: 32mm;
+  white-space: nowrap;
+}
 /* ─── FOOTER & SIGNATURES ───────────────────────────────── */
 .footer-row {
   display: flex;
@@ -472,8 +505,16 @@ tbody tr.data-row:nth-child(even) td { background: #f6f7f8; }
 <!-- META BAR -->
 <div class="meta-bar">
   <div class="meta-left">
-    ${companyName  ? `<div><span class="ml">ບໍລິສັດ :</span> ${companyName}</div>`  : ""}
-    ${companyPhone ? `<div><span class="ml">ເບີໂທ &nbsp;&nbsp;:</span> ${companyPhone}</div>` : ""}
+    ${
+      companyName
+        ? `<div><span class="ml">ບໍລິສັດ :</span> ${companyName}</div>`
+        : ""
+    }
+    ${
+      companyPhone
+        ? `<div><span class="ml">ເບີໂທ &nbsp;&nbsp;:</span> ${companyPhone}</div>`
+        : ""
+    }
   </div>
   <div class="meta-right">
     <div><span class="ml">ວັນທີພິມ :</span> ${currentDate}</div>
@@ -482,13 +523,22 @@ tbody tr.data-row:nth-child(even) td { background: #f6f7f8; }
 </div>
 
 <!-- TABLE -->
+<!-- TABLE -->
 <table>
 <colgroup>
-  <col class="c-no">   <col class="c-date">  <col class="c-ref">
-  <col class="c-desc"> <col class="c-drcode"><col class="c-crcode">
-  <col class="c-name"> <col class="c-odr">   <col class="c-ocr">
-  <col class="c-ccy">  <col class="c-rate">
-  <col class="c-ldr">  <col class="c-lcr">
+  <col style="width: 5mm">    <!-- # -->
+  <col style="width: 16mm">   <!-- วันທີ -->
+  <col style="width: 22mm">   <!-- ໃบຢັ້ງຢືນ -->
+  <col style="width: 34mm">   <!-- ລາຍລະອຽດ -->
+  <col style="width: 12mm">   <!-- ເລກ ໜີ້ -->
+  <col style="width: 12mm">   <!-- ເລກ ມີ -->
+  <col style="width: 36mm">   <!-- ຊື່ບັນຊີ -->
+  <col style="width: 18mm">   <!-- ມູນຄ່າ ໜີ້ -->
+  <col style="width: 18mm">   <!-- ມູນຄ່າ ມີ -->
+  <col style="width: 7mm">    <!-- ສ.ງ. -->
+  <col style="width: 15mm">   <!-- ອັດຕາ -->
+  <col style="width: 36mm">   <!-- LAK ໜີ້ ← กว้างขึ้น -->
+  <col style="width: 36mm">   <!-- LAK ມີ  ← กว้างขึ้น -->
 </colgroup>
 <thead>
 <tr>
@@ -512,7 +562,9 @@ tbody tr.data-row:nth-child(even) td { background: #f6f7f8; }
 <tbody>
 ${rows}
 <tr class="grand-total-row">
-  <td colspan="11" class="center">ລວມທັງໝົດ &nbsp;/&nbsp; GRAND TOTAL</td>
+  <td colspan="${TOTAL_COLS - LAK_COLS}" class="center">
+    ລວມທັງໝົດ &nbsp;/&nbsp; GRAND TOTAL
+  </td>
   <td class="right">${formatNumberTotal(grandTotalDebitLAK)}</td>
   <td class="right">${formatNumberTotal(grandTotalCreditLAK)}</td>
 </tr>

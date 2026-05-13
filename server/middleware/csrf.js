@@ -21,7 +21,7 @@ export const csrfProtection = (req, res, next) => {
 
   // POST/PATCH/DELETE → validate
   if (!secret || !token || !tokens.verify(secret, token)) {
-    return res.status(403).json({ message: "Invalid CSRF token" });
+    return res.status(403).json({ message: "ກະລຸນາ refresh browser !" });
   }
   next();
 };
