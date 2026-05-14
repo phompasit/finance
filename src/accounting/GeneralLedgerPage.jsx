@@ -69,7 +69,7 @@ const GeneralLedgerPage = () => {
   const { data, loadingLedger } = useSelector((s) => s.ledger);
 
   /* ---------- State ---------- */
-  const [activeTab, setActiveTab] = useState("CASH");
+  const [activeTab, setActiveTab] = useState("ALL");
   const [page, setPage] = useState(1);
   const [accountId, setAccountId] = useState("ALL");
   const [filter, setFilter] = useState(DEFAULT_FILTER);
@@ -274,8 +274,8 @@ const GeneralLedgerPage = () => {
         mb={4}
       >
         <TabList>
-          <Tab fontFamily="Noto Sans Lao, sans-serif">📕 ປື້ມບັນຊີເງິນສົດ</Tab>
-          <Tab fontFamily="Noto Sans Lao, sans-serif">📘 ປື້ມບັນຊີເງິນຝາກ</Tab>
+          {/* <Tab fontFamily="Noto Sans Lao, sans-serif">📕 ປື້ມບັນຊີເງິນສົດ</Tab>
+          <Tab fontFamily="Noto Sans Lao, sans-serif">📘 ປື້ມບັນຊີເງິນຝາກ</Tab> */}
           <Tab fontFamily="Noto Sans Lao, sans-serif">
             📙 ປື້ມບັນຊີໃຫຍ່ແຍກປະເພດ
           </Tab>

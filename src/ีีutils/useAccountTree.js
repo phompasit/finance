@@ -7,26 +7,33 @@ export function useAccountTree(list = [], search = "") {
   // ─── helper: คำนวณ level จาก code ───────────────────
 
   // Build tree
-  const tree = useMemo(() => {
-    const map = {};
-    list.forEach((r) => {
-      map[r.code] = { ...r, children: [] };
-    });
+const tree = useMemo(() => {
+  const map = {};
+  // เก็บ index เพื่อ sort ตามลำดับที่ backend ส่งมา
+  list.forEach((r, i) => {
+    map[r.code] = { ...r, children: [], _idx: i };
+  });
 
-    const roots = [];
-    list.forEach((r) => {
-      const node = map[r.code];
-      const pcode = r.parentCode || null;
-      if (pcode && map[pcode]) {
-        map[pcode].children.push(node);
-      } else {
-        roots.push(node);
-      }
-    });
+  const roots = [];
+  list.forEach((r) => {
+    const node = map[r.code];
+    const pcode = r.parentCode || null;
+    if (pcode && map[pcode]) {
+      map[pcode].children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
 
-    return roots;
-  }, [list]);
+  // Sort ทุก level ตาม index ที่ backend ส่งมา
+  const sortChildren = (node) => {
+    node.children.sort((a, b) => a._idx - b._idx);
+    node.children.forEach(sortChildren);
+    return node;
+  };
 
+  return roots.sort((a, b) => a._idx - b._idx).map(sortChildren);
+}, [list]);
   // Filter tree: เฉพาะ level 4 และ 5 เท่านั้น
   const filteredTree = useMemo(() => {
     const collect = (node) => {

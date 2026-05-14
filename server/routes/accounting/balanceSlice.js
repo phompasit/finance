@@ -21,38 +21,111 @@ const router = express.Router();
 /* ============================================================================
    🔒 SECURITY: Input Validation & Sanitization
 ============================================================================ */
-function sortByAccountCode(a, b) {
-  const getIndex = (code) => {
-    const codeStr = String(code).trim();
-    
-    // ลองหา exact match ก่อน
-    let idx = CHART_ORDER.indexOf(codeStr);
-    if (idx !== -1) return { idx, sub: "" };
-    
-    // ถ้าไม่เจอ หา parent ที่ใกล้ที่สุด (ตัดจาก . หรือตัวสุดท้าย)
-    // เช่น "1012.01" → ลอง "1012" ก่อน
-    const dotIdx = codeStr.lastIndexOf(".");
-    if (dotIdx !== -1) {
-      const parent = codeStr.substring(0, dotIdx);
-      const parentIdx = CHART_ORDER.indexOf(parent);
-      if (parentIdx !== -1) {
-        // ใช้ sub เป็น suffix เพื่อ sort ลำดับลูก
-        return { idx: parentIdx, sub: codeStr.substring(dotIdx) };
-      }
+// สร้าง comparator จาก path cache ที่ build ไว้ล่วงหน้า
+function createAccountComparator(accounts) {
+  const accountInfoMap = new Map(
+    accounts.map((item) => [
+      String(item.code).trim(),
+      {
+        code: String(item.code).trim(),
+        parentCode: item.parentCode ? String(item.parentCode).trim() : null,
+      },
+    ])
+  );
+  console.log("241 index:", CHART_ORDER.indexOf("241")); // -1 ไม่มี!
+  console.log("284 index:", CHART_ORDER.indexOf("284")); // -1 ไม่มี!
+  console.log("24 index:", CHART_ORDER.indexOf("24")); // มี
+  console.log("28 index:", CHART_ORDER.indexOf("28")); // มี
+  const pathCache = new Map();
+
+  const getSortPath = (codeStr) => {
+    const path = [];
+    let current = accountInfoMap.get(codeStr);
+
+    if (!current) {
+      return [codeStr]; // unknown code → sort by itself
     }
-    
-    // fallback: ไม่เจอเลย → ดัน ไปท้ายสุด
-    return { idx: Number.MAX_SAFE_INTEGER, sub: codeStr };
+
+    const visited = new Set();
+    while (current) {
+      if (visited.has(current.code)) break;
+      visited.add(current.code);
+      path.unshift(current.code);
+      current = current.parentCode
+        ? accountInfoMap.get(current.parentCode) ?? null
+        : null;
+    }
+
+    return path; // e.g. ['1', '12', '121', '1211', '1211.01']
   };
 
-  const a_ = getIndex(a.code);
-  const b_ = getIndex(b.code);
+  const getPath = (code) => {
+    if (!pathCache.has(code)) pathCache.set(code, getSortPath(code));
+    return pathCache.get(code);
+  };
 
-  if (a_.idx !== b_.idx) return a_.idx - b_.idx;
-  
-  // ถ้า parent เดียวกัน sort ตาม sub string
-  return a_.sub.localeCompare(b_.sub, undefined, { numeric: true });
+  // หา CHART_ORDER index โดย fallback ขึ้น parent จนกว่าจะเจอ
+  // ใส่ใน getChartIndex ชั่วคราว เพื่อดู traverse path
+  const getChartIndex = (code) => {
+    let current = accountInfoMap.get(code);
+    const visited = new Set();
+    const traversePath = [code];
+
+    while (current) {
+      if (visited.has(current.code)) break;
+      visited.add(current.code);
+
+      const idx = CHART_ORDER.indexOf(current.code);
+      if (idx !== -1) return idx;
+
+      traversePath.push(current.parentCode ?? "NULL");
+      current = current.parentCode
+        ? accountInfoMap.get(current.parentCode) ?? null
+        : null;
+    }
+
+    console.log(
+      `getChartIndex MISS: ${code} → path: ${traversePath.join(" → ")}`
+    );
+    return Number.MAX_SAFE_INTEGER;
+  };
+
+  // ทดสอบ
+  console.log("2418.01 chartIdx:", getChartIndex("2418.01"));
+  console.log("2841.01 chartIdx:", getChartIndex("2841.01"));
+const compareSegment = (codeA, codeB) => {
+  // ลอง CHART_ORDER ตรงๆ ก่อน (สำหรับ path nodes ทุก level)
+  const idxA = CHART_ORDER.indexOf(codeA);
+  const idxB = CHART_ORDER.indexOf(codeB);
+
+  if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+  if (idxA !== -1) return -1;
+  if (idxB !== -1) return 1;
+
+  // ทั้งคู่ไม่อยู่ใน CHART_ORDER → fallback getChartIndex
+  const chartA = getChartIndex(codeA);
+  const chartB = getChartIndex(codeB);
+  if (chartA !== chartB) return chartA - chartB;
+
+  return codeA.localeCompare(codeB, undefined, { numeric: true });
+};
+
+  return (a, b) => {
+    const pathA = getPath(String(a.code).trim());
+    const pathB = getPath(String(b.code).trim());
+
+    const len = Math.min(pathA.length, pathB.length);
+    for (let i = 0; i < len; i++) {
+      if (pathA[i] === pathB[i]) continue;
+      return compareSegment(pathA[i], pathB[i]);
+    }
+
+    // parent มาก่อน child เสมอ
+    return pathA.length - pathB.length;
+  };
 }
+// การใช้งาน
+
 /**
  * Validate and sanitize year parameter
  */
@@ -316,6 +389,7 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
     /* ===============================
        6) ROLL UP & CALCULATE
     =============================== */
+    const sortComparator = createAccountComparator(accounts);
     const childrenMap = buildTree(rows);
     rollUp(rows, childrenMap);
     computeEnding(rows);
@@ -329,7 +403,16 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
           r.endingDr !== 0 ||
           r.endingCr !== 0
       )
-      .sort(sortByAccountCode);
+      .sort(sortComparator);
+
+    console.log(
+      "Sample rows:",
+      list.slice(0, 5).map((r) => ({
+        code: r.code,
+        parentCode: r.parentCode, // ← มีไหม?
+        level: r.level,
+      }))
+    );
     function calculateTotals(list) {
       return list.reduce(
         (sum, r) => {
@@ -357,7 +440,6 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
     }
     // ✅ Leaf = code ที่ไม่ใช่ parent ของใคร
     // ✅ ดึง parentCodes จาก rows ทั้งหมด (ก่อน filter)
-    console.log(list);
     const leafList = list
       .filter((r) => {
         const isLevel4or5 = r.level === 4 || r.level === 5;
@@ -370,7 +452,7 @@ router.get("/detailed-balance", authenticate, async (req, res) => {
           r.openingCr !== 0;
         return isLevel4or5 && net;
       })
-      .sort(sortByAccountCode);
+      .sort(sortComparator);
 
     const totals = calculateTotals(leafList);
     /* ===============================
@@ -645,7 +727,7 @@ router.get("/balance_after", authenticate, async (req, res) => {
     const childrenMap = buildTree(rows);
     rollUp(rows, childrenMap);
     computeEnding(rows);
-
+    const sortComparator = createAccountComparator(accounts);
     /* ================= Output List ================= */
     const list = Object.values(rows)
       .filter(
@@ -657,7 +739,7 @@ router.get("/balance_after", authenticate, async (req, res) => {
           r.endingDr ||
           r.endingCr
       )
-      .sort(sortByAccountCode);
+      .sort(sortComparator);
     /* ================= Calculate Totals (Leaf Only ✅) ================= */
 
     function calculateTotals(list) {
@@ -706,7 +788,7 @@ router.get("/balance_after", authenticate, async (req, res) => {
           r.openingCr !== 0;
         return isLevel4or5 && net;
       })
-      .sort(sortByAccountCode);
+      .sort(sortComparator);
 
     // ✅ Totals leaf only
     const totals = calculateTotals(leafList);
@@ -928,7 +1010,7 @@ router.get(
           if (!level5ByParent[r.parentCode]) level5ByParent[r.parentCode] = [];
           level5ByParent[r.parentCode].push(r);
         });
-
+      const sortComparator = createAccountComparator(accounts);
       const list = Object.values(rows)
         .filter((r) => {
           const isLevel4or5 = r.level === 4 || r.level === 5;
@@ -962,7 +1044,7 @@ router.get(
           }
           return r;
         })
-        .sort(sortByAccountCode);
+        .sort(sortComparator);
       let balance = 0;
       balance = totals.endingCr - totals.endingDr;
 

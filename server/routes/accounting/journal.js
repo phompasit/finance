@@ -177,7 +177,7 @@ async function blockClosedJournal(req, res, next) {
 
       return res.status(403).json({
         success: false,
-        error: "❌ ปีนี้ปิดบัญชีแล้ว ไม่สามารถแก้ไขหรือลบได้",
+        error: `❌ ປີ ${year} ຖືກປິດໄປແລ້ວ ກະລຸນາລະບຸປີຖັດໄປ`,
       });
     }
 

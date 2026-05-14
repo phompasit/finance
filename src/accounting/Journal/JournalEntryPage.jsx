@@ -93,13 +93,15 @@ const JournalEntryPage = () => {
   }, []);
 
   const getMonthRange = (year, month) => {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0); // วันสุดท้ายของเดือน
+    // ใช้ padStart แทน new Date() เพื่อหลีกเลี่ยงปัญหา timezone
+    const lastDay = new Date(year, month, 0).getDate(); // วันสุดท้ายของเดือน
 
-    return {
-      startDate: startDate.toISOString().slice(0, 10),
-      endDate: endDate.toISOString().slice(0, 10),
-    };
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const endDate = `${year}-${String(month).padStart(2, "0")}-${String(
+      lastDay
+    ).padStart(2, "0")}`;
+
+    return { startDate, endDate };
   };
 
   const [printModalOpen, setPrintModalOpen] = useState(false);
@@ -456,7 +458,7 @@ const JournalEntryPage = () => {
                       <IconButton
                         aria-label="edit"
                         icon={<Edit size={14} />}
-                        isDisabled={isReadOnlyYear}
+                        // isDisabled={isReadOnlyYear}
                         size="sm"
                         onClick={() => {
                           navigate("/journal_add&edit", {
@@ -478,7 +480,7 @@ const JournalEntryPage = () => {
                       <IconButton
                         aria-label="delete"
                         icon={<Trash2 size={14} />}
-                        isDisabled={isReadOnlyYear}
+                        // isDisabled={isReadOnlyYear}
                         size="sm"
                         colorScheme="red"
                         onClick={() => handleDelete(j._id)}
