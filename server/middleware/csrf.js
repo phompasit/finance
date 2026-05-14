@@ -21,7 +21,10 @@ export const csrfProtection = (req, res, next) => {
 
   // POST/PATCH/DELETE → validate
   if (!secret || !token || !tokens.verify(secret, token)) {
-    return res.status(403).json({ message: "ກະລຸນາ refresh browser !" });
+    return res.status(403).json({
+      message: "ກະລຸນາ refresh browser !",
+      code: "INVALID_CSRF_TOKEN", // ✅ เพิ่มอันนี้
+    });
   }
   next();
 };
