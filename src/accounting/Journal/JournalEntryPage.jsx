@@ -52,7 +52,7 @@ import pdfJournal from "../PDF/pdf";
 import { useAuth } from "../../context/AuthContext";
 import journalPdfTemplate from "./journalPdfTemplate";
 import LedgerLoading from "../../components/Loading";
-
+import journalExcelTemplate from "./journalExcelTemplate";
 const PAGE_SIZES = [10, 25, 50];
 
 const JournalEntryPage = () => {
@@ -253,9 +253,14 @@ const JournalEntryPage = () => {
             colorScheme="green"
             onClick={() => journalPdfTemplate({ data: journals, user })}
           >
-            Print
+            Print PDF
           </Button>
-
+jsx<Button
+  colorScheme="teal"
+  onClick={() => journalExcelTemplate({ data: journals, user })}
+>
+  Export Excel
+</Button>
           <Button
             leftIcon={<Plus size={16} />}
             colorScheme="blue"

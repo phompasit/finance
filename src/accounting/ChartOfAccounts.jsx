@@ -58,7 +58,8 @@ import {
 import Swal from "sweetalert2";
 import LedgerLoading from "../components/Loading";
 import { blockedCodesForChartAccount } from "./Journal/Chart";
-
+import accountExcelTemplate from "./PDF/accountExcelTemplate";
+import { useAuth } from "../context/AuthContext";
 /**
  * Chart of Accounts with explicit Cost-of-Goods-Sold / Distribution / Administrative grouping.
  *
@@ -214,7 +215,7 @@ const ChartOfAccountsWithCostCenters = () => {
     successMessage,
     errorMessage,
   } = useSelector((s) => s.chartAccount || {});
-
+  const {user}=useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [expanded, setExpanded] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
@@ -498,6 +499,12 @@ const ChartOfAccountsWithCostCenters = () => {
 
           <HStack spacing={3}>
             <Button
+  colorScheme="teal"
+  onClick={() => accountExcelTemplate({ data: accounts, user })}
+>
+  Export Excel
+</Button>
+            <Button
               leftIcon={<Plus size={18} />}
               colorScheme="blue"
               onClick={handleOpenAdd}
@@ -505,6 +512,7 @@ const ChartOfAccountsWithCostCenters = () => {
             >
               ເພີ່ມເລກໝາຍບັນຊີ
             </Button>
+
           </HStack>
         </Flex>
 
